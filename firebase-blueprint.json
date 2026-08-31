@@ -1,0 +1,26 @@
+{
+  "entities": {
+    "articles": {
+      "title": "News Articles",
+      "description": "Collection of news articles shared between Viewer and Admin sites",
+      "fields": {
+        "title": { "type": "string", "required": true },
+        "titleEn": { "type": "string" },
+        "summary": { "type": "string", "required": true },
+        "summaryEn": { "type": "string" },
+        "content": { "type": "string", "required": true },
+        "category": { "type": "string", "required": true },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "imageUrl": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "author": { "type": "string" },
+        "publishedAt": { "type": "string" },
+        "isBreaking": { "type": "boolean" },
+        "isAiGenerated": { "type": "boolean" },
+        "viewsCount": { "type": "number" },
+        "readTimeMinutes": { "type": "number" },
+        "comments": { "type": "array" }
+      }
+    }
+  }
+}

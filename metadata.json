@@ -1,0 +1,6 @@
+{
+  "name": "THE RECAP MEDIA CAST LTD",
+  "description": "THE RECAP MEDIA CAST LTD - Real-Time News Portal & AI-Powered Admin Studio",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
