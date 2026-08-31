@@ -46,10 +46,11 @@ import {
   CreditCard,
   Wallet
 } from 'lucide-react';
-import { NewsArticle, Category, Language, AnalyticsOverview, WriterProfile, SystemNotification, WithdrawalRequest } from '../types';
+import { NewsArticle, Category, Language, AnalyticsOverview, WriterProfile, SystemNotification, WithdrawalRequest, ArticleAuthenticityResult } from '../types';
 import { getTranslation } from '../utils/i18n';
 import { renderFormattedContent } from '../utils/formatContent';
 import { BloggerRichEditor } from './BloggerRichEditor';
+import { BotProtectionModal } from './BotProtection';
 
 interface WritersPortalProps {
   articles: NewsArticle[];
@@ -153,6 +154,16 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   // AI image generation inside Create Post
   const [aiImagePrompt, setAiImagePrompt] = useState('');
   const [isAiImageGenerating, setIsAiImageGenerating] = useState(false);
+
+  // Gemini Fact-Checking & Duplicate / Social Media Copy Verification State
+  const [authenticityResult, setAuthenticityResult] = useState<ArticleAuthenticityResult | null>(null);
+  const [isVerifyingAuthenticity, setIsVerifyingAuthenticity] = useState<boolean>(false);
+  const [authenticityError, setAuthenticityError] = useState<string>('');
+
+  // Cloudflare & reCAPTCHA Bot Protection modal state
+  const [showBotModal, setShowBotModal] = useState<boolean>(false);
+  const [botModalActionTitle, setBotModalActionTitle] = useState<string>('নিরাপত্তা ও বট প্রতিরোধ যাচাই');
+  const [botSuccessCallback, setBotSuccessCallback] = useState<(() => void) | null>(null);
 
   // Real-time Analytics state
   const [analytics, setAnalytics] = useState<AnalyticsOverview>({
@@ -380,6 +391,50 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     }
   };
 
+  // Gemini AI Fact-Checking & Duplicate / Social Media Copy Verification
+  const handleRunAuthenticityCheck = async () => {
+    if (!postTitle.trim() || !postContent.trim()) {
+      setAuthenticityError('যাচাই করার জন্য সংবাদের শিরোনাম ও বিবরণ লেখা প্রয়োজন।');
+      return;
+    }
+
+    setIsVerifyingAuthenticity(true);
+    setAuthenticityError('');
+    try {
+      const res = await fetch('/api/gemini/verify-article-authenticity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: postTitle,
+          summary: postSummary,
+          content: postContent,
+          category: postCategory,
+          imageUrl: postImageUrl,
+          videoUrl: postVideoUrl,
+          authorName: writerProfile?.name || 'প্রতিবেদক',
+          existingArticles: articles.slice(0, 15).map(a => ({
+            id: a.id,
+            title: a.title,
+            summary: a.summary,
+            imageUrl: a.imageUrl,
+          })),
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Verification request failed');
+      }
+
+      const data: ArticleAuthenticityResult = await res.json();
+      setAuthenticityResult(data);
+    } catch (err: any) {
+      console.error('Authenticity check error:', err);
+      setAuthenticityError('এআই যাচাই সম্পন্ন করতে সমস্যা হয়েছে। দয়া করে পুনরায় চেষ্টা করুন।');
+    } finally {
+      setIsVerifyingAuthenticity(false);
+    }
+  };
+
   // Step 1 -> Step 2 transition
   const handleProceedToStep2 = () => {
     setEditorError('');
@@ -394,11 +449,26 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     setCreateStep(2);
   };
 
-  // Publish Post Handler
+  // Publish Post Handler with Bot protection check
   const handlePublishPost = (e: React.FormEvent) => {
     e.preventDefault();
     if (!postTitle.trim() || !postContent.trim()) return;
 
+    // Check if human verification is required
+    const isHumanVerified = sessionStorage.getItem('recap_human_verified') === 'true';
+    if (!isHumanVerified) {
+      setBotModalActionTitle('সংবাদ প্রকাশের জন্য Cloudflare & reCAPTCHA মানবীয় যাচাই');
+      setBotSuccessCallback(() => () => {
+        executePublishPost();
+      });
+      setShowBotModal(true);
+      return;
+    }
+
+    executePublishPost();
+  };
+
+  const executePublishPost = () => {
     const authorName = `${writerProfile?.name || 'লেখক'}${shareNameUnderPost ? ' (প্রতিবেদক)' : ''}`;
 
     onAddArticle({
@@ -424,6 +494,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     setPostTitle('');
     setPostSummary('');
     setPostContent('');
+    setAuthenticityResult(null);
     setCreateStep(1);
   };
 
@@ -1087,6 +1158,149 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                 <label htmlFor="step2BreakingCheck" className="text-xs font-bold text-red-600 dark:text-red-400">
                   ব্রেকিং নিউজ হিসেবে সাইটের টপ মার্কিতে দেখান
                 </label>
+              </div>
+
+              {/* Gemini AI Fact-Checking, Plagiarism & Social Media Copy Inspection Box */}
+              <div className="p-4 sm:p-5 bg-gradient-to-br from-indigo-50/70 to-purple-50/70 dark:from-indigo-950/40 dark:to-purple-950/40 rounded-2xl border-2 border-indigo-200 dark:border-indigo-800/60 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400 animate-pulse" />
+                      <h4 className="text-xs font-extrabold text-indigo-900 dark:text-indigo-200 uppercase tracking-wide">
+                        Gemini AI ফ্যাক্ট-চেকিং ও ডুপ্লিকেট কনটেন্ট যাচাই
+                      </h4>
+                    </div>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                      প্রকাশের পূর্বে ডুপ্লিকেট লেখা, সোশ্যাল মিডিয়া (Facebook/YouTube/TikTok) কপি ও সংবাদের সত্যতা যাচাই করুন।
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleRunAuthenticityCheck}
+                    disabled={isVerifyingAuthenticity}
+                    className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-600/30 flex items-center justify-center gap-2 shrink-0 transition-all cursor-pointer"
+                  >
+                    <Sparkles className={`w-3.5 h-3.5 ${isVerifyingAuthenticity ? 'animate-spin' : ''}`} />
+                    {isVerifyingAuthenticity ? 'যাচাই চলছে...' : 'এআই দিয়ে পোস্ট যাচাই করুন'}
+                  </button>
+                </div>
+
+                {authenticityError && (
+                  <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{authenticityError}</span>
+                  </div>
+                )}
+
+                {authenticityResult && (
+                  <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-900/50 space-y-3.5 shadow-sm animate-fade-in">
+                    {/* Score and Status Header */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-mono font-black text-sm text-white ${
+                          authenticityResult.credibilityScore >= 75
+                            ? 'bg-emerald-600'
+                            : authenticityResult.credibilityScore >= 50
+                            ? 'bg-amber-600'
+                            : 'bg-red-600'
+                        }`}>
+                          {authenticityResult.credibilityScore}%
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-gray-400 font-bold uppercase block">নির্ভরযোগ্যতা স্কোর</span>
+                          <span className="text-xs font-extrabold text-slate-900 dark:text-white">
+                            {authenticityResult.credibilityScore >= 75 ? 'উচ্চ গ্রহণযোগ্যতা (High Credibility)' : 'সতর্কতা সহ গ্রহণযোগ্য (Review Required)'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {authenticityResult.status === 'APPROVED' && (
+                          <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold text-xs rounded-lg border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                            <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> প্রকাশের জন্য অনুমোদিত
+                          </span>
+                        )}
+                        {authenticityResult.status === 'FLAGGED_DUPLICATE' && (
+                          <span className="px-3 py-1 bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 font-bold text-xs rounded-lg border border-red-300 dark:border-red-800 flex items-center gap-1">
+                            <AlertCircle className="w-3.5 h-3.5 text-red-600" /> ডুপ্লিকেট বা কপি কনটেন্ট
+                          </span>
+                        )}
+                        {authenticityResult.status === 'NEEDS_REVIEW' && (
+                          <span className="px-3 py-1 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-bold text-xs rounded-lg border border-amber-300 dark:border-amber-800 flex items-center gap-1">
+                            <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> পুনর্বিবেচনা প্রয়োজন
+                          </span>
+                        )}
+                        {authenticityResult.status === 'REJECTED' && (
+                          <span className="px-3 py-1 bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 font-bold text-xs rounded-lg border border-red-300 dark:border-red-800 flex items-center gap-1">
+                            <X className="w-3.5 h-3.5 text-red-600" /> প্রকাশ অনুপযুক্ত
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Duplicate & Social Rips Details */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div className={`p-3 rounded-xl border ${
+                        authenticityResult.isDuplicate 
+                          ? 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900 text-red-900 dark:text-red-200' 
+                          : 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900 text-emerald-900 dark:text-emerald-200'
+                      }`}>
+                        <span className="font-bold block text-[11px] uppercase tracking-wider mb-1">
+                          📋 ডুপ্লিকেট কনটেন্ট স্ট্যাটাস:
+                        </span>
+                        {authenticityResult.isDuplicate ? (
+                          <p className="text-[11px] leading-relaxed">
+                            ⚠️ মিল পাওয়া গেছে: <strong>{authenticityResult.duplicateMatchTitle || 'পূর্বের প্রকাশিত সংবাদের সাথে মিল রয়েছে'}</strong> ({authenticityResult.duplicateConfidencePercent}% সাদৃশ্য)
+                          </p>
+                        ) : (
+                          <p className="text-[11px] leading-relaxed">
+                            ✅ কোনো ডুপ্লিকেট বা পূর্বের লেখার হুবহু মিল পাওয়া যায়নি (অনন্য সংবাদ)।
+                          </p>
+                        )}
+                      </div>
+
+                      <div className={`p-3 rounded-xl border ${
+                        authenticityResult.isSocialMediaRipped 
+                          ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200' 
+                          : 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900 text-emerald-900 dark:text-emerald-200'
+                      }`}>
+                        <span className="font-bold block text-[11px] uppercase tracking-wider mb-1">
+                          🌐 সোশ্যাল মিডিয়া সোর্স স্ট্যাটাস:
+                        </span>
+                        {authenticityResult.isSocialMediaRipped ? (
+                          <p className="text-[11px] leading-relaxed">
+                            ⚠️ সোশ্যাল মিডিয়া ({authenticityResult.socialMediaPlatformDetected || 'Facebook/YouTube'}) থেকে সংগৃহীত। সঠিক ক্রেডিট ও তথ্যের সত্যতা নিশ্চিত করুন।
+                          </p>
+                        ) : (
+                          <p className="text-[11px] leading-relaxed">
+                            ✅ সোশ্যাল মিডিয়া থেকে সরাসরি কপি করা নয় অথবা যথাযথ সূত্র সংযোজিত।
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Editorial Advice & Fact-Checking Points */}
+                    {authenticityResult.issuesFound?.length > 0 && (
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 text-xs space-y-1.5">
+                        <span className="font-bold text-red-600 dark:text-red-400 block text-[11px]">
+                          সংশোধনযোগ্য বিষয়সমূহ:
+                        </span>
+                        <ul className="list-disc pl-4 space-y-1 text-slate-700 dark:text-slate-300 text-[11px]">
+                          {authenticityResult.issuesFound.map((issue, idx) => (
+                            <li key={idx}>{issue}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {authenticityResult.editorialAdvice && (
+                      <div className="text-xs text-slate-600 dark:text-slate-400 italic bg-indigo-50/50 dark:bg-indigo-950/30 p-2.5 rounded-lg border border-indigo-100 dark:border-indigo-900/40">
+                        <strong>চিফ এডিটরিয়াল মন্তব্য:</strong> "{authenticityResult.editorialAdvice}"
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Final Submit Button */}
@@ -1854,6 +2068,23 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           </div>
         </div>
       )}
+
+      {/* Cloudflare & reCAPTCHA Bot Protection Modal */}
+      <BotProtectionModal
+        isOpen={showBotModal}
+        actionTitle={botModalActionTitle}
+        onSuccess={() => {
+          setShowBotModal(false);
+          if (botSuccessCallback) {
+            botSuccessCallback();
+            setBotSuccessCallback(null);
+          }
+        }}
+        onClose={() => {
+          setShowBotModal(false);
+          setBotSuccessCallback(null);
+        }}
+      />
     </div>
   );
 };

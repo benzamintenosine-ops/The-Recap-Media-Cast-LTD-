@@ -11,6 +11,8 @@ import { AdminPortal } from './components/AdminPortal';
 import { SystemAdminPortal } from './components/SystemAdminPortal';
 import { ArticleModal } from './components/ArticleModal';
 import { UserProfileModal } from './components/UserProfileModal';
+import { AdBlockerDetector } from './components/AdBlockerDetector';
+import { CloudflareSecurityBadge } from './components/BotProtection';
 import { NewsArticle, Category, Language, UserProfile, SiteSettings, WriterProfile, WithdrawalRequest, SystemNotification, CategoryConfig } from './types';
 
 const DEFAULT_CATEGORIES: CategoryConfig[] = [
@@ -554,6 +556,12 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* Global AdBlocker & Private DNS Detection Overlay */}
+      <AdBlockerDetector />
+
+      {/* Global Cloudflare & reCAPTCHA Bot Protection Badge */}
+      <CloudflareSecurityBadge />
     </div>
   );
 }

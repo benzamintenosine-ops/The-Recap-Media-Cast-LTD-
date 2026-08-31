@@ -182,3 +182,18 @@ export interface AgentLog {
   status: 'success' | 'failed' | 'generating';
   details: string;
 }
+
+export interface ArticleAuthenticityResult {
+  isDuplicate: boolean;
+  duplicateMatchTitle?: string;
+  duplicateConfidencePercent: number;
+  isSocialMediaRipped: boolean;
+  socialMediaPlatformDetected?: string;
+  factCheckVerdict: 'VERIFIED' | 'QUESTIONABLE' | 'UNVERIFIED_RUMOR' | 'MISLEADING' | 'PLAGIARIZED';
+  credibilityScore: number; // 0 - 100
+  status: 'APPROVED' | 'NEEDS_REVIEW' | 'FLAGGED_DUPLICATE' | 'REJECTED';
+  issuesFound: string[];
+  positivePoints: string[];
+  editorialAdvice: string;
+  checkedAt: string;
+}
