@@ -147,13 +147,32 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   // Image upload state & validation
   const [imageSizeError, setImageSizeError] = useState('');
 
-  // AI text generation inside Create Post
-  const [aiTextPrompt, setAiTextPrompt] = useState('');
-  const [isAiTextGenerating, setIsAiTextGenerating] = useState(false);
+  // Daily Post Limit: Maximum 10 posts per day per writer
+  const DAILY_POST_LIMIT = 10;
 
-  // AI image generation inside Create Post
-  const [aiImagePrompt, setAiImagePrompt] = useState('');
-  const [isAiImageGenerating, setIsAiImageGenerating] = useState(false);
+  const getTodayPostsCount = () => {
+    if (!writerProfile?.name) return 0;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const writerNameLower = writerProfile.name.trim().toLowerCase();
+    
+    // Count from live articles list
+    const fromArticles = articles.filter(a => {
+      if (!a.publishedAt) return false;
+      const artDate = a.publishedAt.split('T')[0];
+      const artAuthor = (a.author || '').toLowerCase();
+      return artDate === todayStr && artAuthor.includes(writerNameLower);
+    }).length;
+
+    try {
+      const stored = parseInt(localStorage.getItem(`recap_daily_posts_${writerNameLower}_${todayStr}`) || '0', 10);
+      return Math.max(fromArticles, stored);
+    } catch {
+      return fromArticles;
+    }
+  };
+
+  const todayPostsCount = getTodayPostsCount();
+  const isDailyLimitReached = todayPostsCount >= DAILY_POST_LIMIT;
 
   // Gemini Fact-Checking & Duplicate / Social Media Copy Verification State
   const [authenticityResult, setAuthenticityResult] = useState<ArticleAuthenticityResult | null>(null);
@@ -311,36 +330,6 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     localStorage.removeItem('recap_writer_logged');
   };
 
-  // AI Text Generator inside Create Post
-  const handleGenerateAiText = async () => {
-    if (!aiTextPrompt.trim() && !postTitle.trim()) {
-      alert('অনুগ্রহ করে সংবাদের বিষয়বস্তু বা শিরোনাম লিখুন!');
-      return;
-    }
-    setIsAiTextGenerating(true);
-    try {
-      const res = await fetch('/api/gemini/generate-article', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          topic: aiTextPrompt || postTitle,
-          category: postCategory,
-          language: 'bn',
-          targetKeywords: postTags.join(', ')
-        })
-      });
-      const data = await res.json();
-      if (data.title && !postTitle) setPostTitle(data.title);
-      if (data.summary) setPostSummary(data.summary);
-      if (data.content) setPostContent(data.content);
-      if (data.tags && data.tags.length > 0) setPostTags(data.tags);
-    } catch (err) {
-      console.error('AI Text error:', err);
-    } finally {
-      setIsAiTextGenerating(false);
-    }
-  };
-
   // Image Upload handler with 500KB Minimum File Size Validation
   const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     setImageSizeError('');
@@ -361,34 +350,6 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       }
     };
     reader.readAsDataURL(file);
-  };
-
-  // AI Image Generator inside Create Post
-  const handleGenerateAiImage = async () => {
-    if (!aiImagePrompt.trim() && !postTitle.trim()) {
-      alert('অনুগ্রহ করে ছবির বিবরণ বা সংবাদের শিরোনাম লিখুন!');
-      return;
-    }
-    setIsAiImageGenerating(true);
-    try {
-      const res = await fetch('/api/gemini/generate-poster', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: aiImagePrompt || postTitle,
-          category: postCategory,
-          style: 'News Editorial Banner'
-        })
-      });
-      const data = await res.json();
-      if (data.imageUrl) {
-        setPostImageUrl(data.imageUrl);
-      }
-    } catch (err) {
-      console.error('AI image error:', err);
-    } finally {
-      setIsAiImageGenerating(false);
-    }
   };
 
   // Gemini AI Fact-Checking & Duplicate / Social Media Copy Verification
@@ -438,6 +399,10 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   // Step 1 -> Step 2 transition
   const handleProceedToStep2 = () => {
     setEditorError('');
+    if (todayPostsCount >= DAILY_POST_LIMIT) {
+      setEditorError(`আপনি আজকের জন্য সর্বোচ্চ ${DAILY_POST_LIMIT}টি পোস্টের কোটা পূর্ণ করেছেন। নতুন পোস্টের জন্য অনুগ্রহ করে আগামীকাল চেষ্টা করুন।`);
+      return;
+    }
     if (!postTitle.trim()) {
       setEditorError('সংবাদের শিরোনাম লেখা বাধ্যতামূলক!');
       return;
@@ -454,6 +419,11 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     e.preventDefault();
     if (!postTitle.trim() || !postContent.trim()) return;
 
+    if (getTodayPostsCount() >= DAILY_POST_LIMIT) {
+      setEditorError(`আপনি আজকের জন্য সর্বোচ্চ ${DAILY_POST_LIMIT}টি পোস্টের কোটা পূর্ণ করেছেন।`);
+      return;
+    }
+
     // Check if human verification is required
     const isHumanVerified = sessionStorage.getItem('recap_human_verified') === 'true';
     if (!isHumanVerified) {
@@ -469,6 +439,12 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   };
 
   const executePublishPost = () => {
+    const currentTodayCount = getTodayPostsCount();
+    if (currentTodayCount >= DAILY_POST_LIMIT) {
+      setEditorError(`আপনি আজকের জন্য সর্বোচ্চ ${DAILY_POST_LIMIT}টি পোস্টের কোটা পূর্ণ করেছেন। নতুন পোস্টের জন্য অনুগ্রহ করে আগামীকাল চেষ্টা করুন।`);
+      return;
+    }
+
     const authorName = `${writerProfile?.name || 'লেখক'}${shareNameUnderPost ? ' (প্রতিবেদক)' : ''}`;
 
     onAddArticle({
@@ -486,6 +462,13 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       comments: [],
       readTimeMinutes: Math.max(2, Math.ceil(postContent.length / 400)),
     });
+
+    // Update today's post quota counter
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const writerNameLower = (writerProfile?.name || 'writer').trim().toLowerCase();
+      localStorage.setItem(`recap_daily_posts_${writerNameLower}_${todayStr}`, (currentTodayCount + 1).toString());
+    } catch {}
 
     setPostSuccessMessage('সংবাদ পোস্টটি সফলভাবে লাইভ প্রকাশিত হয়েছে!');
     setTimeout(() => setPostSuccessMessage(''), 4000);
@@ -951,6 +934,42 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           {/* STEP 1: Main Content Editor Canvas */}
           {createStep === 1 && (
             <div className="p-6 sm:p-8 space-y-6">
+              {/* Daily Post Quota Counter Card */}
+              <div className={`p-4 rounded-2xl border ${
+                isDailyLimitReached 
+                  ? 'bg-red-50 dark:bg-red-950/60 border-red-200 dark:border-red-900 text-red-700 dark:text-red-300' 
+                  : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200'
+              }`}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2 font-bold text-xs">
+                    <span className={`w-2.5 h-2.5 rounded-full ${isDailyLimitReached ? 'bg-red-500 animate-ping' : 'bg-emerald-500'}`} />
+                    <span>দৈনিক পোস্ট কোটা (Daily Post Quota):</span>
+                    <span className="font-extrabold text-sm px-2.5 py-0.5 rounded-lg bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
+                      {todayPostsCount} / {DAILY_POST_LIMIT} টি
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {isDailyLimitReached 
+                      ? '⚠️ আজকের সীমা পূর্ণ! অনুগ্রহ করে আগামীকাল পোস্ট করুন।' 
+                      : `আপনি আজ আরও ${DAILY_POST_LIMIT - todayPostsCount}টি পোস্ট করতে পারবেন`}
+                  </span>
+                </div>
+                
+                {/* Progress bar */}
+                <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-500 ${
+                      isDailyLimitReached 
+                        ? 'bg-red-500' 
+                        : todayPostsCount >= 8 
+                        ? 'bg-amber-500' 
+                        : 'bg-emerald-500'
+                    }`}
+                    style={{ width: `${Math.min(100, (todayPostsCount / DAILY_POST_LIMIT) * 100)}%` }}
+                  />
+                </div>
+              </div>
+
               {/* Headline Box */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
@@ -976,18 +995,14 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                 <BloggerRichEditor
                   value={postContent}
                   onChange={(html) => setPostContent(html)}
-                  aiPrompt={aiTextPrompt}
-                  onAiPromptChange={setAiTextPrompt}
-                  onGenerateAiText={handleGenerateAiText}
-                  isAiGenerating={isAiTextGenerating}
                   minHeight="500px"
                 />
               </div>
 
-              {/* Image Upload & AI Image Tools */}
+              {/* Image Upload & Featured Image Tools */}
               <div className="space-y-3 pt-2">
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  সংবাদের প্রচ্ছদ ছবি (Featured Image Tools)
+                  সংবাদের প্রচ্ছদ ছবি (Featured Image)
                 </label>
 
                 {imageSizeError && (
@@ -1016,29 +1031,18 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                     />
                   </div>
 
-                  {/* Tool 2: AI Image Generator */}
+                  {/* Tool 2: Web Image URL */}
                   <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2">
                     <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                      <ImageIcon className="w-4 h-4 text-purple-400" /> AI দিয়ে কন্টেন্ট ভিত্তিক ছবি তৈরি
+                      <ImageIcon className="w-4 h-4 text-red-500" /> ছবির ওয়েব লিঙ্ক / URL
                     </span>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={aiImagePrompt}
-                        onChange={(e) => setAiImagePrompt(e.target.value)}
-                        placeholder="ছবির বিবরণ (Prompt)..."
-                        className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleGenerateAiImage}
-                        disabled={isAiImageGenerating}
-                        className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1 shrink-0"
-                      >
-                        {isAiImageGenerating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5" />}
-                        তৈরি করুন
-                      </button>
-                    </div>
+                    <input
+                      type="url"
+                      value={postImageUrl}
+                      onChange={(e) => setPostImageUrl(e.target.value)}
+                      placeholder="https://example.com/image.jpg"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                    />
                   </div>
                 </div>
 

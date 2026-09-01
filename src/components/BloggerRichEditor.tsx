@@ -8,28 +8,18 @@ import {
   Highlighter,
   List,
   ListOrdered,
-  RemoveFormatting,
-  Sparkles,
-  RefreshCw
+  RemoveFormatting
 } from 'lucide-react';
 
 interface RichTextEditorProps {
   value: string;
   onChange: (html: string) => void;
-  aiPrompt: string;
-  onAiPromptChange: (val: string) => void;
-  onGenerateAiText: () => void;
-  isAiGenerating: boolean;
   minHeight?: string;
 }
 
 export const BloggerRichEditor: React.FC<RichTextEditorProps> = ({
   value,
   onChange,
-  aiPrompt,
-  onAiPromptChange,
-  onGenerateAiText,
-  isAiGenerating,
   minHeight = '520px'
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
@@ -226,30 +216,6 @@ export const BloggerRichEditor: React.FC<RichTextEditorProps> = ({
             title="ফরম্যাট ক্লিয়ার করুন"
           >
             <RemoveFormatting className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Right Side: AI Text Generator Tool */}
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={aiPrompt}
-            onChange={(e) => onAiPromptChange(e.target.value)}
-            placeholder="AI দিয়ে নিউজ লেখার বিষয়..."
-            className="px-3 py-1.5 text-xs rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white w-36 sm:w-56 focus:ring-1 focus:ring-amber-500 shadow-inner"
-          />
-          <button
-            type="button"
-            onClick={onGenerateAiText}
-            disabled={isAiGenerating}
-            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-extrabold rounded-xl transition-all flex items-center gap-1 shadow shrink-0"
-          >
-            {isAiGenerating ? (
-              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="w-3.5 h-3.5 fill-slate-950" />
-            )}
-            <span className="hidden sm:inline">AI দিয়ে লিখুন</span>
           </button>
         </div>
       </div>

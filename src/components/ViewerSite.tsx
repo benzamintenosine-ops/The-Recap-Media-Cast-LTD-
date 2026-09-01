@@ -139,13 +139,18 @@ export const ViewerSite: React.FC<ViewerSiteProps> = ({
 
       {/* No articles state */}
       {filtered.length === 0 ? (
-        <div className="text-center py-16 bg-white dark:bg-[#111111] rounded-2xl border border-slate-200 dark:border-white/10 p-8 space-y-3">
-          <p className="text-base font-bold text-slate-700 dark:text-gray-200">
-            কোন খবর পাওয়া যায়নি।
-          </p>
-          <p className="text-xs text-gray-400">
-            অন্য কোনো ক্যাটাগরি অথবা কিওয়ার্ড দিয়ে পুনরায় চেষ্টা করুন।
-          </p>
+        <div className="text-center py-20 bg-white dark:bg-[#111111] rounded-2xl border border-slate-200 dark:border-white/10 p-8 space-y-4 shadow-sm">
+          <div className="w-16 h-16 rounded-2xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 mx-auto flex items-center justify-center border border-red-200 dark:border-red-900/40">
+            <Tag className="w-8 h-8" />
+          </div>
+          <div className="space-y-1.5 max-w-md mx-auto">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-gray-100">
+              এখনো কোনো সংবাদ প্রকাশিত হয়নি
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-gray-400 leading-relaxed">
+              লেখক বা অ্যাডমিন প্যানেল থেকে বস্তুনিষ্ঠ সংবাদ প্রকাশিত হওয়ামাত্র এখানে তা লাইভ স্বয়ংক্রিয়ভাবে প্রদর্শিত হবে।
+            </p>
+          </div>
         </div>
       ) : (
         <>

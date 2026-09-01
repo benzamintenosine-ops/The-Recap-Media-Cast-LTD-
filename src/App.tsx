@@ -13,7 +13,7 @@ import { ArticleModal } from './components/ArticleModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { AdBlockerDetector } from './components/AdBlockerDetector';
 import { CloudflareSecurityBadge } from './components/BotProtection';
-import { NewsArticle, Category, Language, UserProfile, SiteSettings, WriterProfile, WithdrawalRequest, SystemNotification, CategoryConfig } from './types';
+import { NewsArticle, Category, Language, UserProfile, SiteSettings, WriterProfile, WithdrawalRequest, SystemNotification, CategoryConfig, SocialWidget } from './types';
 
 const DEFAULT_CATEGORIES: CategoryConfig[] = [
   { id: 'cat-1', name: 'জাতীয়', showIcon: true, isHidden: false },
@@ -36,6 +36,12 @@ import {
   incrementArticleViewsInFirebase
 } from './services/firebaseNewsService';
 
+const DEFAULT_SOCIAL_WIDGETS: SocialWidget[] = [
+  { id: 'soc-fb', platform: 'facebook', name: 'Facebook Page', url: 'https://facebook.com/therecapmediacast', badge: 'ফলো', isActive: true },
+  { id: 'soc-yt', platform: 'youtube', name: 'YouTube Channel', url: 'https://youtube.com/@therecapmediacast', badge: 'সাবস্ক্রাইব', isActive: true },
+  { id: 'soc-ig', platform: 'instagram', name: 'Instagram Profile', url: 'https://instagram.com/therecapmediacast', badge: 'ফলো', isActive: true }
+];
+
 const DEFAULT_SITE_SETTINGS: SiteSettings = {
   siteName: 'The Recap Media Cast LTD',
   siteTagline: 'বস্তুনিষ্ঠ ও নিরপেক্ষ সংবাদ মাধ্যম',
@@ -55,11 +61,7 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
       isActive: true
     }
   ],
-  socialWidgets: [
-    { id: 'soc-1', platform: 'facebook', name: 'Facebook Page', url: 'https://facebook.com', isActive: true },
-    { id: 'soc-2', platform: 'youtube', name: 'YouTube Channel', url: 'https://youtube.com', isActive: true },
-    { id: 'soc-3', platform: 'instagram', name: 'Instagram', url: 'https://instagram.com', isActive: true }
-  ],
+  socialWidgets: DEFAULT_SOCIAL_WIDGETS,
   staticPages: {
     aboutUs: '<h2>আমাদের সম্পর্কে (About Us)</h2><p>The Recap Media Cast LTD একটি আধুনিক বাংলা অনলাইন সংবাদ মাধ্যম...</p>',
     privacyPolicy: '<h2>গোপনীয়তা নীতি (Privacy Policy)</h2><p>আপনার ব্যক্তিগত তথ্যের গোপনীয়তা রক্ষা করা আমাদের অঙ্গীকার...</p>',
@@ -88,7 +90,22 @@ export default function App() {
   // Site Settings
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(() => {
     const saved = localStorage.getItem('recap_site_settings');
-    return saved ? JSON.parse(saved) : DEFAULT_SITE_SETTINGS;
+    if (!saved) return DEFAULT_SITE_SETTINGS;
+    try {
+      const parsed = JSON.parse(saved);
+      return {
+        ...DEFAULT_SITE_SETTINGS,
+        ...parsed,
+        socialWidgets: (parsed.socialWidgets && Array.isArray(parsed.socialWidgets) && parsed.socialWidgets.length > 0)
+          ? parsed.socialWidgets
+          : DEFAULT_SOCIAL_WIDGETS,
+        adBanners: (parsed.adBanners && Array.isArray(parsed.adBanners) && parsed.adBanners.length > 0)
+          ? parsed.adBanners
+          : DEFAULT_SITE_SETTINGS.adBanners
+      };
+    } catch {
+      return DEFAULT_SITE_SETTINGS;
+    }
   });
 
   // Registered Writers list
@@ -119,7 +136,19 @@ export default function App() {
     ];
   });
 
-  const [articles, setArticles] = useState<NewsArticle[]>(INITIAL_NEWS);
+  const [articles, setArticles] = useState<NewsArticle[]>(() => {
+    try {
+      const cached = localStorage.getItem('recap_news_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          const mockIds = ['news-1', 'news-2', 'news-3', 'news-4', 'news-5'];
+          return parsed.filter((a) => a && a.id && !mockIds.includes(a.id));
+        }
+      }
+    } catch {}
+    return [];
+  });
   const [selectedCategory, setSelectedCategory] = useState<Category | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
@@ -134,12 +163,12 @@ export default function App() {
   // Bookmarks & Offline saved IDs
   const [bookmarks, setBookmarks] = useState<string[]>(() => {
     const saved = localStorage.getItem('recap_bookmarks');
-    return saved ? JSON.parse(saved) : ['news-1'];
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [offlineSaved, setOfflineSaved] = useState<string[]>(() => {
     const saved = localStorage.getItem('recap_offline');
-    return saved ? JSON.parse(saved) : ['news-1', 'news-2'];
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
@@ -172,18 +201,19 @@ export default function App() {
   // Subscribe to real-time Firebase Firestore news updates
   useEffect(() => {
     const unsubscribe = subscribeToArticles((liveArticles) => {
-      if (liveArticles && liveArticles.length > 0) {
-        setArticles(liveArticles);
-      }
+      setArticles(liveArticles || []);
     });
 
     // Also fetch server fallback if needed
     fetch('/api/news')
       .then((res) => res.json())
       .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          // If Firestore hasn't loaded yet, set state from API
-          setArticles((prev) => (prev.length === 0 ? data : prev));
+        if (Array.isArray(data)) {
+          const mockIds = ['news-1', 'news-2', 'news-3', 'news-4', 'news-5'];
+          const filtered = data.filter((a: any) => a && a.id && !mockIds.includes(a.id));
+          if (filtered.length > 0) {
+            setArticles(filtered);
+          }
         }
       })
       .catch((err) => console.log('API fallback notice:', err));
@@ -314,8 +344,14 @@ export default function App() {
   }, [notifications]);
 
   // Admin state management handlers
-  const handleUpdateSiteSettings = (newSettings: SiteSettings) => {
-    setSiteSettings(newSettings);
+  const handleUpdateSiteSettings = (newSettings: Partial<SiteSettings>) => {
+    setSiteSettings((prev) => {
+      const merged = { ...prev, ...newSettings };
+      try {
+        localStorage.setItem('recap_site_settings', JSON.stringify(merged));
+      } catch {}
+      return merged;
+    });
   };
 
   const handleUpdateWriters = (newWriters: WriterProfile[]) => {

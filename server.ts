@@ -27,21 +27,12 @@ const getGeminiClient = () => {
 // In-Memory Database Store for live sync between viewer and admin
 let newsStore: NewsArticle[] = [...INITIAL_NEWS];
 let adsStore: AdBanner[] = [...INITIAL_ADS];
-let agentLogs: AgentLog[] = [
-  {
-    id: "log-1",
-    timestamp: new Date().toISOString(),
-    articleId: "news-2",
-    title: "কৃত্রিম বুদ্ধিমত্তা ও মহাকাশ গবেষণায় যৌথ সহযোগিতা",
-    status: "success",
-    details: "Autonomous AI Agent scanned trend topics and generated climate satellite news post.",
-  },
-];
+let agentLogs: AgentLog[] = [];
 let analyticsData = {
-  totalViews: 12230,
-  todayReaders: 3450,
-  activeVisitors: 142,
-  totalComments: 38,
+  totalViews: 0,
+  todayReaders: 0,
+  activeVisitors: 1,
+  totalComments: 0,
 };
 
 // API Routes

@@ -18,25 +18,40 @@ import { INITIAL_NEWS } from '../data/initialNews';
 
 const ARTICLES_COLLECTION = 'articles';
 
+const MOCK_ARTICLE_IDS = ['news-1', 'news-2', 'news-3', 'news-4', 'news-5'];
+
 /**
- * Seed initial news to Firestore if the collection is empty.
+ * Clean up legacy mock news from Firestore and local cache
  */
-async function seedInitialNewsIfEmpty() {
+async function purgeLegacyMockNews() {
   try {
-    const colRef = collection(db, ARTICLES_COLLECTION);
-    const snapshot = await getDocs(colRef);
-    if (snapshot.empty) {
-      console.log('Seeding initial news articles to Firebase Firestore...');
-      const batch = writeBatch(db);
-      for (const art of INITIAL_NEWS) {
-        const docRef = doc(db, ARTICLES_COLLECTION, art.id);
-        batch.set(docRef, art);
+    // Clear legacy localStorage cache
+    const savedCache = localStorage.getItem('recap_news_cache');
+    if (savedCache) {
+      try {
+        const parsed = JSON.parse(savedCache);
+        if (Array.isArray(parsed)) {
+          const cleaned = parsed.filter(
+            (a) => a && a.id && !MOCK_ARTICLE_IDS.includes(a.id)
+          );
+          if (cleaned.length !== parsed.length) {
+            localStorage.setItem('recap_news_cache', JSON.stringify(cleaned));
+          }
+        }
+      } catch (e) {
+        localStorage.removeItem('recap_news_cache');
       }
-      await batch.commit();
-      console.log('Initial news successfully seeded to Firebase.');
+    }
+
+    // Delete mock docs from Firestore if present
+    for (const mockId of MOCK_ARTICLE_IDS) {
+      try {
+        const docRef = doc(db, ARTICLES_COLLECTION, mockId);
+        await deleteDoc(docRef);
+      } catch (e) {}
     }
   } catch (err) {
-    console.warn('Firebase auto-seed notice (operating in offline/fallback mode):', err);
+    console.warn('Purge mock news notice:', err);
   }
 }
 
@@ -45,10 +60,8 @@ async function seedInitialNewsIfEmpty() {
  * Both Viewer Site and Admin Portal receive live updates automatically.
  */
 export function subscribeToArticles(onUpdate: (articles: NewsArticle[]) => void) {
-  // Ensure initial seed attempt without unhandled rejection
-  seedInitialNewsIfEmpty().catch((err) => {
-    console.warn('Seed initial news error caught:', err);
-  });
+  // Purge any legacy mock news on initial mount
+  purgeLegacyMockNews().catch(() => {});
 
   const colRef = collection(db, ARTICLES_COLLECTION);
   const q = query(colRef, orderBy('publishedAt', 'desc'));
@@ -59,36 +72,38 @@ export function subscribeToArticles(onUpdate: (articles: NewsArticle[]) => void)
     (snapshot) => {
       if (snapshot.empty) {
         try {
-          localStorage.setItem('recap_news_cache', JSON.stringify(INITIAL_NEWS));
+          localStorage.setItem('recap_news_cache', JSON.stringify([]));
         } catch (e) {}
-        onUpdate(INITIAL_NEWS);
+        onUpdate([]);
         return;
       }
-      const articlesList: NewsArticle[] = snapshot.docs.map((docSnap) => {
-        const data = docSnap.data();
-        return {
-          id: docSnap.id,
-          title: data.title || '',
-          titleEn: data.titleEn || '',
-          summary: data.summary || '',
-          summaryEn: data.summaryEn || '',
-          content: data.content || '',
-          contentEn: data.contentEn || '',
-          category: data.category || 'জাতীয়',
-          tags: Array.isArray(data.tags) ? data.tags : [],
-          imageUrl: data.imageUrl || 'https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=1200&q=80',
-          videoUrl: data.videoUrl || '',
-          author: data.author || 'THE RECAP MEDIA',
-          publishedAt: data.publishedAt || new Date().toISOString(),
-          isBreaking: !!data.isBreaking,
-          isTrending: !!data.isTrending,
-          viewsCount: typeof data.viewsCount === 'number' ? data.viewsCount : 0,
-          readTimeMinutes: typeof data.readTimeMinutes === 'number' ? data.readTimeMinutes : 3,
-          comments: Array.isArray(data.comments) ? data.comments : [],
-          isAiGenerated: !!data.isAiGenerated,
-          seoMeta: data.seoMeta || undefined,
-        } as NewsArticle;
-      });
+      const articlesList: NewsArticle[] = snapshot.docs
+        .filter((docSnap) => !MOCK_ARTICLE_IDS.includes(docSnap.id))
+        .map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            title: data.title || '',
+            titleEn: data.titleEn || '',
+            summary: data.summary || '',
+            summaryEn: data.summaryEn || '',
+            content: data.content || '',
+            contentEn: data.contentEn || '',
+            category: data.category || 'জাতীয়',
+            tags: Array.isArray(data.tags) ? data.tags : [],
+            imageUrl: data.imageUrl || 'https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=1200&q=80',
+            videoUrl: data.videoUrl || '',
+            author: data.author || 'THE RECAP MEDIA',
+            publishedAt: data.publishedAt || new Date().toISOString(),
+            isBreaking: !!data.isBreaking,
+            isTrending: !!data.isTrending,
+            viewsCount: typeof data.viewsCount === 'number' ? data.viewsCount : 0,
+            readTimeMinutes: typeof data.readTimeMinutes === 'number' ? data.readTimeMinutes : 3,
+            comments: Array.isArray(data.comments) ? data.comments : [],
+            isAiGenerated: !!data.isAiGenerated,
+            seoMeta: data.seoMeta || undefined,
+          } as NewsArticle;
+        });
 
       // Save to cache for seamless offline fallback
       try {
@@ -103,13 +118,14 @@ export function subscribeToArticles(onUpdate: (articles: NewsArticle[]) => void)
       if (savedCache) {
         try {
           const parsed = JSON.parse(savedCache);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            onUpdate(parsed);
+          if (Array.isArray(parsed)) {
+            const filtered = parsed.filter(a => a && a.id && !MOCK_ARTICLE_IDS.includes(a.id));
+            onUpdate(filtered);
             return;
           }
         } catch (e) {}
       }
-      onUpdate(INITIAL_NEWS);
+      onUpdate([]);
     }
   );
 }

@@ -70,6 +70,12 @@ interface SystemAdminPortalProps {
   onUpdateCategories: (categories: CategoryConfig[]) => void;
 }
 
+const DEFAULT_SOCIAL_WIDGETS: SocialWidget[] = [
+  { id: 'soc-fb', name: 'Facebook Page', platform: 'facebook', url: 'https://facebook.com/therecapmediacast', badge: 'ফলো', isActive: true },
+  { id: 'soc-yt', name: 'YouTube Channel', platform: 'youtube', url: 'https://youtube.com/@therecapmediacast', badge: 'সাবস্ক্রাইব', isActive: true },
+  { id: 'soc-ig', name: 'Instagram Profile', platform: 'instagram', url: 'https://instagram.com/therecapmediacast', badge: 'ফলো', isActive: true },
+];
+
 export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
   articles,
   onDeleteArticle,
@@ -166,10 +172,12 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
 
   // Social Widget Modal State
   const [showAddSocialModal, setShowAddSocialModal] = useState(false);
+  const [editingSocialWidget, setEditingSocialWidget] = useState<SocialWidget | null>(null);
   const [socialName, setSocialName] = useState('');
   const [socialUrl, setSocialUrl] = useState('');
   const [socialBadge, setSocialBadge] = useState('');
-  const [socialPlatform, setSocialPlatform] = useState<'facebook' | 'instagram' | 'youtube' | 'custom'>('custom');
+  const [socialPlatform, setSocialPlatform] = useState<'facebook' | 'instagram' | 'youtube' | 'twitter' | 'whatsapp' | 'telegram' | 'tiktok' | 'custom'>('custom');
+  const [socialActive, setSocialActive] = useState<boolean>(true);
 
   // Admin Notification Center Modal (Sent & Received)
   const [showNotificationCenterModal, setShowNotificationCenterModal] = useState<boolean>(false);
@@ -406,30 +414,97 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
     onUpdateSiteSettings({ adBanners: updated });
   };
 
-  // Add Social Widget Submit
-  const handleAddSocialWidget = (e: React.FormEvent) => {
+  // Open Add Social Modal
+  const handleOpenAddSocial = () => {
+    setEditingSocialWidget(null);
+    setSocialName('');
+    setSocialUrl('');
+    setSocialBadge('');
+    setSocialPlatform('facebook');
+    setSocialActive(true);
+    setShowAddSocialModal(true);
+  };
+
+  // Open Edit Social Modal
+  const handleOpenEditSocial = (soc: SocialWidget) => {
+    setEditingSocialWidget(soc);
+    setSocialName(soc.name);
+    setSocialUrl(soc.url);
+    setSocialBadge(soc.badge || '');
+    setSocialPlatform(soc.platform || 'custom');
+    setSocialActive(soc.isActive !== false);
+    setShowAddSocialModal(true);
+  };
+
+  // Toggle Social Widget Visibility (Show / Hide)
+  const handleToggleSocialVisibility = (socId: string) => {
+    const currentList = (siteSettings.socialWidgets && siteSettings.socialWidgets.length > 0)
+      ? siteSettings.socialWidgets
+      : DEFAULT_SOCIAL_WIDGETS;
+
+    const updated = currentList.map((soc) =>
+      soc.id === socId ? { ...soc, isActive: soc.isActive === false ? true : false } : soc
+    );
+    onUpdateSiteSettings({ socialWidgets: updated });
+  };
+
+  // Restore Default Social Widgets
+  const handleRestoreDefaultSocials = () => {
+    if (window.confirm('আপনি কি ডিফল্ট সোশ্যাল উইজেটস (Facebook, YouTube, Instagram) রিস্টোর করতে চান?')) {
+      onUpdateSiteSettings({ socialWidgets: DEFAULT_SOCIAL_WIDGETS });
+    }
+  };
+
+  // Save Social Widget (Add / Edit)
+  const handleSaveSocialWidget = (e: React.FormEvent) => {
     e.preventDefault();
     if (!socialName.trim() || !socialUrl.trim()) return;
 
-    const newWidget: SocialWidget = {
-      id: `soc-${Date.now()}`,
-      name: socialName,
-      url: socialUrl,
-      badge: socialBadge,
-      platform: socialPlatform
-    };
+    const currentList = (siteSettings.socialWidgets && siteSettings.socialWidgets.length > 0)
+      ? siteSettings.socialWidgets
+      : DEFAULT_SOCIAL_WIDGETS;
 
-    onUpdateSiteSettings({
-      socialWidgets: [...(siteSettings.socialWidgets || []), newWidget]
-    });
+    if (editingSocialWidget) {
+      const updated = currentList.map((s) =>
+        s.id === editingSocialWidget.id
+          ? {
+              ...s,
+              name: socialName.trim(),
+              url: socialUrl.trim(),
+              badge: socialBadge.trim(),
+              platform: socialPlatform,
+              isActive: socialActive
+            }
+          : s
+      );
+      onUpdateSiteSettings({ socialWidgets: updated });
+    } else {
+      const newWidget: SocialWidget = {
+        id: `soc-${Date.now()}`,
+        name: socialName.trim(),
+        url: socialUrl.trim(),
+        badge: socialBadge.trim(),
+        platform: socialPlatform,
+        isActive: socialActive
+      };
+      onUpdateSiteSettings({
+        socialWidgets: [...currentList, newWidget]
+      });
+    }
 
     setShowAddSocialModal(false);
+    setEditingSocialWidget(null);
     setSocialName('');
     setSocialUrl('');
+    setSocialBadge('');
+    setSocialActive(true);
   };
 
   const handleDeleteSocialWidget = (socId: string) => {
-    const updated = (siteSettings.socialWidgets || []).filter((s) => s.id !== socId);
+    const currentList = (siteSettings.socialWidgets && siteSettings.socialWidgets.length > 0)
+      ? siteSettings.socialWidgets
+      : DEFAULT_SOCIAL_WIDGETS;
+    const updated = currentList.filter((s) => s.id !== socId);
     onUpdateSiteSettings({ socialWidgets: updated });
   };
 
@@ -1912,55 +1987,127 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
 
         {/* ADD AD BANNER MODAL */}
         {showAddAdModal && (
-          <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
-              <h3 className="font-bold text-base text-slate-900 dark:text-white border-b pb-3 border-slate-100 dark:border-slate-800">
-                নতুন বিজ্ঞাপন ব্যানার যোগ করুন
-              </h3>
+          <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 my-8">
+              <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+                <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                  <ImageIcon className="w-5 h-5 text-red-600" />
+                  নতুন বিজ্ঞাপন ব্যানার যোগ করুন
+                </h3>
+                <button
+                  onClick={() => setShowAddAdModal(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
-              <form onSubmit={handleAddAdBanner} className="space-y-3">
+              <form onSubmit={handleAddAdBanner} className="space-y-4">
+                {/* 1. SELECTION BOXES (Placed ABOVE Image Upload as requested) */}
                 <div>
-                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
-                    বিজ্ঞাপনের শিরোনাম *
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
+                    ১. বিজ্ঞাপন উইজেট ও সাইজ নির্বাচন করুন (Placement Selection Box) *
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={adTitle}
-                    onChange={(e) => setAdTitle(e.target.value)}
-                    placeholder="যেমন: ৫০% ছাড়ের বিশেষ প্রমোশন..."
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                  />
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Widget 1 Box Option */}
+                    <div 
+                      onClick={() => setAdPlacement('header_top')}
+                      className={`cursor-pointer p-3.5 rounded-2xl border-2 transition-all flex flex-col justify-between ${
+                        adPlacement === 'header_top'
+                          ? 'bg-red-50/80 dark:bg-red-950/40 border-red-500 shadow-md ring-2 ring-red-500/20'
+                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                          📌 Widget 1
+                        </span>
+                        <input
+                          type="radio"
+                          name="adPlacementRadio"
+                          checked={adPlacement === 'header_top'}
+                          onChange={() => setAdPlacement('header_top')}
+                          className="accent-red-600 w-4 h-4 cursor-pointer"
+                        />
+                      </div>
+                      <h5 className="text-xs font-extrabold text-red-600 dark:text-red-400">
+                        হেডার টপ স্লাইডার (Header Top)
+                      </h5>
+                      <div className="mt-2 p-2 bg-white/80 dark:bg-black/40 rounded-xl border border-red-200 dark:border-red-900/50">
+                        <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block">
+                          📐 প্রস্তাবিত ছবির সাইজ:
+                        </span>
+                        <span className="text-[11px] font-black text-red-600 dark:text-red-400 font-mono block">
+                          970 × 90 px <span className="font-sans font-normal text-[10px] text-slate-500">বা</span> 728 × 90 px
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2">
+                        ওয়েবসাইটের একদম শীর্ষে সব পেজের উপরে স্লাইডার আকারে শো হবে।
+                      </p>
+                    </div>
+
+                    {/* Widget 2 Box Option */}
+                    <div 
+                      onClick={() => setAdPlacement('sidebar')}
+                      className={`cursor-pointer p-3.5 rounded-2xl border-2 transition-all flex flex-col justify-between ${
+                        adPlacement === 'sidebar' || adPlacement === 'in_article'
+                          ? 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-500 shadow-md ring-2 ring-amber-500/20'
+                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                          📌 Widget 2
+                        </span>
+                        <input
+                          type="radio"
+                          name="adPlacementRadio"
+                          checked={adPlacement === 'sidebar' || adPlacement === 'in_article'}
+                          onChange={() => setAdPlacement('sidebar')}
+                          className="accent-amber-600 w-4 h-4 cursor-pointer"
+                        />
+                      </div>
+                      <h5 className="text-xs font-extrabold text-amber-600 dark:text-amber-400">
+                        সাইডবার ও ইন-আর্টিকেল (Sidebar)
+                      </h5>
+                      <div className="mt-2 p-2 bg-white/80 dark:bg-black/40 rounded-xl border border-amber-200 dark:border-amber-900/50">
+                        <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block">
+                          📐 প্রস্তাবিত ছবির সাইজ:
+                        </span>
+                        <span className="text-[11px] font-black text-amber-600 dark:text-amber-400 font-mono block">
+                          300 × 250 px <span className="font-sans font-normal text-[10px] text-slate-500">বা</span> 300 × 600 px
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2">
+                        সাইডবার এবং খবরের বিস্তারিত অংশে স্লাইডার আকারে শো হবে।
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
-                    স্পন্সর বা ব্র্যান্ডের নাম
-                  </label>
-                  <input
-                    type="text"
-                    value={adSponsor}
-                    onChange={(e) => setAdSponsor(e.target.value)}
-                    placeholder="যেমন: গ্রামীণফোন, স্কয়ার ইত্যাদি..."
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                  />
-                </div>
+                {/* 2. IMAGE UPLOAD OPTION (Directly Below Selection Boxes) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      ২. ব্যানার ছবি আপলোড করুন বা লিংক দিন *
+                    </label>
+                    <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                      {adPlacement === 'header_top' ? 'চাহিদা: 970x90 px ওয়াইড ব্যানার' : 'চাহিদা: 300x250 px বক্স ব্যানার'}
+                    </span>
+                  </div>
 
-                <div>
-                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
-                    ব্যানার ছবি (ডিভাইস থেকে ফাইল আপলোড বা লিঙ্ক) *
-                  </label>
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
                       required
                       value={adImageUrl}
                       onChange={(e) => setAdImageUrl(e.target.value)}
-                      placeholder="https://..."
-                      className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                      placeholder="https://... অথবা নিচের বাটনে ক্লিক করে ফাইল আপলোড করুন"
+                      className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:outline-none"
                     />
-                    <label className="px-3 py-2 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl cursor-pointer hover:bg-slate-300 flex items-center gap-1">
-                      <UploadCloud className="w-3.5 h-3.5" /> ছবি আপলোড
+                    <label className="px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl cursor-pointer shadow flex items-center gap-1.5 shrink-0 transition-colors">
+                      <UploadCloud className="w-4 h-4" /> ফাইল আপলোড
                       <input
                         type="file"
                         accept="image/*"
@@ -1969,111 +2116,80 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
                       />
                     </label>
                   </div>
+
+                  {/* Image Live Preview */}
+                  {adImageUrl && (
+                    <div className="mt-2 p-2 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                      <p className="text-[10px] font-bold text-slate-500 mb-1">ইমেজ প্রিভিউ:</p>
+                      <div className={`overflow-hidden rounded-lg bg-slate-200 dark:bg-slate-950 flex items-center justify-center ${adPlacement === 'header_top' ? 'h-16' : 'h-28'}`}>
+                        <img 
+                          src={adImageUrl} 
+                          alt="Banner Preview" 
+                          className="max-h-full w-auto object-contain"
+                          onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
+                {/* 3. AD TITLE */}
                 <div>
                   <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
-                    বিজ্ঞাপনের টার্গেট লিঙ্ক (Target URL) *
+                    ৩. বিজ্ঞাপনের শিরোনাম *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={adTitle}
+                    onChange={(e) => setAdTitle(e.target.value)}
+                    placeholder="যেমন: ৫০% ছাড়ের বিশেষ সামার প্রমোশন..."
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* 4. SPONSOR NAME */}
+                <div>
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                    ৪. স্পন্সর বা ক্লায়েন্টের নাম
+                  </label>
+                  <input
+                    type="text"
+                    value={adSponsor}
+                    onChange={(e) => setAdSponsor(e.target.value)}
+                    placeholder="যেমন: গ্রামীণফোন, স্কয়ার ফার্মাসিউটিক্যালস ইত্যাদি..."
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* 5. TARGET URL */}
+                <div>
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                    ৫. বিজ্ঞাপনের টার্গেট লিঙ্ক (Target URL) *
                   </label>
                   <input
                     type="url"
                     required
                     value={adTargetUrl}
                     onChange={(e) => setAdTargetUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                    placeholder="https://client-website.com..."
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:outline-none font-mono"
                   />
                 </div>
 
-                <div>
-                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
-                    বিজ্ঞাপন উইজেট ও ব্যানারের অবস্থান নির্বাচন করুন (Placement Selection Box) *
-                  </label>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
-                    {/* Widget 1 Box Option */}
-                    <div 
-                      onClick={() => setAdPlacement('header_top')}
-                      className={`cursor-pointer p-3.5 rounded-2xl border transition-all flex flex-col justify-between ${
-                        adPlacement === 'header_top'
-                          ? 'bg-red-50 dark:bg-red-950/40 border-red-500 shadow-sm ring-2 ring-red-500/30'
-                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                          📌 Widget 1
-                        </span>
-                        <input
-                          type="radio"
-                          name="adPlacementRadio"
-                          checked={adPlacement === 'header_top'}
-                          onChange={() => setAdPlacement('header_top')}
-                          className="accent-red-600"
-                        />
-                      </div>
-                      <h5 className="text-[11px] font-extrabold text-red-600 dark:text-red-400">
-                        হেডার টপ স্লাইডার (Header Top)
-                      </h5>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
-                        ওয়েবসাইটের একদম উপরে স্লাইড আকারে শো হবে।
-                      </p>
-                    </div>
-
-                    {/* Widget 2 Box Option */}
-                    <div 
-                      onClick={() => setAdPlacement('sidebar')}
-                      className={`cursor-pointer p-3.5 rounded-2xl border transition-all flex flex-col justify-between ${
-                        adPlacement === 'sidebar' || adPlacement === 'in_article'
-                          ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-500 shadow-sm ring-2 ring-amber-500/30'
-                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                          📌 Widget 2
-                        </span>
-                        <input
-                          type="radio"
-                          name="adPlacementRadio"
-                          checked={adPlacement === 'sidebar' || adPlacement === 'in_article'}
-                          onChange={() => setAdPlacement('sidebar')}
-                          className="accent-amber-600"
-                        />
-                      </div>
-                      <h5 className="text-[11px] font-extrabold text-amber-600 dark:text-amber-400">
-                        সাইডবার ও সংবাদের ভেতরে (Sidebar / Article)
-                      </h5>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
-                        সাইডবার ও সংবাদের ভেতরে স্লাইড হবে।
-                      </p>
-                    </div>
-                  </div>
-
-                  <select
-                    value={adPlacement}
-                    onChange={(e) => setAdPlacement(e.target.value as any)}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                  >
-                    <option value="header_top">সিলেক্ট বক্স ১: Widget 1 (Header Top - হেডারের ওপরে)</option>
-                    <option value="sidebar">সিলেক্ট বক্স ২: Widget 2 (Sidebar - সাইডবার উইজেট)</option>
-                    <option value="in_article">সিলেক্ট বক্স ২: Widget 2 (In-Article - খবরের ভেতরের উইজেট)</option>
-                  </select>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-2">
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                   <button
                     type="button"
                     onClick={() => setShowAddAdModal(false)}
-                    className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl"
+                    className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
                   >
                     বাতিল
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow"
+                    className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow transition-colors flex items-center gap-1.5"
                   >
-                    ব্যানার যুক্ত করুন
+                    <Check className="w-4 h-4" /> ব্যানার যুক্ত করুন
                   </button>
                 </div>
               </form>
@@ -2081,77 +2197,192 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
           </div>
         )}
 
-        {/* TAB 7: SOCIAL WIDGETS MANAGEMENT */}
+        {/* TAB 7: SOCIAL WIDGETS MANAGEMENT (Full Edit, Add, Delete & Hide/Show Support) */}
         {activeTab === 'socials' && (
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-md space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 font-serif">
                   <Globe className="w-6 h-6 text-blue-500" />
-                  সোশ্যাল উইজেটস লিংক নিয়ন্ত্রণ (Social Widgets)
+                  সোশ্যাল উইজেটস লিংক নিয়ন্ত্রণ ও হাইড/শো অপশন
                 </h2>
                 <p className="text-xs text-slate-500">
-                  সোশ্যাল মিডিয়া পেজের লিংক বসাতে ও নতুন সোশ্যাল উইজেট যোগ করতে পারবেন।
+                  ফেসবুক, ইউটিউব, ইনস্টাগ্রামসহ সব সোশ্যাল মিডিয়া পেজের লিংক এডিট করুন এবং চাইলে যেকোনো উইজেট হাইড (লুকিয়ে) বা শো (প্রকাশ) রাখুন।
                 </p>
               </div>
 
-              <button
-                onClick={() => setShowAddSocialModal(true)}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow flex items-center gap-2 transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                <span>নতুন সোশ্যাল উইজেট যোগ করুন</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleRestoreDefaultSocials}
+                  className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5"
+                  title="ডিফল্ট ফেসবুক, ইউটিউব ও ইনস্টাগ্রাম উইজেট পুনরুদ্ধার করুন"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>ডিফল্ট রিস্টোর</span>
+                </button>
+                <button
+                  onClick={handleOpenAddSocial}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow flex items-center gap-2 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>নতুন সোশ্যাল উইজেট যোগ করুন</span>
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {(siteSettings.socialWidgets || []).map((soc) => (
-                <div
-                  key={soc.id}
-                  className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                      <LinkIcon className="w-4 h-4 text-red-500" /> {soc.name}
-                    </h4>
-                    <span className="text-[10px] bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-300 px-2 py-0.5 rounded font-bold">
-                      {soc.badge}
-                    </span>
-                  </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {((siteSettings.socialWidgets && siteSettings.socialWidgets.length > 0)
+                ? siteSettings.socialWidgets
+                : DEFAULT_SOCIAL_WIDGETS
+              ).map((soc) => {
+                const isLive = soc.isActive !== false;
+                let platformColor = "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800";
+                if (soc.platform === 'youtube') platformColor = "bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800";
+                if (soc.platform === 'instagram') platformColor = "bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-200 dark:border-pink-800";
+                if (soc.platform === 'whatsapp') platformColor = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800";
+                if (soc.platform === 'telegram') platformColor = "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-200 dark:border-sky-800";
 
-                  <p className="text-xs text-slate-500 truncate font-mono">{soc.url}</p>
+                return (
+                  <div
+                    key={soc.id}
+                    className={`p-4 rounded-2xl border transition-all flex flex-col justify-between space-y-3 ${
+                      isLive 
+                        ? 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700' 
+                        : 'bg-amber-500/5 dark:bg-amber-950/20 border-dashed border-amber-300 dark:border-amber-800/60 opacity-90'
+                    }`}
+                  >
+                    <div className="space-y-2.5">
+                      {/* Top platform & visibility badge */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className={`px-2 py-0.5 text-[10px] font-bold rounded-lg border uppercase ${platformColor}`}>
+                            {soc.platform || 'Custom'}
+                          </span>
+                          {soc.badge && (
+                            <span className="text-[10px] bg-red-100 dark:bg-red-950/80 text-red-600 dark:text-red-300 px-2 py-0.5 rounded-md font-bold shrink-0">
+                              {soc.badge}
+                            </span>
+                          )}
+                        </div>
 
-                  <div className="flex items-center justify-between pt-2">
-                    <a
-                      href={soc.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline flex items-center gap-1"
-                    >
-                      পরীক্ষা করুন <ExternalLink className="w-3 h-3" />
-                    </a>
-                    <button
-                      onClick={() => handleDeleteSocialWidget(soc.id)}
-                      className="px-2.5 py-1 bg-red-600/10 text-red-600 hover:bg-red-600 hover:text-white rounded-lg text-xs font-bold transition-colors"
-                    >
-                      মুছুন
-                    </button>
+                        {/* Visibility Status Badge */}
+                        {isLive ? (
+                          <span className="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 shrink-0">
+                            <Eye className="w-3 h-3" /> দৃশ্যমান (Live)
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1 shrink-0">
+                            <EyeOff className="w-3 h-3" /> লুকায়িত (Hidden)
+                          </span>
+                        )}
+                      </div>
+
+                      <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                        {soc.name}
+                      </h4>
+
+                      <div className="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+                        <span className="text-[10px] text-slate-400 block font-semibold">লিংক URL:</span>
+                        <p className="text-xs text-blue-600 dark:text-blue-400 font-mono truncate">
+                          {soc.url}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700/60 gap-2">
+                      <a
+                        href={soc.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-slate-600 dark:text-slate-300 hover:text-red-600 font-bold flex items-center gap-1 transition-colors shrink-0"
+                      >
+                        ভিজিট <ExternalLink className="w-3 h-3" />
+                      </a>
+
+                      <div className="flex items-center gap-1.5">
+                        {/* Hide / Show Toggle Button */}
+                        <button
+                          onClick={() => handleToggleSocialVisibility(soc.id)}
+                          className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
+                            isLive
+                              ? 'bg-amber-500/10 text-amber-600 hover:bg-amber-500 hover:text-white dark:text-amber-400'
+                              : 'bg-emerald-500/15 text-emerald-600 hover:bg-emerald-600 hover:text-white dark:text-emerald-400'
+                          }`}
+                          title={isLive ? 'উইজেটটি ওয়েবসাইটে লুকান (Hide)' : 'উইজেটটি ওয়েবসাইটে প্রদর্শন করুন (Show)'}
+                        >
+                          {isLive ? (
+                            <>
+                              <EyeOff className="w-3.5 h-3.5" /> হাইড করুন
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="w-3.5 h-3.5" /> শো করুন
+                            </>
+                          )}
+                        </button>
+
+                        <button
+                          onClick={() => handleOpenEditSocial(soc)}
+                          className="px-2.5 py-1.5 bg-blue-600/10 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1"
+                          title="লিংক ও তথ্য সম্পাদনা করুন"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" /> এডিট
+                        </button>
+
+                        <button
+                          onClick={() => handleDeleteSocialWidget(soc.id)}
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-lg transition-colors"
+                          title="মুছে ফেলুন"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* ADD SOCIAL WIDGET MODAL */}
+        {/* ADD / EDIT SOCIAL WIDGET MODAL */}
         {showAddSocialModal && (
           <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
-              <h3 className="font-bold text-base text-slate-900 dark:text-white border-b pb-3 border-slate-100 dark:border-slate-800">
-                নতুন সোশ্যাল মিডিয়া উইজেট যোগ করুন
-              </h3>
+              <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+                <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                  <Globe className="w-5 h-5 text-blue-500" />
+                  {editingSocialWidget ? 'সোশ্যাল মিডিয়া উইজেট সম্পাদনা (Edit URL & Settings)' : 'নতুন সোশ্যাল মিডিয়া উইজেট যোগ করুন'}
+                </h3>
+                <button
+                  onClick={() => setShowAddSocialModal(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
-              <form onSubmit={handleAddSocialWidget} className="space-y-3">
+              <form onSubmit={handleSaveSocialWidget} className="space-y-3.5">
+                <div>
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                    প্ল্যাটফর্ম নির্বাচন করুন *
+                  </label>
+                  <select
+                    value={socialPlatform}
+                    onChange={(e) => setSocialPlatform(e.target.value as any)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  >
+                    <option value="facebook">Facebook (ফেসবুক পেজ)</option>
+                    <option value="youtube">YouTube (ইউটিউব চ্যানেল)</option>
+                    <option value="instagram">Instagram (ইনস্টাগ্রাম)</option>
+                    <option value="whatsapp">WhatsApp (হোয়াটসঅ্যাপ)</option>
+                    <option value="telegram">Telegram (টেলিগ্রাম)</option>
+                    <option value="twitter">Twitter / X</option>
+                    <option value="tiktok">TikTok</option>
+                    <option value="custom">Custom (অন্যান্য)</option>
+                  </select>
+                </div>
+
                 <div>
                   <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
                     সোশ্যাল মিডিয়ার নাম *
@@ -2161,51 +2392,72 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
                     required
                     value={socialName}
                     onChange={(e) => setSocialName(e.target.value)}
-                    placeholder="যেমন: TikTok, Telegram Channel, X..."
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                    placeholder="যেমন: Facebook Official Page, YouTube..."
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                 </div>
 
                 <div>
                   <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
-                    পেজের লিংক URL *
+                    পেজ বা চ্যানেলের লিংক URL (Target Link) *
                   </label>
                   <input
                     type="url"
                     required
                     value={socialUrl}
                     onChange={(e) => setSocialUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                    placeholder="https://facebook.com/yourpage..."
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
                   />
                 </div>
 
                 <div>
                   <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
-                    ফলোয়ার তথ্য (Badge)
+                    ফলোয়ার তথ্য বা ব্যাজ (Badge Text)
                   </label>
                   <input
                     type="text"
                     value={socialBadge}
                     onChange={(e) => setSocialBadge(e.target.value)}
-                    placeholder="+250K ফলোয়ার্স"
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                    placeholder="যেমন: 250K Followers, সাবস্ক্রাইব, ফলো..."
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-2">
+                {/* Visibility (Hide/Show) Toggle Option */}
+                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                      উইজেট প্রদর্শন স্ট্যাটাস (Visibility)
+                    </span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                      {socialActive ? 'ওয়েবসাইটে পাঠকদের জন্য দৃশ্যমান থাকবে' : 'বর্তমানে ওয়েবসাইটে লুকায়িত (Hide) থাকবে'}
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={socialActive}
+                      onChange={(e) => setSocialActive(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
                   <button
                     type="button"
                     onClick={() => setShowAddSocialModal(false)}
-                    className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl"
+                    className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
                   >
                     বাতিল
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow"
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow transition-colors flex items-center gap-1.5"
                   >
-                    উইজেট যুক্ত করুন
+                    <Check className="w-4 h-4" /> {editingSocialWidget ? 'পরিবর্তন সংরক্ষণ করুন' : 'উইজেট যুক্ত করুন'}
                   </button>
                 </div>
               </form>

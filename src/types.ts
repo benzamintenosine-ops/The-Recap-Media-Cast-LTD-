@@ -111,7 +111,7 @@ export interface SocialWidget {
   name: string;
   url: string;
   badge?: string;
-  platform: 'facebook' | 'instagram' | 'youtube' | 'custom';
+  platform: 'facebook' | 'instagram' | 'youtube' | 'twitter' | 'whatsapp' | 'telegram' | 'tiktok' | 'custom';
   color?: string;
   isActive?: boolean;
 }

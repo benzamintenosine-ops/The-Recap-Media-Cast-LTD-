@@ -20,6 +20,9 @@ import {
   Facebook,
   Instagram,
   Youtube,
+  Twitter,
+  Send,
+  MessageCircle,
   PenTool,
   ChevronRight,
   ExternalLink,
@@ -192,32 +195,65 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       )}
 
-      {/* Main Branding Header */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
+      {/* Mobile Top Brand Bar (Prevents Squeezing & Line Breaking on Mobile) */}
+      <div className="sm:hidden px-4 pt-3 pb-2 border-b border-slate-100 dark:border-white/5 bg-white dark:bg-[#080808]">
+        <div 
+          onClick={() => { onCategorySelect('ALL'); onModeSwitch('viewer'); }}
+          className="cursor-pointer flex items-center justify-center gap-2.5 mx-auto"
+        >
+          {siteSettings?.logoUrl ? (
+            <img
+              src={siteSettings.logoUrl}
+              alt={siteSettings.siteName || "Website Logo"}
+              className="w-8 h-8 rounded-lg object-contain shrink-0 shadow-sm border border-slate-200 dark:border-slate-800"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-red-600 to-amber-600 text-white flex items-center justify-center font-black text-sm shadow-sm shrink-0 overflow-hidden">
+              <img
+                src="https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=100&q=80"
+                alt="Website Logo"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+          <div className="text-left leading-tight">
+            <h1 className="font-extrabold text-sm uppercase tracking-tight text-slate-900 dark:text-white flex items-center gap-1">
+              <span className="whitespace-nowrap">{siteSettings?.siteName || 'THE RECAP MEDIA CAST'}</span>
+              <span className="text-[9px] tracking-normal font-sans font-bold text-gray-400 border border-slate-200 dark:border-white/10 px-1 py-0.2 rounded shrink-0">LTD</span>
+            </h1>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium tracking-wide truncate max-w-[230px]">
+              {siteSettings?.siteTagline || t('tagline')}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Header Toolbar */}
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between gap-3 sm:gap-4">
         <div className="flex items-center gap-3">
           {/* Left Drawer Menu Button */}
           <button
             onClick={() => setLeftMenuOpen(true)}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-800 dark:text-white font-bold text-xs border border-slate-200 dark:border-white/10 transition-all shadow-sm"
-            title="বামপাশের মেনু খুলুন"
+            className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-800 dark:text-white font-bold text-xs border border-slate-200 dark:border-white/10 transition-all shadow-sm shrink-0"
+            title="মেনু খুলুন"
           >
-            <Menu className="w-5 h-5 text-red-600 dark:text-red-500" />
-            <span className="hidden sm:inline">মেনু</span>
+            <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 dark:text-red-500" />
+            <span className="text-xs">মেনু</span>
           </button>
 
-          {/* Logo */}
+          {/* Desktop Logo & Title */}
           <div 
             onClick={() => { onCategorySelect('ALL'); onModeSwitch('viewer'); }}
-            className="cursor-pointer group flex items-center gap-3"
+            className="hidden sm:flex cursor-pointer group items-center gap-3"
           >
             {siteSettings?.logoUrl ? (
               <img
                 src={siteSettings.logoUrl}
                 alt={siteSettings.siteName || "Website Logo"}
-                className="w-10 h-10 rounded-xl object-cover shadow-md group-hover:scale-105 transition-transform border border-slate-200 dark:border-slate-800"
+                className="w-10 h-10 rounded-xl object-cover shrink-0 shadow-md group-hover:scale-105 transition-transform border border-slate-200 dark:border-slate-800"
               />
             ) : (
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 to-amber-600 text-white flex items-center justify-center font-black text-xl shadow-md group-hover:scale-105 transition-transform overflow-hidden">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 to-amber-600 text-white flex items-center justify-center font-black text-xl shadow-md shrink-0 group-hover:scale-105 transition-transform overflow-hidden">
                 <img
                   src="https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=100&q=80"
                   alt="Website Logo"
@@ -237,7 +273,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {/* Search Trigger Pill */}
           <div className="relative hidden sm:block w-48 md:w-64">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -252,7 +288,8 @@ export const Header: React.FC<HeaderProps> = ({
 
           <button
             onClick={() => setShowSearchModal(true)}
-            className="sm:hidden p-2 rounded-full bg-slate-100 dark:bg-white/5 border border-white/10 text-slate-700 dark:text-gray-200"
+            className="sm:hidden p-2 rounded-xl bg-slate-100 dark:bg-white/5 border border-white/10 text-slate-700 dark:text-gray-200"
+            title="অনুসন্ধান"
           >
             <Search className="w-4 h-4" />
           </button>
@@ -260,7 +297,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Bookmarks */}
           <button
             onClick={onOpenBookmarks}
-            className="relative p-2 rounded-full bg-slate-100 dark:bg-white/5 border border-white/10 text-slate-700 dark:text-gray-200 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
+            className="relative p-2 rounded-xl bg-slate-100 dark:bg-white/5 border border-white/10 text-slate-700 dark:text-gray-200 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
             title={t('bookmarks')}
           >
             <Bookmark className="w-4 h-4 text-red-500" />
@@ -274,7 +311,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Offline Saved Articles */}
           <button
             onClick={onOpenOffline}
-            className="relative p-2 rounded-full bg-slate-100 dark:bg-white/5 border border-white/10 text-slate-700 dark:text-gray-200 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
+            className="relative p-2 rounded-xl bg-slate-100 dark:bg-white/5 border border-white/10 text-slate-700 dark:text-gray-200 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
             title={t('offlineSaved')}
           >
             <WifiOff className="w-4 h-4 text-amber-500" />
@@ -288,12 +325,12 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Profile / Auth Button */}
           <button
             onClick={onOpenProfile}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-gray-200 hover:bg-slate-200 dark:hover:bg-white/10 text-xs font-semibold border border-slate-200 dark:border-white/10 transition-all"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-gray-200 hover:bg-slate-200 dark:hover:bg-white/10 text-xs font-semibold border border-slate-200 dark:border-white/10 transition-all"
           >
             {user?.avatar ? (
-              <img src={user.avatar} alt={user.name} className="w-5 h-5 rounded-full object-cover" />
+              <img src={user.avatar} alt={user.name} className="w-5 h-5 rounded-full object-cover shrink-0" />
             ) : (
-              <User className="w-4 h-4 text-slate-600 dark:text-gray-300" />
+              <User className="w-4 h-4 text-slate-600 dark:text-gray-300 shrink-0" />
             )}
             <span className="hidden md:inline">{user ? user.name : t('signUpLogin')}</span>
           </button>
@@ -529,77 +566,91 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               </div>
 
-              {/* 3. SOCIAL WIDGETS (Facebook, Instagram, YouTube) */}
+              {/* 3. SOCIAL WIDGETS (Facebook, Instagram, YouTube, Telegram, etc.) */}
               <div className="space-y-2">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-1">
                   সোশ্যাল মিডিয়া পেজ (Social Widgets)
                 </span>
                 <div className="space-y-2">
-                  {/* Facebook Widget */}
-                  <a
-                    href="https://facebook.com/therecapmediacast"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="p-3 bg-blue-50 dark:bg-blue-950/40 rounded-2xl border border-blue-200 dark:border-blue-900 flex items-center justify-between hover:scale-[1.02] transition-all group"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center">
-                        <Facebook className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h5 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1">
-                          Facebook Page
-                        </h5>
-                      </div>
-                    </div>
-                    <span className="text-[10px] bg-blue-600 text-white px-2.5 py-1 rounded-lg font-bold flex items-center gap-1">
-                      ফলো <ExternalLink className="w-3 h-3" />
-                    </span>
-                  </a>
+                  {(siteSettings?.socialWidgets && siteSettings.socialWidgets.length > 0 ? siteSettings.socialWidgets : [
+                    { id: 'soc-fb', name: 'Facebook Page', platform: 'facebook' as const, url: 'https://facebook.com/therecapmediacast', badge: 'ফলো', isActive: true },
+                    { id: 'soc-yt', name: 'YouTube Channel', platform: 'youtube' as const, url: 'https://youtube.com/@therecapmediacast', badge: 'সাবস্ক্রাইব', isActive: true },
+                    { id: 'soc-ig', name: 'Instagram Profile', platform: 'instagram' as const, url: 'https://instagram.com/therecapmediacast', badge: 'ফলো', isActive: true },
+                  ]).filter(s => s.isActive !== false).map((soc) => {
+                    let IconComponent = Globe;
+                    let bgClass = "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700";
+                    let iconBg = "bg-slate-600 text-white";
+                    let btnBg = "bg-slate-700 text-white";
+                    let badgeText = soc.badge || 'ভিজিট';
 
-                  {/* Instagram Widget */}
-                  <a
-                    href="https://instagram.com/therecapmediacast"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="p-3 bg-pink-50 dark:bg-pink-950/40 rounded-2xl border border-pink-200 dark:border-pink-900 flex items-center justify-between hover:scale-[1.02] transition-all group"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 via-pink-600 to-purple-600 text-white flex items-center justify-center">
-                        <Instagram className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h5 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1">
-                          Instagram Profile
-                        </h5>
-                      </div>
-                    </div>
-                    <span className="text-[10px] bg-pink-600 text-white px-2.5 py-1 rounded-lg font-bold flex items-center gap-1">
-                      ফলো <ExternalLink className="w-3 h-3" />
-                    </span>
-                  </a>
+                    const plat = soc.platform || '';
+                    const n = soc.name.toLowerCase();
 
-                  {/* YouTube Widget */}
-                  <a
-                    href="https://youtube.com/@therecapmediacast"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="p-3 bg-red-50 dark:bg-red-950/40 rounded-2xl border border-red-200 dark:border-red-900 flex items-center justify-between hover:scale-[1.02] transition-all group"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-red-600 text-white flex items-center justify-center">
-                        <Youtube className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h5 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1">
-                          YouTube Channel
-                        </h5>
-                      </div>
-                    </div>
-                    <span className="text-[10px] bg-red-600 text-white px-2.5 py-1 rounded-lg font-bold flex items-center gap-1">
-                      সাবস্ক্রাইব <ExternalLink className="w-3 h-3" />
-                    </span>
-                  </a>
+                    if (plat === 'facebook' || n.includes('facebook')) {
+                      IconComponent = Facebook;
+                      bgClass = "bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900";
+                      iconBg = "bg-blue-600 text-white";
+                      btnBg = "bg-blue-600 text-white";
+                      badgeText = soc.badge || 'ফলো';
+                    } else if (plat === 'youtube' || n.includes('youtube')) {
+                      IconComponent = Youtube;
+                      bgClass = "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900";
+                      iconBg = "bg-red-600 text-white";
+                      btnBg = "bg-red-600 text-white";
+                      badgeText = soc.badge || 'সাবস্ক্রাইব';
+                    } else if (plat === 'instagram' || n.includes('instagram')) {
+                      IconComponent = Instagram;
+                      bgClass = "bg-pink-50 dark:bg-pink-950/40 border-pink-200 dark:border-pink-900";
+                      iconBg = "bg-gradient-to-tr from-amber-500 via-pink-600 to-purple-600 text-white";
+                      btnBg = "bg-pink-600 text-white";
+                      badgeText = soc.badge || 'ফলো';
+                    } else if (plat === 'twitter' || n.includes('twitter') || n.includes(' x')) {
+                      IconComponent = Twitter;
+                      bgClass = "bg-sky-50 dark:bg-sky-950/40 border-sky-200 dark:border-sky-900";
+                      iconBg = "bg-black text-white";
+                      btnBg = "bg-black text-white";
+                      badgeText = soc.badge || 'ফলো';
+                    } else if (plat === 'whatsapp' || n.includes('whatsapp')) {
+                      IconComponent = MessageCircle;
+                      bgClass = "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900";
+                      iconBg = "bg-emerald-600 text-white";
+                      btnBg = "bg-emerald-600 text-white";
+                      badgeText = soc.badge || 'মেসেজ';
+                    } else if (plat === 'telegram' || n.includes('telegram')) {
+                      IconComponent = Send;
+                      bgClass = "bg-sky-50 dark:bg-sky-950/40 border-sky-200 dark:border-sky-900";
+                      iconBg = "bg-sky-500 text-white";
+                      btnBg = "bg-sky-500 text-white";
+                      badgeText = soc.badge || 'যুক্ত হন';
+                    }
+
+                    return (
+                      <a
+                        key={soc.id}
+                        href={soc.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`p-3 rounded-2xl border flex items-center justify-between hover:scale-[1.02] transition-all group ${bgClass}`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
+                            <IconComponent className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <h5 className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                              {soc.name}
+                            </h5>
+                            <p className="text-[10px] text-slate-400 truncate max-w-[130px] font-mono">
+                              {soc.url.replace(/^https?:\/\//, '')}
+                            </p>
+                          </div>
+                        </div>
+                        <span className={`text-[10px] px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 shrink-0 ${btnBg}`}>
+                          {badgeText} <ExternalLink className="w-3 h-3" />
+                        </span>
+                      </a>
+                    );
+                  })}
                 </div>
               </div>
 
