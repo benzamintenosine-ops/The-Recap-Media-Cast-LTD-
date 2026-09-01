@@ -31,6 +31,7 @@ import { getTranslation } from './utils/i18n';
 import {
   subscribeToArticles,
   addArticleToFirebase,
+  updateArticleInFirebase,
   deleteArticleFromFirebase,
   addCommentToFirebase,
   incrementArticleViewsInFirebase
@@ -296,6 +297,23 @@ export default function App() {
     setArticles((prev) => prev.filter((a) => a.id !== id));
   };
 
+  // Update Article (Writer / Admin - updates in Firebase Firestore)
+  const handleUpdateArticle = async (id: string, updatedArt: Partial<NewsArticle>) => {
+    try {
+      await updateArticleInFirebase(id, updatedArt);
+      fetch(`/api/news/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedArt),
+      }).catch(() => {});
+    } catch (err) {
+      console.warn('Firebase update fallback:', err);
+    }
+    setArticles((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, ...updatedArt } : a))
+    );
+  };
+
   // Add Comment to Article (Saves to Firebase Firestore)
   const handleAddComment = async (articleId: string, authorName: string, text: string) => {
     try {
@@ -459,6 +477,7 @@ export default function App() {
           <AdminPortal
             articles={articles}
             onAddArticle={handleAddArticle}
+            onUpdateArticle={handleUpdateArticle}
             onDeleteArticle={handleDeleteArticle}
             currentLang={currentLang}
             writerSecretCode={siteSettings.writerSecretCode}

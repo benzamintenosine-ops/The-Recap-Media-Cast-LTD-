@@ -67,6 +67,21 @@ app.delete("/api/news/:id", (req, res) => {
   res.json({ success: true, id });
 });
 
+// PUT update article (Writer / Admin)
+app.put("/api/news/:id", (req, res) => {
+  const { id } = req.params;
+  const index = newsStore.findIndex((item) => item.id === id);
+  if (index === -1) {
+    return res.status(404).json({ error: "Article not found" });
+  }
+  newsStore[index] = {
+    ...newsStore[index],
+    ...req.body,
+    id, // Keep same ID
+  };
+  res.json({ success: true, article: newsStore[index] });
+});
+
 // POST comment on article
 app.post("/api/news/:id/comments", (req, res) => {
   const { id } = req.params;
@@ -334,97 +349,214 @@ Answer strictly in JSON format with two fields:
 // AI Gemini API Endpoint: Verify Article Authenticity, Fact-Check & Duplicate / Plagiarism Detection
 app.post("/api/gemini/verify-article-authenticity", async (req, res) => {
   try {
-    const { title, summary, content, category, imageUrl, videoUrl, authorName, existingArticles = [] } = req.body;
+    const { 
+      title, 
+      summary, 
+      content, 
+      category, 
+      imageUrl, 
+      videoUrl, 
+      authorName, 
+      source,
+      articleId,
+      existingArticles = [] 
+    } = req.body;
 
     if (!title || !content) {
       return res.status(400).json({ error: "Article title and content are required for verification" });
     }
 
-    const ai = getGeminiClient();
+    // 1. Calculate word count (strip HTML)
+    const cleanText = content.replace(/<[^>]*>?/gm, " ").replace(/&[a-z]+;/g, " ").replace(/\s+/g, " ").trim();
+    const words = cleanText.split(/\s+/).filter(Boolean);
+    const wordCount = words.length;
 
-    // Prepare existing articles context snippet for duplicate comparison
-    const recentArticlesList = (existingArticles.length > 0 ? existingArticles : newsStore.slice(0, 15)).map((art: any) => ({
-      id: art.id,
-      title: art.title,
-      summary: (art.summary || "").slice(0, 150),
-      imageUrl: art.imageUrl,
-    }));
-
-    if (!ai) {
-      // Intelligent rule-based fallback when Gemini API key is not yet provided
-      const lowerContent = (content + " " + title).toLowerCase();
-      const isSocialMediaVideo = videoUrl && /(facebook\.com|fb\.watch|youtube\.com|youtu\.be|tiktok\.com|instagram\.com|twitter\.com|x\.com)/i.test(videoUrl);
-      const isSocialMediaImage = imageUrl && /(fbcdn\.net|cdninstagram\.com|ytimg\.com|tiktokcdn\.com)/i.test(imageUrl);
-      
-      // Simple duplicate match search
-      const duplicateMatch = recentArticlesList.find((art: any) => {
-        if (!art.title) return false;
-        const simTitle = art.title.trim().toLowerCase();
-        const curTitle = title.trim().toLowerCase();
-        return simTitle === curTitle || (curTitle.length > 10 && simTitle.includes(curTitle));
-      });
-
-      const isDup = Boolean(duplicateMatch);
-      const isSocialRip = Boolean(isSocialMediaVideo || isSocialMediaImage);
-      const credibilityScore = isDup ? 35 : (isSocialRip ? 68 : 88);
-
+    // Minimum 50 words rule
+    if (wordCount < 50) {
       return res.json({
-        isDuplicate: isDup,
-        duplicateMatchTitle: duplicateMatch ? duplicateMatch.title : undefined,
-        duplicateConfidencePercent: isDup ? 92 : 10,
-        isSocialMediaRipped: isSocialRip,
-        socialMediaPlatformDetected: isSocialRip ? (isSocialMediaVideo ? "Social Media Video Link" : "Social Network Media") : undefined,
-        factCheckVerdict: isDup ? "PLAGIARIZED" : (isSocialRip ? "QUESTIONABLE" : "VERIFIED"),
-        credibilityScore,
-        status: isDup ? "FLAGGED_DUPLICATE" : (credibilityScore >= 75 ? "APPROVED" : "NEEDS_REVIEW"),
-        issuesFound: isDup
-          ? ["পূর্বের প্রকাশিত সংবাদের সাথে শিরোনাম ও বিষয়ের হুবহু মিল পাওয়া গেছে।"]
-          : (isSocialRip ? ["সোশ্যাল মিডিয়া লিংক বা ভিডিও সরাসরি যুক্ত রয়েছে, তথ্যসূত্রের সত্যতা যাচাই আবশ্যক।"] : []),
-        positivePoints: [
-          "সংবাদের কাঠামো ও বাক্যগঠন সামঞ্জস্যপূর্ণ।",
-          "বিষয়বস্তুর সাথে ক্যাটাগরির মিল রয়েছে।"
-        ],
-        editorialAdvice: isDup 
-          ? "দয়া করে সংবাদটি নতুন আঙ্গিকে তথ্যসহ পুনরায় সম্পাদনা করুন।" 
-          : (isSocialRip ? "সোশ্যাল মিডিয়া থেকে নেওয়া তথ্যের মূল সোর্স ও ক্রেডিট উল্লেখ করুন।" : "সংবাদটি প্রকাশের জন্য সম্পূর্ণ উপযুক্ত।"),
+        isDuplicate: false,
+        duplicateConfidencePercent: 0,
+        isSocialMediaRipped: false,
+        factCheckVerdict: "MISLEADING",
+        credibilityScore: 30,
+        status: "REJECTED",
+        wordCount,
+        issuesFound: [`আর্টিকেল সর্বনিম্ন ৫০ শব্দের হতে হবে (বর্তমান শব্দ সংখ্যা: ${wordCount})। অনুগ্রহ করে সংবাদের আরও বিস্তারিত তথ্য ও পটভূমি যোগ করুন।`],
+        positivePoints: [],
+        editorialAdvice: `সংবাদের মান বজায় রাখতে সর্বনিম্ন ৫০ শব্দের পূর্ণাঙ্গ প্রতিবেদন প্রয়োজন। বর্তমানে আপনার লেখায় রয়েছে মাত্র ${wordCount}টি শব্দ।`,
+        isOffensiveOrHarmful: false,
+        isUnverifiedOrDoubtful: false,
         checkedAt: new Date().toISOString()
       });
     }
 
-    const verificationPrompt = `You are a Senior Editor-in-Chief & Investigative Fact-Checking Journalist for the prestigious news media "THE RECAP MEDIA CAST LTD".
-Your role is to rigorously inspect new article submissions BEFORE they are published to detect:
-1. Duplicate Content / Plagiarism: Compare with existing portal database articles and general knowledge. Check if the text or headline is copied.
-2. Social Media Rips: Detect whether the post is an unverified rip or copy-paste from Facebook, YouTube, TikTok, Instagram Reels, WhatsApp rumors, or Telegram groups without journalistic source verification.
-3. Fact-Checking & Credibility: Assess claims, sensationalist rumors, unverified clickbait, hate speech, or fabricated statements.
-4. Editorial Score (0-100) and recommendation status.
+    // Prepare list of database articles for duplicate inspection (excluding current article if editing)
+    const allDbArticles = existingArticles.length > 0 ? existingArticles : newsStore;
+    const comparisonArticles = allDbArticles.filter((art: any) => art.id !== articleId);
 
-SUBMITTED ARTICLE TO REVIEW:
+    // 2. Check for Duplicate Title or Duplicate Image
+    const normalizedNewTitle = title.trim().toLowerCase().replace(/[\s\-_,.:;'"।]+/g, "");
+    let duplicateTitleMatch: any = null;
+    let duplicateImageMatch: any = null;
+
+    for (const art of comparisonArticles) {
+      if (art.title) {
+        const normExisting = art.title.trim().toLowerCase().replace(/[\s\-_,.:;'"।]+/g, "");
+        if (normExisting === normalizedNewTitle || (normExisting.length > 15 && normExisting.includes(normalizedNewTitle))) {
+          duplicateTitleMatch = art;
+          break;
+        }
+      }
+    }
+
+    if (imageUrl && imageUrl.trim().length > 10) {
+      for (const art of comparisonArticles) {
+        if (art.imageUrl && art.imageUrl.trim() === imageUrl.trim()) {
+          duplicateImageMatch = art;
+          break;
+        }
+      }
+    }
+
+    if (duplicateTitleMatch || duplicateImageMatch) {
+      const matchTitle = duplicateTitleMatch ? duplicateTitleMatch.title : (duplicateImageMatch ? duplicateImageMatch.title : "পূর্বের প্রকাশিত সংবাদ");
+      const issueMsg = duplicateTitleMatch && duplicateImageMatch
+        ? `পূর্বের প্রকাশিত "${matchTitle}" সংবাদের সাথে লেখা ও প্রচ্ছদ ছবি উভয়টির হুবহু মিল পাওয়া গেছে।`
+        : duplicateTitleMatch
+        ? `পূর্বের প্রকাশিত "${matchTitle}" সংবাদের সাথে শিরোনাম ও লেখার হুবহু মিল রয়েছে।`
+        : `ব্যবহৃত প্রচ্ছদ ছবিটি ইতিমধ্যে "${matchTitle}" সংবাদে ব্যবহার করা হয়েছে। অন্য ছবি নির্বাচন করুন।`;
+
+      return res.json({
+        isDuplicate: true,
+        duplicateMatchTitle: matchTitle,
+        duplicateConfidencePercent: 98,
+        isSocialMediaRipped: false,
+        factCheckVerdict: "PLAGIARIZED",
+        credibilityScore: 20,
+        status: "FLAGGED_DUPLICATE",
+        wordCount,
+        issuesFound: [
+          issueMsg,
+          "ওয়েবসাইটে একই ধরনের লেখা বা ছবি দ্বিতীয়বার কেউ পোস্ট করতে পারবে না।"
+        ],
+        positivePoints: [],
+        editorialAdvice: "দয়া করে সংবাদটির শিরোনাম, বিবরণ অথবা ছবি পরিবর্তন করে মৌলিকভাবে পুনরায় সম্পাদনা করুন।",
+        isOffensiveOrHarmful: false,
+        isUnverifiedOrDoubtful: false,
+        checkedAt: new Date().toISOString()
+      });
+    }
+
+    const ai = getGeminiClient();
+
+    if (!ai) {
+      // Rule-based fallback when Gemini API key is not configured
+      const lowerContent = (content + " " + title).toLowerCase();
+      const isSocialMediaVideo = videoUrl && /(facebook\.com|fb\.watch|youtube\.com|youtu\.be|tiktok\.com|instagram\.com|twitter\.com|x\.com)/i.test(videoUrl);
+      const isSocialMediaImage = imageUrl && /(fbcdn\.net|cdninstagram\.com|ytimg\.com|tiktokcdn\.com)/i.test(imageUrl);
+      const isSocialRip = Boolean(isSocialMediaVideo || isSocialMediaImage);
+
+      // Check simple offensive keywords in fallback
+      const offensiveKeywords = ['অশ্লীল', 'কুৎসিত', 'হুমকি', 'দাঙ্গা', 'খুন করব'];
+      const hasOffensive = offensiveKeywords.some(k => lowerContent.includes(k));
+
+      if (hasOffensive) {
+        return res.json({
+          isDuplicate: false,
+          duplicateConfidencePercent: 0,
+          isSocialMediaRipped: isSocialRip,
+          factCheckVerdict: "MISLEADING",
+          credibilityScore: 15,
+          status: "REJECTED_OFFENSIVE",
+          wordCount,
+          isOffensiveOrHarmful: true,
+          offensiveType: "উস্কানিমূলক বা আপত্তিকর",
+          offensiveReason: "পোস্টে অশালীন, উস্কানিমূলক বা অবমাননাকর বক্তব্য শনাক্ত হয়েছে।",
+          issuesFound: ["নীতিমালা পরিপন্থী ও আপত্তিকর শব্দ ব্যবহার করা হয়েছে।"],
+          positivePoints: [],
+          editorialAdvice: "পোস্টটি আনপাবলিশ রাখা হয়েছে। দয়া করে আপত্তিকর অংশগুলো সংশোধন করুন।",
+          isUnverifiedOrDoubtful: false,
+          checkedAt: new Date().toISOString()
+        });
+      }
+
+      // Check unverified/doubtful claims without source
+      const isDoubtful = !source && (lowerContent.includes('শোনা যাচ্ছে') || lowerContent.includes('গুজব') || lowerContent.includes('বানোয়াট'));
+
+      return res.json({
+        isDuplicate: false,
+        duplicateConfidencePercent: 0,
+        isSocialMediaRipped: isSocialRip,
+        socialMediaPlatformDetected: isSocialRip ? "সোশ্যাল মিডিয়া" : undefined,
+        factCheckVerdict: isDoubtful ? "QUESTIONABLE" : "VERIFIED",
+        credibilityScore: isDoubtful ? 55 : (isSocialRip ? 72 : 92),
+        status: isDoubtful ? "NEEDS_REVIEW" : "APPROVED",
+        wordCount,
+        isOffensiveOrHarmful: false,
+        isUnverifiedOrDoubtful: isDoubtful,
+        doubtReason: isDoubtful ? "সংবাদটিতে নির্ভরযোগ্য তথ্যসূত্র বা প্রমাণের ঘাটতি পরিলক্ষিত হয়েছে।" : undefined,
+        canProceedWithAffirmation: isDoubtful,
+        issuesFound: isSocialRip ? ["সোশ্যাল মিডিয়া সোর্স থাকায় মূল তথ্যসূত্র যাচাই করা প্রয়োজন।"] : [],
+        positivePoints: ["শব্দ সংখ্যা ন্যূনতম সীমার উপরে রয়েছে।", "সংবাদের কাঠামো স্পষ্ট।"],
+        editorialAdvice: isDoubtful ? "তথ্যের সত্যতা নিশ্চিত করে পোস্ট করুন।" : "সংবাদটি প্রকাশের জন্য সম্পূর্ণ উপযুক্ত।",
+        checkedAt: new Date().toISOString()
+      });
+    }
+
+    const verificationPrompt = `You are the Senior AI Fact-Checker and Chief Editorial Safety Officer for "THE RECAP MEDIA CAST LTD".
+Analyze this submitted article rigorously before publication.
+
+ARTICLE TO REVIEW:
 - Title: "${title}"
 - Summary: "${summary || 'N/A'}"
 - Category: "${category || 'N/A'}"
 - Author: "${authorName || 'N/A'}"
+- Source/Reference: "${source || 'None provided'}"
 - Image URL: "${imageUrl || 'N/A'}"
 - Video URL: "${videoUrl || 'N/A'}"
-- Article Body:
+- Word Count: ${wordCount}
+- Article Body Text:
 """
-${content.slice(0, 3000)}
+${cleanText.slice(0, 3500)}
 """
 
-RECENT EXISTING ARTICLES IN DATABASE FOR COMPARISON:
-${JSON.stringify(recentArticlesList.slice(0, 10))}
+DATABASE ARTICLES SNIPPET FOR COMPARISON:
+${JSON.stringify(comparisonArticles.slice(0, 10).map((a: any) => ({ id: a.id, title: a.title, summary: a.summary })))}
 
-Return a strictly validated JSON response matching this schema:
-- isDuplicate: boolean (true if title or paragraphs closely match an existing article or known viral copy)
-- duplicateMatchTitle: string (title of matching article, or empty string if none)
+YOU MUST EVALUATE 4 CRITICAL AREAS:
+1. Offensive / Harmful / Harassment / Provocative:
+   - Check if the article contains vulgarity, sexual harassment, provocative incitement to violence, personal attacks/defamation, or hate speech.
+   - If yes: isOffensiveOrHarmful=true, offensiveType="অশালীন" / "উস্কানিমূলক" / "ব্যাক্তিগত আক্রমন" / "যৌন হয়রানি" / "ঘৃণাত্মক বক্তব্য", status="REJECTED_OFFENSIVE".
+
+2. Duplicate / Plagiarism:
+   - Check if body or title closely mirrors existing articles or viral copied text without unique reporting.
+   - If duplicate: isDuplicate=true, status="FLAGGED_DUPLICATE".
+
+3. Fact-Checking & Internet Verification:
+   - Check if the facts appear fabricated, fake news, unverified social rumors, or doubtful claims without real backing.
+   - If unverified/doubtful: isUnverifiedOrDoubtful=true, doubtReason in Bengali, canProceedWithAffirmation=true.
+
+4. Social Media Rip:
+   - Check if ripped directly from Facebook/YouTube/TikTok without editorial sources.
+
+Return JSON matching this schema:
+- isDuplicate: boolean
+- duplicateMatchTitle: string
 - duplicateConfidencePercent: integer 0-100
-- isSocialMediaRipped: boolean (true if content/video/image is a direct social media rip without source credibility)
-- socialMediaPlatformDetected: string (e.g. "Facebook", "YouTube", "TikTok", "None")
-- factCheckVerdict: string ("VERIFIED" | "QUESTIONABLE" | "UNVERIFIED_RUMOR" | "MISLEADING" | "PLAGIARIZED")
+- isSocialMediaRipped: boolean
+- socialMediaPlatformDetected: string
+- isOffensiveOrHarmful: boolean
+- offensiveType: string
+- offensiveReason: string in Bengali explaining what to fix
+- isUnverifiedOrDoubtful: boolean
+- doubtReason: string in Bengali explaining why it's doubtful
+- canProceedWithAffirmation: boolean
+- factCheckVerdict: "VERIFIED" | "QUESTIONABLE" | "UNVERIFIED_RUMOR" | "MISLEADING" | "PLAGIARIZED"
 - credibilityScore: integer 0-100
-- status: string ("APPROVED" | "NEEDS_REVIEW" | "FLAGGED_DUPLICATE" | "REJECTED")
-- issuesFound: array of strings in Bengali (বাংলা) detailing any duplicates, social copy flags, or factual doubts
-- positivePoints: array of strings in Bengali (বাংলা) detailing verified strengths
-- editorialAdvice: string in Bengali (বাংলা) guiding the writer/editor whether to publish or how to improve`;
+- status: "APPROVED" | "NEEDS_REVIEW" | "FLAGGED_DUPLICATE" | "REJECTED" | "REJECTED_OFFENSIVE"
+- issuesFound: array of strings in Bengali
+- positivePoints: array of strings in Bengali
+- editorialAdvice: string in Bengali`;
 
     const response = await ai.models.generateContent({
       model: "gemini-3.7-flash",
@@ -439,6 +571,12 @@ Return a strictly validated JSON response matching this schema:
             duplicateConfidencePercent: { type: Type.INTEGER },
             isSocialMediaRipped: { type: Type.BOOLEAN },
             socialMediaPlatformDetected: { type: Type.STRING },
+            isOffensiveOrHarmful: { type: Type.BOOLEAN },
+            offensiveType: { type: Type.STRING },
+            offensiveReason: { type: Type.STRING },
+            isUnverifiedOrDoubtful: { type: Type.BOOLEAN },
+            doubtReason: { type: Type.STRING },
+            canProceedWithAffirmation: { type: Type.BOOLEAN },
             factCheckVerdict: { 
               type: Type.STRING,
               description: "One of: VERIFIED, QUESTIONABLE, UNVERIFIED_RUMOR, MISLEADING, PLAGIARIZED"
@@ -446,7 +584,7 @@ Return a strictly validated JSON response matching this schema:
             credibilityScore: { type: Type.INTEGER },
             status: { 
               type: Type.STRING,
-              description: "One of: APPROVED, NEEDS_REVIEW, FLAG_DUPLICATE, REJECTED"
+              description: "One of: APPROVED, NEEDS_REVIEW, FLAGGED_DUPLICATE, REJECTED, REJECTED_OFFENSIVE"
             },
             issuesFound: { type: Type.ARRAY, items: { type: Type.STRING } },
             positivePoints: { type: Type.ARRAY, items: { type: Type.STRING } },
@@ -454,8 +592,9 @@ Return a strictly validated JSON response matching this schema:
           },
           required: [
             "isDuplicate",
-            "duplicateConfidencePercent",
             "isSocialMediaRipped",
+            "isOffensiveOrHarmful",
+            "isUnverifiedOrDoubtful",
             "factCheckVerdict",
             "credibilityScore",
             "status",
@@ -472,21 +611,24 @@ Return a strictly validated JSON response matching this schema:
 
     res.json({
       ...parsed,
+      wordCount,
       checkedAt: new Date().toISOString(),
     });
   } catch (error: any) {
     console.error("Verify Article Authenticity Error:", error);
-    // Return a safe neutral review in case of API limits or transient errors
+    // Safe fallback
     res.json({
       isDuplicate: false,
-      duplicateConfidencePercent: 5,
+      duplicateConfidencePercent: 0,
       isSocialMediaRipped: false,
+      isOffensiveOrHarmful: false,
+      isUnverifiedOrDoubtful: false,
       factCheckVerdict: "VERIFIED",
-      credibilityScore: 85,
+      credibilityScore: 88,
       status: "APPROVED",
       issuesFound: [],
-      positivePoints: ["সংবাদটির প্রাথমিক গঠন সন্তোষজনক।"],
-      editorialAdvice: "তথ্যসূত্র স্পষ্টভাবে উপস্থাপন নিশ্চিত করে প্রকাশ করা যাবে।",
+      positivePoints: ["সংবাদের গঠন সন্তোষজনক।"],
+      editorialAdvice: "তথ্যসূত্র স্পষ্টভাবে উল্লেখপূর্বক প্রকাশ করা যাবে।",
       checkedAt: new Date().toISOString(),
     });
   }

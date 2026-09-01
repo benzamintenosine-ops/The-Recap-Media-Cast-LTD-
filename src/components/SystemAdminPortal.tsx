@@ -183,6 +183,12 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
   const [showNotificationCenterModal, setShowNotificationCenterModal] = useState<boolean>(false);
   const [notifCenterTab, setNotifCenterTab] = useState<'sent' | 'received'>('sent');
 
+  // Payment Done Window Modal State
+  const [paymentModalReq, setPaymentModalReq] = useState<WithdrawalRequest | null>(null);
+  const [senderAccountInput, setSenderAccountInput] = useState('');
+  const [transactionIdInput, setTransactionIdInput] = useState('');
+  const [paymentError, setPaymentError] = useState('');
+
   // Sync admin profile to localStorage
   useEffect(() => {
     if (adminProfile) {
@@ -321,19 +327,50 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
     onUpdateWriters(updated);
   };
 
-  // Payment Done Action
-  const handlePaymentDone = (req: WithdrawalRequest) => {
-    onUpdateWithdrawalStatus(req.id, 'completed');
+  // Payment Done Action & Modal Handlers
+  const handleOpenPaymentModal = (req: WithdrawalRequest) => {
+    setPaymentModalReq(req);
+    setSenderAccountInput('');
+    setTransactionIdInput('');
+    setPaymentError('');
+  };
 
-    // Send payment done notification to the writer
+  const handleConfirmSendPayment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!paymentModalReq) return;
+    if (!senderAccountInput.trim()) {
+      setPaymentError('অনুগ্রহ করে Sender Account (যে নম্বর থেকে টাকা পাঠানো হয়েছে) লিখুন।');
+      return;
+    }
+    if (!transactionIdInput.trim()) {
+      setPaymentError('অনুগ্রহ করে Transection ID লিখুন।');
+      return;
+    }
+
+    onUpdateWithdrawalStatus(paymentModalReq.id, 'completed');
+
+    const formattedMessage = `প্রিয় ${paymentModalReq.writerName}
+${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার লেনদেন টি সম্পন্ন করা হয়েছে।
+
+#Amount : ৳${paymentModalReq.amount}
+#Sender Account : ${senderAccountInput.trim()}
+#Receiver Account : ${paymentModalReq.accountNumber}
+#Transection ID : ${transactionIdInput.trim()}`;
+
+    // Send payment done notification to the writer with exact requested format
     onSendNotification({
-      recipientWriterId: req.writerId,
+      recipientWriterId: paymentModalReq.writerId,
       senderName: 'The Recap Media Cast LTD',
-      title: 'পেমেন্ট সফল হয়েছে (Payment Completed)',
-      message: `অভিনন্দন! আপনার ৳${req.amount} টাকা উত্তোলনের আবেদনটি (${req.paymentMethod}: ${req.accountNumber}) সফলভাবে পরিশোধ করা হয়েছে।`,
+      title: 'পেমেন্ট সম্পন্ন হয়েছে (Payment Completed)',
+      message: formattedMessage,
       type: 'payment_done',
-      amount: req.amount
+      amount: paymentModalReq.amount
     });
+
+    setPaymentModalReq(null);
+    setSenderAccountInput('');
+    setTransactionIdInput('');
+    setPaymentError('');
   };
 
   // Send Custom Notification Submit
@@ -951,11 +988,11 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
 
                     {req.status === 'pending' ? (
                       <button
-                        onClick={() => handlePaymentDone(req)}
-                        className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+                        onClick={() => handleOpenPaymentModal(req)}
+                        className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                       >
                         <CheckCircle className="w-4 h-4" />
-                        Payment done (পেমেন্ট সফল নোটিফিকেশন পাঠান)
+                        Payment done (পেমেন্ট উইন্ডো খুলুন)
                       </button>
                     ) : (
                       <div className="p-2 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl text-center text-xs text-emerald-600 dark:text-emerald-300 font-bold flex items-center justify-center gap-1.5">
@@ -2736,6 +2773,141 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
                 বন্ধ করুন
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* PAYMENT DONE SETTLEMENT MODAL WINDOW */}
+      {paymentModalReq && (
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+                  <DollarSign className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Payment Done — লেনদেন সম্পন্ন করুন
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    তথ্য পূরণ করে Send বাটনে ক্লিক করলে লেখকের হিস্টোরি Done হবে এবং নোটিফিকেশন যাবে।
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPaymentModalReq(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {paymentError && (
+              <div className="p-3 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs rounded-xl flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{paymentError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleConfirmSendPayment} className="space-y-4">
+              {/* Readonly Details Grid */}
+              <div className="grid grid-cols-2 gap-3 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700/80 text-xs">
+                <div>
+                  <span className="text-[10px] text-slate-500 block">🔸 লেখকের নাম</span>
+                  <strong className="text-slate-900 dark:text-white text-xs font-bold block truncate">
+                    {paymentModalReq.writerName}
+                  </strong>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-slate-500 block">🔸 Withdraw Amount</span>
+                  <strong className="text-emerald-600 dark:text-emerald-400 text-sm font-black font-mono">
+                    ৳{paymentModalReq.amount}
+                  </strong>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-slate-500 block">🔸 Receiver Account (লেখকের নম্বর)</span>
+                  <strong className="text-red-600 dark:text-red-400 text-xs font-mono font-bold">
+                    {paymentModalReq.accountNumber}
+                  </strong>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-slate-500 block">🔸 ব্যবহৃত Gateway</span>
+                  <span className="inline-block px-2 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white text-[11px] font-bold rounded-md">
+                    {paymentModalReq.paymentMethod}
+                  </span>
+                </div>
+              </div>
+
+              {/* Sender Account Input */}
+              <div>
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                  🔸 Sender Account (যে নম্বর থেকে টাকা পাঠানো হয়েছে) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={senderAccountInput}
+                  onChange={(e) => setSenderAccountInput(e.target.value)}
+                  placeholder="যেমন: 01712345678 বা বিকাশ মার্চেন্ট নং"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              {/* Transaction ID Input */}
+              <div>
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                  🔸 Transection ID (ট্রানজেকশন আইডি) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={transactionIdInput}
+                  onChange={(e) => setTransactionIdInput(e.target.value)}
+                  placeholder="যেমন: 9J3K8L2M1P"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono uppercase focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              {/* Notification Preview Box */}
+              <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-900/60 text-[11px] text-slate-700 dark:text-slate-300 space-y-1">
+                <span className="font-bold text-emerald-800 dark:text-emerald-400 block text-[10px] uppercase tracking-wider">
+                  লেখক যে নোটিফিকেশনটি পাবেন:
+                </span>
+                <p className="font-sans leading-relaxed whitespace-pre-line text-[11px]">
+                  {`প্রিয় ${paymentModalReq.writerName}
+${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার লেনদেন টি সম্পন্ন করা হয়েছে।
+
+#Amount : ৳${paymentModalReq.amount}
+#Sender Account : ${senderAccountInput || '[Sender Account]'}
+#Receiver Account : ${paymentModalReq.accountNumber}
+#Transection ID : ${transactionIdInput || '[Transection ID]'}`}
+                </p>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPaymentModalReq(null)}
+                  className="px-4 py-2.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl transition-colors"
+                >
+                  বাতিল
+                </button>
+
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl shadow-lg transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>Send (পেমেন্ট নিশ্চিত ও নোটিফিকেশন পাঠান)</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -44,7 +44,9 @@ import {
   X,
   History,
   CreditCard,
-  Wallet
+  Wallet,
+  AlertTriangle,
+  Globe
 } from 'lucide-react';
 import { NewsArticle, Category, Language, AnalyticsOverview, WriterProfile, SystemNotification, WithdrawalRequest, ArticleAuthenticityResult } from '../types';
 import { getTranslation } from '../utils/i18n';
@@ -55,6 +57,7 @@ import { BotProtectionModal } from './BotProtection';
 interface WritersPortalProps {
   articles: NewsArticle[];
   onAddArticle: (article: Partial<NewsArticle>) => void;
+  onUpdateArticle?: (id: string, updatedArticle: Partial<NewsArticle>) => void;
   onDeleteArticle: (id: string) => void;
   currentLang: Language;
   writerSecretCode?: string;
@@ -79,6 +82,7 @@ const CATEGORIES: Category[] = [
 export const AdminPortal: React.FC<WritersPortalProps> = ({
   articles,
   onAddArticle,
+  onUpdateArticle,
   onDeleteArticle,
   currentLang,
   writerSecretCode = 'RECAP2026',
@@ -117,6 +121,9 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   // Active Sub-Tab: 'analytics' | 'create' | 'manage' | 'withdraw' | 'notifications' | 'profile'
   const [activeTab, setActiveTab] = useState<'analytics' | 'create' | 'manage' | 'withdraw' | 'notifications' | 'profile'>('create');
 
+  // Article Edit Mode State
+  const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
+
   // Withdrawal form & Modal states
   const [showWithdrawModal, setShowWithdrawModal] = useState<boolean>(false);
   const [selectedGateway, setSelectedGateway] = useState<'bKash' | 'Nagad' | 'Rocket' | 'Upay' | 'TAP' | ''>('');
@@ -132,6 +139,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   const [postTitle, setPostTitle] = useState('');
   const [postSummary, setPostSummary] = useState('');
   const [postContent, setPostContent] = useState('');
+  const [postSource, setPostSource] = useState('');
   const [editorMode, setEditorMode] = useState<'edit' | 'preview'>('edit');
   const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [postCategory, setPostCategory] = useState<Category>('জাতীয়');
@@ -146,6 +154,15 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
   // Image upload state & validation
   const [imageSizeError, setImageSizeError] = useState('');
+
+  // Unverified / Doubtful News Affirmation Modal State ("আপনার পোস্ট করা নিউজের বিষয়বস্তু কি সত্য? (হ্যাঁ/না)")
+  const [doubtModalOpen, setDoubtModalOpen] = useState<boolean>(false);
+
+  // Helper function to count words from HTML content
+  const countWords = (html: string) => {
+    const plain = html.replace(/<[^>]*>?/gm, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim();
+    return plain ? plain.split(/\s+/).filter(Boolean).length : 0;
+  };
 
   // Daily Post Limit: Maximum 10 posts per day per writer
   const DAILY_POST_LIMIT = 10;
@@ -359,6 +376,12 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       return;
     }
 
+    const words = countWords(postContent);
+    if (words < 50) {
+      setAuthenticityError(`সংবাদটি সর্বনিম্ন ৫০ শব্দের হতে হবে। বর্তমানে শব্দ সংখ্যা: ${words}।`);
+      return;
+    }
+
     setIsVerifyingAuthenticity(true);
     setAuthenticityError('');
     try {
@@ -372,8 +395,10 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           category: postCategory,
           imageUrl: postImageUrl,
           videoUrl: postVideoUrl,
+          source: postSource.trim() || undefined,
+          articleId: editingArticleId || undefined,
           authorName: writerProfile?.name || 'প্রতিবেদক',
-          existingArticles: articles.slice(0, 15).map(a => ({
+          existingArticles: articles.slice(0, 20).map(a => ({
             id: a.id,
             title: a.title,
             summary: a.summary,
@@ -396,10 +421,10 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     }
   };
 
-  // Step 1 -> Step 2 transition
+  // Step 1 -> Step 2 transition with 50-Word Minimum Validation
   const handleProceedToStep2 = () => {
     setEditorError('');
-    if (todayPostsCount >= DAILY_POST_LIMIT) {
+    if (!editingArticleId && todayPostsCount >= DAILY_POST_LIMIT) {
       setEditorError(`আপনি আজকের জন্য সর্বোচ্চ ${DAILY_POST_LIMIT}টি পোস্টের কোটা পূর্ণ করেছেন। নতুন পোস্টের জন্য অনুগ্রহ করে আগামীকাল চেষ্টা করুন।`);
       return;
     }
@@ -411,16 +436,81 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       setEditorError('সংবাদের বিবরণ লেখা বাধ্যতামূলক!');
       return;
     }
+
+    // 50-Word Minimum Validation
+    const wordCount = countWords(postContent);
+    if (wordCount < 50) {
+      setEditorError(`সংবাদটি সর্বনিম্ন ৫০ শব্দের হতে হবে। বর্তমানে আপনার লেখায় রয়েছে ${wordCount}টি শব্দ। অনুগ্রহ করে আরও বিস্তারিত লিখুন (ন্যূনতম ৫০ শব্দ আবশ্যক)।`);
+      return;
+    }
+
     setCreateStep(2);
   };
 
-  // Publish Post Handler with Bot protection check
+  // Start Editing an existing article
+  const handleStartEditArticle = (art: NewsArticle) => {
+    setEditingArticleId(art.id);
+    setPostTitle(art.title);
+    setPostSummary(art.summary || '');
+    setPostContent(art.content);
+    setPostCategory(art.category);
+    setPostTags(art.tags || ['সংবাদ', 'জাতীয়']);
+    setPostImageUrl(art.imageUrl);
+    setPostVideoUrl(art.videoUrl || '');
+    setPostSource(art.source || '');
+    setIsBreaking(!!art.isBreaking);
+    setAuthenticityResult(null);
+    setEditorError('');
+    setActiveTab('create');
+    setCreateStep(1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Cancel Editing
+  const handleCancelEdit = () => {
+    setEditingArticleId(null);
+    setPostTitle('');
+    setPostSummary('');
+    setPostContent('');
+    setPostSource('');
+    setAuthenticityResult(null);
+    setEditorError('');
+    setCreateStep(1);
+  };
+
+  // Publish Post Handler with Fact-Checking, Offensive/Duplicate Blocks & Bot Protection
   const handlePublishPost = (e: React.FormEvent) => {
     e.preventDefault();
+    setEditorError('');
     if (!postTitle.trim() || !postContent.trim()) return;
 
-    if (getTodayPostsCount() >= DAILY_POST_LIMIT) {
+    if (!editingArticleId && getTodayPostsCount() >= DAILY_POST_LIMIT) {
       setEditorError(`আপনি আজকের জন্য সর্বোচ্চ ${DAILY_POST_LIMIT}টি পোস্টের কোটা পূর্ণ করেছেন।`);
+      return;
+    }
+
+    // 50-Word Minimum check
+    const wordCount = countWords(postContent);
+    if (wordCount < 50) {
+      setEditorError(`সংবাদটি সর্বনিম্ন ৫০ শব্দের হতে হবে। বর্তমানে আপনার লেখায় রয়েছে ${wordCount}টি শব্দ।`);
+      return;
+    }
+
+    // Check if AI Fact Check flagged offensive content
+    if (authenticityResult?.status === 'REJECTED_OFFENSIVE' || authenticityResult?.isOffensiveOrHarmful) {
+      setEditorError('🚫 অশালীন, উস্কানিমূলক, ব্যক্তিগত আক্রমণ বা যৌন হয়রানিমূলক উপাদান থাকায় পোস্টটি আনপাবলিশ রাখা হয়েছে। অনুগ্রহ করে লেখাটি এডিট করুন।');
+      return;
+    }
+
+    // Check if AI Fact Check flagged duplicate content
+    if (authenticityResult?.status === 'FLAGGED_DUPLICATE' || authenticityResult?.isDuplicate) {
+      setEditorError('🚫 ওয়েবসাইটে একই ধরনের লেখা বা ছবি দ্বিতীয়বার কেউ পোস্ট করতে পারবে না। অনুগ্রহ করে অন্য কোনো অনন্য বিষয় নিয়ে সংবাদ লিখুন।');
+      return;
+    }
+
+    // Check if AI Fact Check found doubtful / unverified internet rumor
+    if (authenticityResult && (authenticityResult.isUnverifiedOrDoubtful || authenticityResult.factCheckVerdict === 'UNVERIFIED_RUMOR' || authenticityResult.factCheckVerdict === 'QUESTIONABLE')) {
+      setDoubtModalOpen(true);
       return;
     }
 
@@ -440,17 +530,18 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
   const executePublishPost = () => {
     const currentTodayCount = getTodayPostsCount();
-    if (currentTodayCount >= DAILY_POST_LIMIT) {
+    if (!editingArticleId && currentTodayCount >= DAILY_POST_LIMIT) {
       setEditorError(`আপনি আজকের জন্য সর্বোচ্চ ${DAILY_POST_LIMIT}টি পোস্টের কোটা পূর্ণ করেছেন। নতুন পোস্টের জন্য অনুগ্রহ করে আগামীকাল চেষ্টা করুন।`);
       return;
     }
 
     const authorName = `${writerProfile?.name || 'লেখক'}${shareNameUnderPost ? ' (প্রতিবেদক)' : ''}`;
 
-    onAddArticle({
+    const articlePayload: Partial<NewsArticle> = {
       title: postTitle,
       summary: postSummary || postTitle.slice(0, 100),
       content: postContent,
+      source: postSource.trim() || undefined,
       category: postCategory,
       tags: postTags,
       imageUrl: postImageUrl,
@@ -461,24 +552,54 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       viewsCount: 0,
       comments: [],
       readTimeMinutes: Math.max(2, Math.ceil(postContent.length / 400)),
-    });
+    };
 
-    // Update today's post quota counter
-    try {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const writerNameLower = (writerProfile?.name || 'writer').trim().toLowerCase();
-      localStorage.setItem(`recap_daily_posts_${writerNameLower}_${todayStr}`, (currentTodayCount + 1).toString());
-    } catch {}
+    if (editingArticleId) {
+      if (onUpdateArticle) {
+        onUpdateArticle(editingArticleId, articlePayload);
+      } else {
+        onAddArticle({ ...articlePayload, id: editingArticleId });
+      }
+      setPostSuccessMessage('সংবাদটি সফলভাবে আপডেট / সংশোধিত হয়েছে!');
+    } else {
+      onAddArticle(articlePayload);
+      // Update today's post quota counter
+      try {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const writerNameLower = (writerProfile?.name || 'writer').trim().toLowerCase();
+        localStorage.setItem(`recap_daily_posts_${writerNameLower}_${todayStr}`, (currentTodayCount + 1).toString());
+      } catch {}
+      setPostSuccessMessage('সংবাদ পোস্টটি সফলভাবে লাইভ প্রকাশিত হয়েছে!');
+    }
 
-    setPostSuccessMessage('সংবাদ পোস্টটি সফলভাবে লাইভ প্রকাশিত হয়েছে!');
     setTimeout(() => setPostSuccessMessage(''), 4000);
 
     // Reset editor
+    setEditingArticleId(null);
     setPostTitle('');
     setPostSummary('');
     setPostContent('');
+    setPostSource('');
     setAuthenticityResult(null);
     setCreateStep(1);
+  };
+
+  // Affirmation callback when writer chooses 'হ্যাঁ' (Yes) for unverified news
+  const handleConfirmDoubtfulPublish = () => {
+    setDoubtModalOpen(false);
+    executePublishPost();
+  };
+
+  // Affirmation callback when writer chooses 'না' (No) for unverified news
+  const handleRejectDoubtfulPublish = () => {
+    setDoubtModalOpen(false);
+    setPostTitle('');
+    setPostSummary('');
+    setPostContent('');
+    setPostSource('');
+    setAuthenticityResult(null);
+    setCreateStep(1);
+    setEditorError('পোস্টটি বাতিল করা হয়েছে। অনুগ্রহ করে সঠিক, নির্ভরযোগ্য ও তথ্যবহুল সংবাদ লিখুন।');
   };
 
   // Add custom tag
@@ -934,6 +1055,28 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           {/* STEP 1: Main Content Editor Canvas */}
           {createStep === 1 && (
             <div className="p-6 sm:p-8 space-y-6">
+              {/* Edit Mode Notice Banner */}
+              {editingArticleId && (
+                <div className="p-4 bg-amber-50 dark:bg-amber-950/70 border-2 border-amber-300 dark:border-amber-700 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+                  <div className="flex items-center gap-2.5 text-xs font-bold text-amber-900 dark:text-amber-200">
+                    <Edit3 className="w-5 h-5 text-amber-600 shrink-0" />
+                    <div>
+                      <span className="block font-black text-sm">সংবাদ সম্পাদনা মোড (Edit Mode)</span>
+                      <span className="text-[11px] font-normal text-amber-800 dark:text-amber-300">
+                        আপনি পূর্বে প্রকাশিত সংবাদটি পরিমার্জন / সম্পাদনা করছেন।
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm shrink-0"
+                  >
+                    সম্পাদনা বাতিল করুন
+                  </button>
+                </div>
+              )}
+
               {/* Daily Post Quota Counter Card */}
               <div className={`p-4 rounded-2xl border ${
                 isDailyLimitReached 
@@ -985,17 +1128,60 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                 />
               </div>
 
-              {/* Visual Rich Text Editor */}
+              {/* Visual Rich Text Editor with Live Word Count Badge */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                  <PenTool className="w-4 h-4 text-red-600" />
-                  সংবাদের মূল বিবরণ ও ভিজ্যুয়াল লেখার বোর্ড (Content Board) *
-                </label>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <PenTool className="w-4 h-4 text-red-600" />
+                    সংবাদের মূল বিবরণ ও ভিজ্যুয়াল লেখার বোর্ড (Content Board) *
+                  </label>
+                  {(() => {
+                    const words = countWords(postContent);
+                    const isMinReached = words >= 50;
+                    return (
+                      <span className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 border transition-all ${
+                        isMinReached
+                          ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 shadow-sm'
+                          : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800'
+                      }`}>
+                        {isMinReached ? (
+                          <CheckCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        ) : (
+                          <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                        )}
+                        শব্দ সংখ্যা: <strong>{words}</strong> / ৫০ (ন্যূনতম ৫০ শব্দ প্রয়োজন)
+                      </span>
+                    );
+                  })()}
+                </div>
 
                 <BloggerRichEditor
                   value={postContent}
                   onChange={(html) => setPostContent(html)}
                   minHeight="500px"
+                />
+              </div>
+
+              {/* Sources / তথ্যসূত্র input field (Optional) */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <Globe className="w-4 h-4 text-red-500" />
+                    তথ্যসূত্র (Sources) — ঐচ্ছিক
+                  </label>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-semibold">
+                    ঐচ্ছিক (Optional)
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  লেখক চাইলে এখানে তথ্যসূত্র দিতে পারেন আবার নাও দিতে পারেন। যদি তথ্যসূত্র দেন তবে পাঠকের সামনে প্রতিবেদকের নামের পাশে তথ্যসূত্র প্রদর্শিত হবে।
+                </p>
+                <input
+                  type="text"
+                  value={postSource}
+                  onChange={(e) => setPostSource(e.target.value)}
+                  placeholder="যেমন: রয়টার্স, বিবিসি বাংলা, স্থানীয় প্রতিনিধি, প্রেস রিলিজ ইত্যাদি..."
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
                 />
               </div>
 
@@ -1225,12 +1411,17 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                             <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> প্রকাশের জন্য অনুমোদিত
                           </span>
                         )}
-                        {authenticityResult.status === 'FLAGGED_DUPLICATE' && (
+                        {(authenticityResult.status === 'REJECTED_OFFENSIVE' || authenticityResult.isOffensiveOrHarmful) && (
+                          <span className="px-3 py-1 bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 font-bold text-xs rounded-lg border border-red-300 dark:border-red-800 flex items-center gap-1">
+                            <AlertCircle className="w-3.5 h-3.5 text-red-600" /> আপত্তিকর/অশালীন (আনপাবলিশ)
+                          </span>
+                        )}
+                        {(authenticityResult.status === 'FLAGGED_DUPLICATE' || authenticityResult.isDuplicate) && !authenticityResult.isOffensiveOrHarmful && (
                           <span className="px-3 py-1 bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 font-bold text-xs rounded-lg border border-red-300 dark:border-red-800 flex items-center gap-1">
                             <AlertCircle className="w-3.5 h-3.5 text-red-600" /> ডুপ্লিকেট বা কপি কনটেন্ট
                           </span>
                         )}
-                        {authenticityResult.status === 'NEEDS_REVIEW' && (
+                        {authenticityResult.status === 'NEEDS_REVIEW' && !authenticityResult.isOffensiveOrHarmful && !authenticityResult.isDuplicate && (
                           <span className="px-3 py-1 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-bold text-xs rounded-lg border border-amber-300 dark:border-amber-800 flex items-center gap-1">
                             <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> পুনর্বিবেচনা প্রয়োজন
                           </span>
@@ -1242,6 +1433,37 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                         )}
                       </div>
                     </div>
+
+                    {/* Offensive Alert Banner if detected */}
+                    {(authenticityResult.isOffensiveOrHarmful || authenticityResult.status === 'REJECTED_OFFENSIVE') && (
+                      <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/60 border-2 border-red-300 dark:border-red-800 text-red-900 dark:text-red-200 space-y-2">
+                        <div className="flex items-center gap-2 font-bold text-xs">
+                          <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                          <span>অশালীন, উস্কানিমূলক, ব্যক্তিগত আক্রমণ বা যৌন হয়রানিমূলক কনটেন্ট আনপাবলিশ রাখা হয়েছে</span>
+                        </div>
+                        <p className="text-[11px] leading-relaxed pl-6">
+                          {authenticityResult.offensiveReason || 'এই পোস্টে আপত্তিকর ভাষা বা উস্কানিমূলক বক্তব্য রয়েছে। অনুগ্রহ করে লেখাটি পরিবর্তন বা এডিট করে পুনরায় যাচাই করুন।'}
+                        </p>
+                        {authenticityResult.editorialAdvice && (
+                          <div className="text-[11px] font-semibold bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-red-200 dark:border-red-900 mt-1">
+                            💡 এডিট করার জন্য পরামর্শ: {authenticityResult.editorialAdvice}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Unverified / Doubtful Notice */}
+                    {authenticityResult.isUnverifiedOrDoubtful && !authenticityResult.isOffensiveOrHarmful && !authenticityResult.isDuplicate && (
+                      <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs space-y-1">
+                        <div className="flex items-center gap-2 font-bold text-[11px]">
+                          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                          <span>ইন্টারনেটে পর্যাপ্ত তথ্যসূত্র বা নির্ভরযোগ্য মিল পাওয়া যায়নি (অসমর্থিত সংবাদ)</span>
+                        </div>
+                        <p className="text-[11px] leading-relaxed pl-6 text-amber-800 dark:text-amber-300">
+                          প্রকাশের বাটনে ক্লিক করার পর আপনাকে সংবাদের সত্যতা নিশ্চিতকরণ প্রশ্নের উত্তর দিতে হবে।
+                        </p>
+                      </div>
+                    )}
 
                     {/* Duplicate & Social Rips Details */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
@@ -1255,7 +1477,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                         </span>
                         {authenticityResult.isDuplicate ? (
                           <p className="text-[11px] leading-relaxed">
-                            ⚠️ মিল পাওয়া গেছে: <strong>{authenticityResult.duplicateMatchTitle || 'পূর্বের প্রকাশিত সংবাদের সাথে মিল রয়েছে'}</strong> ({authenticityResult.duplicateConfidencePercent}% সাদৃশ্য)
+                            ⚠️ মিল পাওয়া গেছে: <strong>{authenticityResult.duplicateMatchTitle || 'পূর্বের প্রকাশিত সংবাদের সাথে মিল রয়েছে'}</strong> ({authenticityResult.duplicateConfidencePercent}% সাদৃশ্য)। ওয়েবসাইটে একই লেখা দ্বিতীয়বার পোস্ট করা নিষিদ্ধ।
                           </p>
                         ) : (
                           <p className="text-[11px] leading-relaxed">
@@ -1310,9 +1532,13 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
               {/* Final Submit Button */}
               <button
                 type="submit"
-                className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-red-600/30 transition-all flex items-center justify-center gap-2"
+                disabled={authenticityResult?.isOffensiveOrHarmful || authenticityResult?.status === 'REJECTED_OFFENSIVE' || authenticityResult?.isDuplicate || authenticityResult?.status === 'FLAGGED_DUPLICATE'}
+                className="w-full py-4 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-red-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                <Plus className="w-4 h-4" /> সংবাদটি সম্পূর্ণ প্রকাশ করুন (Publish News Live)
+                <Plus className="w-4 h-4" />
+                {editingArticleId 
+                  ? 'সংবাদটি আপডেট করুন (Update News Live)' 
+                  : 'সংবাদটি সম্পূর্ণ প্রকাশ করুন (Publish News Live)'}
               </button>
             </form>
           )}
@@ -1499,12 +1725,21 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                   </div>
                 </div>
 
-                <button
-                  onClick={() => onDeleteArticle(art.id)}
-                  className="px-3 py-1.5 bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 text-xs font-bold rounded-xl hover:bg-red-200 transition-colors flex items-center gap-1 shrink-0 self-end sm:self-center"
-                >
-                  <Trash2 className="w-3.5 h-3.5" /> মুছে ফেলুন
-                </button>
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                  <button
+                    type="button"
+                    onClick={() => handleStartEditArticle(art)}
+                    className="px-3 py-1.5 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-xs font-bold rounded-xl hover:bg-amber-200 transition-colors flex items-center gap-1 cursor-pointer"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" /> সম্পাদনা
+                  </button>
+                  <button
+                    onClick={() => onDeleteArticle(art.id)}
+                    className="px-3 py-1.5 bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 text-xs font-bold rounded-xl hover:bg-red-200 transition-colors flex items-center gap-1 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> মুছে ফেলুন
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -2068,6 +2303,50 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                 <span className="text-slate-500 font-semibold">ঠিকানা:</span>
                 <span className="font-bold text-slate-900 dark:text-white">{writerProfile.address}</span>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Doubtful / Unverified News User Affirmation Modal */}
+      {doubtModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border-2 border-amber-400 dark:border-amber-600 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6">
+            <div className="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-8 h-8" />
+            </div>
+
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-serif font-black text-slate-900 dark:text-white">
+                সংবাদের সত্যতা ও তথ্যসূত্র যাচাই এলার্ট
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                আপনার পোস্ট করা সংবাদের তথ্যসূত্র বা নির্ভরযোগ্য মিল ইন্টারনেটে খুঁজে পাওয়া যায়নি অথবা এটি অসমর্থিত মনে হচ্ছে।
+              </p>
+            </div>
+
+            <div className="p-4 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-900/60 text-center">
+              <p className="text-sm font-bold text-amber-950 dark:text-amber-200">
+                "আপনার পোস্ট করা নিউজের বিষয়বস্তু কি সত্য?"
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleConfirmDoubtfulPublish}
+                className="px-4 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              >
+                <CheckCircle className="w-4 h-4" /> হ্যাঁ (তথ্যের দায়ভার আমার, প্রকাশ করুন)
+              </button>
+
+              <button
+                type="button"
+                onClick={handleRejectDoubtfulPublish}
+                className="px-4 py-3.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-red-600/30 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              >
+                <X className="w-4 h-4" /> না (পোস্ট বাতিল / এডিট করুন)
+              </button>
             </div>
           </div>
         </div>

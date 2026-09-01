@@ -44,6 +44,7 @@ export interface NewsArticle {
   imageUrl: string;
   videoUrl?: string;
   author: string;
+  source?: string; // তথ্যসূত্র / Reference source
   publishedAt: string;
   isBreaking?: boolean;
   isTrending?: boolean;
@@ -162,6 +163,8 @@ export interface WithdrawalRequest {
   status: 'pending' | 'completed';
   createdAt: string;
   completedAt?: string;
+  senderAccount?: string;
+  transactionId?: string;
 }
 
 export interface AnalyticsOverview {
@@ -191,9 +194,16 @@ export interface ArticleAuthenticityResult {
   socialMediaPlatformDetected?: string;
   factCheckVerdict: 'VERIFIED' | 'QUESTIONABLE' | 'UNVERIFIED_RUMOR' | 'MISLEADING' | 'PLAGIARIZED';
   credibilityScore: number; // 0 - 100
-  status: 'APPROVED' | 'NEEDS_REVIEW' | 'FLAGGED_DUPLICATE' | 'REJECTED';
+  status: 'APPROVED' | 'NEEDS_REVIEW' | 'FLAGGED_DUPLICATE' | 'REJECTED' | 'REJECTED_OFFENSIVE';
   issuesFound: string[];
   positivePoints: string[];
   editorialAdvice: string;
   checkedAt: string;
+  isOffensiveOrHarmful?: boolean;
+  offensiveType?: string;
+  offensiveReason?: string;
+  isUnverifiedOrDoubtful?: boolean;
+  doubtReason?: string;
+  wordCount?: number;
+  canProceedWithAffirmation?: boolean;
 }

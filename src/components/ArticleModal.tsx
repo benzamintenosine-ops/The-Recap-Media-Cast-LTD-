@@ -16,7 +16,8 @@ import {
   Send,
   Video,
   Sparkles,
-  Volume2
+  Volume2,
+  Globe
 } from 'lucide-react';
 import { NewsArticle, Language } from '../types';
 import { getTranslation } from '../utils/i18n';
@@ -189,6 +190,12 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
                 <User className="w-4 h-4 text-red-600" />
                 {article.author}
               </span>
+              {article.source && (
+                <span className="flex items-center gap-1 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 rounded-lg text-xs font-medium border border-blue-200 dark:border-blue-800/60 shadow-xs">
+                  <Globe className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                  <span>তথ্যসূত্র: <strong>{article.source}</strong></span>
+                </span>
+              )}
               <span className="flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5" />
                 {new Date(article.publishedAt).toLocaleDateString(artLang === 'bn' ? 'bn-BD' : 'en-US', {

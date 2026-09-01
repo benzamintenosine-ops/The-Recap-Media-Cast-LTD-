@@ -94,6 +94,7 @@ export function subscribeToArticles(onUpdate: (articles: NewsArticle[]) => void)
             imageUrl: data.imageUrl || 'https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=1200&q=80',
             videoUrl: data.videoUrl || '',
             author: data.author || 'THE RECAP MEDIA',
+            source: data.source || '',
             publishedAt: data.publishedAt || new Date().toISOString(),
             isBreaking: !!data.isBreaking,
             isTrending: !!data.isTrending,
@@ -148,6 +149,7 @@ export async function addArticleToFirebase(newArt: Partial<NewsArticle>): Promis
     imageUrl: newArt.imageUrl || 'https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=1200&q=80',
     videoUrl: newArt.videoUrl || '',
     author: newArt.author || 'THE RECAP MEDIA',
+    source: newArt.source || '',
     publishedAt: newArt.publishedAt || new Date().toISOString(),
     isBreaking: !!newArt.isBreaking,
     isTrending: !!newArt.isTrending,
@@ -165,6 +167,18 @@ export async function addArticleToFirebase(newArt: Partial<NewsArticle>): Promis
     console.warn('Could not save article to Firestore directly, saved locally:', err);
   }
   return article;
+}
+
+/**
+ * Update an existing article document in Firebase Firestore
+ */
+export async function updateArticleInFirebase(id: string, updatedArt: Partial<NewsArticle>): Promise<void> {
+  try {
+    const docRef = doc(db, ARTICLES_COLLECTION, id);
+    await updateDoc(docRef, { ...updatedArt });
+  } catch (err) {
+    console.warn('Could not update article in Firestore directly:', err);
+  }
 }
 
 /**
