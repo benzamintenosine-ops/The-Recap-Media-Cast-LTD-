@@ -376,9 +376,24 @@ export default function App() {
     setWriters(newWriters);
   };
 
-  const handleUpdateWithdrawalStatus = (id: string, status: 'pending' | 'completed') => {
+  const handleUpdateWithdrawalStatus = (
+    id: string, 
+    status: 'pending' | 'completed', 
+    senderAccount?: string, 
+    transactionId?: string
+  ) => {
     setWithdrawals((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, status } : w))
+      prev.map((w) =>
+        w.id === id
+          ? {
+              ...w,
+              status,
+              completedAt: new Date().toISOString(),
+              ...(senderAccount ? { senderAccount } : {}),
+              ...(transactionId ? { transactionId } : {}),
+            }
+          : w
+      )
     );
   };
 

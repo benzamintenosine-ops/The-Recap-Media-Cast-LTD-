@@ -52,7 +52,7 @@ import {
   SocialWidget,
   CategoryConfig
 } from '../types';
-import { BloggerRichEditor } from './BloggerRichEditor';
+import { RichContentEditor } from './BloggerRichEditor';
 
 interface SystemAdminPortalProps {
   articles: NewsArticle[];
@@ -63,7 +63,7 @@ interface SystemAdminPortalProps {
   writers: WriterProfile[];
   onUpdateWriters: (writers: WriterProfile[]) => void;
   withdrawals: WithdrawalRequest[];
-  onUpdateWithdrawalStatus: (id: string, status: 'completed') => void;
+  onUpdateWithdrawalStatus: (id: string, status: 'completed', senderAccount?: string, transactionId?: string) => void;
   notifications: SystemNotification[];
   onSendNotification: (notification: Omit<SystemNotification, 'id' | 'createdAt' | 'read'>) => void;
   categories: CategoryConfig[];
@@ -347,15 +347,20 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
       return;
     }
 
-    onUpdateWithdrawalStatus(paymentModalReq.id, 'completed');
+    onUpdateWithdrawalStatus(
+      paymentModalReq.id, 
+      'completed', 
+      senderAccountInput.trim(), 
+      transactionIdInput.trim()
+    );
 
-    const formattedMessage = `প্রিয় ${paymentModalReq.writerName}
+    const formattedMessage = `প্রিয় ${paymentModalReq.writerName},
 ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার লেনদেন টি সম্পন্ন করা হয়েছে।
 
-#Amount : ৳${paymentModalReq.amount}
-#Sender Account : ${senderAccountInput.trim()}
-#Receiver Account : ${paymentModalReq.accountNumber}
-#Transection ID : ${transactionIdInput.trim()}`;
+#Amount: ৳${paymentModalReq.amount}
+#Sender Account: ${senderAccountInput.trim()}
+#Receiver Account: ${paymentModalReq.accountNumber}
+#Transection ID: ${transactionIdInput.trim()}`;
 
     // Send payment done notification to the writer with exact requested format
     onSendNotification({
@@ -1812,13 +1817,9 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                   <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
                     About Us (আমাদের কথা) মূল লেখা সম্পাদনা বোর্ড *
                   </label>
-                  <BloggerRichEditor
+                  <RichContentEditor
                     value={aboutHtml}
                     onChange={(html) => setAboutHtml(html)}
-                    aiPrompt={aboutPrompt}
-                    onAiPromptChange={setAboutPrompt}
-                    onGenerateAiText={() => {}}
-                    isAiGenerating={false}
                     minHeight="350px"
                   />
                 </div>
@@ -1830,13 +1831,9 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                   <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
                     Privacy & Policy (প্রাইভেসি ও ব্যবহারের নীতি) মূল লেখা সম্পাদনা বোর্ড *
                   </label>
-                  <BloggerRichEditor
+                  <RichContentEditor
                     value={privacyHtml}
                     onChange={(html) => setPrivacyHtml(html)}
-                    aiPrompt={privacyPrompt}
-                    onAiPromptChange={setPrivacyPrompt}
-                    onGenerateAiText={() => {}}
-                    isAiGenerating={false}
                     minHeight="350px"
                   />
                 </div>
@@ -1848,13 +1845,9 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                   <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
                     Contact Us (যোগাযোগ) মূল লেখা সম্পাদনা বোর্ড *
                   </label>
-                  <BloggerRichEditor
+                  <RichContentEditor
                     value={contactHtml}
                     onChange={(html) => setContactHtml(html)}
-                    aiPrompt={contactPrompt}
-                    onAiPromptChange={setContactPrompt}
-                    onGenerateAiText={() => {}}
-                    isAiGenerating={false}
                     minHeight="350px"
                   />
                 </div>

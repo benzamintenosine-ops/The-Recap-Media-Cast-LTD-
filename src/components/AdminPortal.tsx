@@ -51,7 +51,7 @@ import {
 import { NewsArticle, Category, Language, AnalyticsOverview, WriterProfile, SystemNotification, WithdrawalRequest, ArticleAuthenticityResult } from '../types';
 import { getTranslation } from '../utils/i18n';
 import { renderFormattedContent } from '../utils/formatContent';
-import { BloggerRichEditor } from './BloggerRichEditor';
+import { RichContentEditor } from './BloggerRichEditor';
 import { BotProtectionModal } from './BotProtection';
 
 interface WritersPortalProps {
@@ -1155,7 +1155,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                   })()}
                 </div>
 
-                <BloggerRichEditor
+                <RichContentEditor
                   value={postContent}
                   onChange={(html) => setPostContent(html)}
                   minHeight="500px"
@@ -1880,14 +1880,19 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                         <span className="text-slate-500 text-[11px] block mt-0.5">
                           গেটওয়ে: <strong className="text-slate-800 dark:text-slate-200">{w.paymentMethod}</strong> ({w.accountNumber})
                         </span>
+                        {w.transactionId && (
+                          <span className="text-[10px] text-slate-400 block font-mono">
+                            TrxID: {w.transactionId}
+                          </span>
+                        )}
                       </div>
                       <div className="text-right space-y-1">
-                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase font-mono border ${
                           w.status === 'completed' 
-                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' 
-                            : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800' 
+                            : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-800'
                         }`}>
-                          {w.status === 'completed' ? 'পরিশোধিত (Completed)' : 'প্রক্রিয়াধীন (Under Process)'}
+                          {w.status === 'completed' ? 'done (পরিশোধিত)' : 'pending (অপেক্ষমাণ)'}
                         </span>
                         <span className="text-[10px] text-slate-400 block font-mono">
                           {new Date(w.createdAt).toLocaleDateString('bn-BD')}
@@ -2223,15 +2228,20 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                         <p className="text-slate-500 text-[11px] font-mono">
                           মোবাইল/একাউন্ট: <strong>{w.accountNumber}</strong>
                         </p>
+                        {w.senderAccount && (
+                          <p className="text-[10px] text-slate-400 font-mono">
+                            Sender Account: {w.senderAccount} | TrxID: {w.transactionId}
+                          </p>
+                        )}
                       </div>
 
                       <div className="text-right space-y-1">
-                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full inline-block ${
+                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase font-mono border inline-block ${
                           w.status === 'completed'
-                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                            : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                            : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-800'
                         }`}>
-                          {w.status === 'completed' ? 'পরিশোধিত (Completed)' : 'প্রক্রিয়াধীন (Under Process)'}
+                          {w.status === 'completed' ? 'done (পরিশোধিত)' : 'pending (অপেক্ষমাণ)'}
                         </span>
                         <span className="text-[10px] text-slate-400 block font-mono">
                           📅 {new Date(w.createdAt).toLocaleDateString('bn-BD')}
