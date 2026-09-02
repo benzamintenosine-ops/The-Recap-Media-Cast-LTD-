@@ -1,8 +1,9 @@
 {
-  "version": 2,
+  "framework": "vite",
+  "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!assets/|favicon.ico|.*\\.[a-zA-Z0-9]+$).*)",
       "destination": "/index.html"
     }
   ]
