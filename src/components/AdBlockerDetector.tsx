@@ -175,12 +175,20 @@ export const AdBlockerDetector: React.FC<AdBlockerDetectorProps> = ({ onStatusCh
             {isChecking ? 'যাচাই করা হচ্ছে...' : 'বন্ধ করেছি, পুনরায় যাচাই করুন (Check Again)'}
           </button>
 
-          <button
-            onClick={() => window.location.reload()}
-            className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
-          >
-            <span>পেজ রিলোড করুন (Reload Page)</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => window.location.reload()}
+              className="flex-1 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
+            >
+              <span>পেজ রিলোড</span>
+            </button>
+            <button
+              onClick={() => setIsAdBlockerDetected(false)}
+              className="flex-1 py-2.5 px-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
+            >
+              <span>চালিয়ে যান (Continue)</span>
+            </button>
+          </div>
         </div>
 
         {/* Small Notice */}

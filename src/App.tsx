@@ -247,9 +247,14 @@ export default function App() {
       setArticles(liveArticles || []);
     });
 
-    // Also fetch server fallback if needed
+    // Also fetch server fallback if available
     fetch('/api/news')
-      .then((res) => res.json())
+      .then((res) => {
+        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+          return res.json();
+        }
+        return null;
+      })
       .then((data) => {
         if (Array.isArray(data)) {
           const mockIds = ['news-1', 'news-2', 'news-3', 'news-4', 'news-5'];
