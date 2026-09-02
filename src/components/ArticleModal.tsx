@@ -282,9 +282,9 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
           {article.tags && article.tags.length > 0 && (
             <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-2">
               <span className="text-xs font-bold text-slate-500 dark:text-slate-400">ট্যাগসমূহ:</span>
-              {article.tags.map((tag) => (
+              {article.tags.map((tag, idx) => (
                 <span
-                  key={tag}
+                  key={`modal-tag-${tag}-${idx}`}
                   className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium hover:bg-red-50 dark:hover:bg-red-950/60 hover:text-red-600 transition-colors cursor-pointer"
                 >
                   #{tag}
@@ -333,8 +333,8 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
               {article.comments.length === 0 ? (
                 <p className="text-xs text-slate-400 italic">এখনো কোন মন্তব্য নেই। প্রথম মন্তব্যটি করুন!</p>
               ) : (
-                article.comments.map((comment) => (
-                  <div key={comment.id} className="p-4 bg-white dark:bg-slate-800/80 rounded-2xl border border-slate-100 dark:border-slate-700 space-y-1">
+                article.comments.map((comment, idx) => (
+                  <div key={`comment-${comment.id}-${idx}`} className="p-4 bg-white dark:bg-slate-800/80 rounded-2xl border border-slate-100 dark:border-slate-700 space-y-1">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                         <User className="w-3.5 h-3.5 text-red-500" />
@@ -360,9 +360,9 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
                 {t('relatedNews')}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {relatedArticles.slice(0, 4).map((rel) => (
+                {relatedArticles.slice(0, 4).map((rel, idx) => (
                   <div
-                    key={rel.id}
+                    key={`rel-art-${rel.id}-${idx}`}
                     onClick={() => onSelectRelated(rel)}
                     className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-200 dark:border-slate-700"
                   >

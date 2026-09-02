@@ -4,7 +4,6 @@ import {
   Bold,
   Italic,
   Underline,
-  Strikethrough,
   Highlighter,
   Palette,
   Link as LinkIcon,
@@ -17,16 +16,13 @@ import {
   AlignJustify,
   List,
   ListOrdered,
-  Quote,
-  Indent,
-  Outdent,
-  RemoveFormatting,
   Undo,
   Redo,
   ChevronDown,
   X,
   Plus,
-  Check
+  Check,
+  UploadCloud
 } from 'lucide-react';
 
 interface RichTextEditorProps {
@@ -93,11 +89,62 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
+  // Active formats state for visual tool button highlight (bright white background with black text)
+  const [activeFormats, setActiveFormats] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    ul: false,
+    ol: false,
+    justifyLeft: false,
+    justifyCenter: false,
+    justifyRight: false,
+    justifyFull: false,
+  });
+
   // Modal Inputs
   const [linkUrl, setLinkUrl] = useState('');
   const [linkText, setLinkText] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
+
+  // Update active formats on selection or cursor change
+  const updateActiveFormats = () => {
+    if (editorRef.current && (document.activeElement === editorRef.current || editorRef.current.contains(document.activeElement))) {
+      setActiveFormats({
+        bold: document.queryCommandState('bold'),
+        italic: document.queryCommandState('italic'),
+        underline: document.queryCommandState('underline'),
+        ul: document.queryCommandState('insertUnorderedList'),
+        ol: document.queryCommandState('insertOrderedList'),
+        justifyLeft: document.queryCommandState('justifyLeft'),
+        justifyCenter: document.queryCommandState('justifyCenter'),
+        justifyRight: document.queryCommandState('justifyRight'),
+        justifyFull: document.queryCommandState('justifyFull'),
+      });
+    }
+  };
+
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      updateActiveFormats();
+    };
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange);
+    };
+  }, []);
+
+  // Helper for button styling: when selected or active, background is bright white & text/icon is dark/black
+  const getToolBtnStyle = (isActive: boolean) =>
+    isActive
+      ? 'p-1.5 bg-white text-slate-950 font-black border border-slate-300 shadow-xs rounded-lg transition-all ring-1 ring-slate-300'
+      : 'p-1.5 hover:bg-white hover:text-slate-950 rounded-lg text-slate-700 dark:text-slate-200 border border-transparent transition-all';
+
+  const getDropdownBtnStyle = (isOpen: boolean) =>
+    isOpen
+      ? 'px-2 py-1 bg-white text-slate-950 border border-slate-300 shadow-xs rounded-lg text-xs font-bold flex items-center gap-1 transition-all ring-1 ring-slate-300'
+      : 'px-2 py-1 hover:bg-white hover:text-slate-950 rounded-lg text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center gap-1 transition-all';
 
   // Sync external value with editor innerHTML when component mounts or value changes outside typing
   useEffect(() => {
@@ -115,6 +162,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
     }
     document.execCommand(command, false, arg);
     triggerChange();
+    setTimeout(updateActiveFormats, 50);
   };
 
   const triggerChange = () => {
@@ -164,10 +212,14 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
     setShowImageModal(false);
   };
 
-  // Handle Local File Upload as Data URL
+  // Handle Local File Upload as Data URL (Strictly Images Only)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!file.type.startsWith('image/')) {
+        alert('ছবি অপশনে ভিডিও বা অন্য ফাইল দেওয়া যাবে না। শুধুমাত্র ছবি সিলেক্ট করুন।');
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (event) => {
         const result = event.target?.result as string;
@@ -179,6 +231,27 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
       reader.readAsDataURL(file);
     }
     setShowImageModal(false);
+  };
+
+  // Handle Local Video File Upload from Device (Strictly Video Only)
+  const handleVideoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('video/')) {
+        alert('ভিডিও অপশনে শুধুমাত্র ভিডিও ফাইল (MP4, WebM, etc.) নির্বাচন করতে হবে।');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        if (result) {
+          const videoHtml = `<div style="margin: 16px 0; text-align: center;"><video controls style="max-width: 100%; max-height: 420px; border-radius: 16px; display: inline-block; box-shadow: 0 4px 16px rgba(0,0,0,0.2);" src="${result}">Your browser does not support video playback.</video></div><p><br></p>`;
+          executeCommand('insertHTML', videoHtml);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+    setShowVideoModal(false);
   };
 
   // Handle Video Embed Insertion (YouTube, Vimeo, MP4)
@@ -220,7 +293,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
                 closeAllMenus();
                 setShowFontFamily(!showFontFamily);
               }}
-              className="px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center gap-1"
+              className={getDropdownBtnStyle(showFontFamily)}
               title="ফন্ট সিলেক্ট করুন (Font Family)"
             >
               <span className="font-serif font-black text-sm">A</span>
@@ -255,7 +328,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
                 closeAllMenus();
                 setShowFontSize(!showFontSize);
               }}
-              className="px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center gap-0.5"
+              className={getDropdownBtnStyle(showFontSize)}
               title="ফন্টের আকার (Font Size)"
             >
               <span className="font-extrabold text-xs">T</span>
@@ -290,7 +363,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
                 closeAllMenus();
                 setShowHeadingType(!showHeadingType);
               }}
-              className="px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center gap-1"
+              className={getDropdownBtnStyle(showHeadingType)}
               title="শিরোনামের ধরন (Paragraph Format)"
             >
               <Type className="w-3.5 h-3.5 text-red-600" />
@@ -319,7 +392,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
 
         <div className="h-5 w-[1px] bg-slate-300 dark:bg-slate-700 mx-0.5 hidden sm:block" />
 
-        {/* GROUP 2: Basic Text Formatting (B, I, U, S) */}
+        {/* GROUP 2: Basic Text Formatting (B, I, U) - Strikethrough Removed */}
         <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
           {/* Bold */}
           <button
@@ -328,7 +401,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
               e.preventDefault();
               executeCommand('bold');
             }}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200"
+            className={getToolBtnStyle(activeFormats.bold)}
             title="বোল্ড (Bold Ctrl+B)"
           >
             <Bold className="w-4 h-4 font-black" />
@@ -341,7 +414,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
               e.preventDefault();
               executeCommand('italic');
             }}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200"
+            className={getToolBtnStyle(activeFormats.italic)}
             title="ইটালিক (Italic Ctrl+I)"
           >
             <Italic className="w-4 h-4" />
@@ -354,23 +427,10 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
               e.preventDefault();
               executeCommand('underline');
             }}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200"
+            className={getToolBtnStyle(activeFormats.underline)}
             title="আন্ডারলাইন (Underline Ctrl+U)"
           >
             <Underline className="w-4 h-4" />
-          </button>
-
-          {/* Strikethrough */}
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              executeCommand('strikeThrough');
-            }}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200"
-            title="মাঝখানে কাটা (Strikethrough)"
-          >
-            <Strikethrough className="w-4 h-4" />
           </button>
         </div>
 
@@ -387,7 +447,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
                 closeAllMenus();
                 setShowTextColor(!showTextColor);
               }}
-              className="px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center gap-1"
+              className={getDropdownBtnStyle(showTextColor)}
               title="টেক্সট কালার (Text Color)"
             >
               <div className="flex flex-col items-center">
@@ -426,7 +486,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
                 closeAllMenus();
                 setShowBgColor(!showBgColor);
               }}
-              className="px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center gap-1"
+              className={getDropdownBtnStyle(showBgColor)}
               title="হাইলাইট কালার (Background Highlight)"
             >
               <Highlighter className="w-3.5 h-3.5 text-amber-500" />
@@ -464,7 +524,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
           <button
             type="button"
             onClick={() => setShowLinkModal(true)}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200"
+            className={getToolBtnStyle(showLinkModal)}
             title="লিঙ্ক যুক্ত করুন (Insert Link)"
           >
             <LinkIcon className="w-4 h-4 text-blue-600" />
@@ -474,7 +534,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
           <button
             type="button"
             onClick={() => setShowImageModal(true)}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200"
+            className={getToolBtnStyle(showImageModal)}
             title="ছবি যুক্ত করুন (Insert Image)"
           >
             <ImageIcon className="w-4 h-4 text-emerald-600" />
@@ -484,8 +544,8 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
           <button
             type="button"
             onClick={() => setShowVideoModal(true)}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200"
-            title="ভিডিও যুক্ত করুন (YouTube/Video)"
+            className={getToolBtnStyle(showVideoModal)}
+            title="ভিডিও যুক্ত করুন (Video/YouTube)"
           >
             <VideoIcon className="w-4 h-4 text-red-600" />
           </button>
@@ -499,7 +559,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
                 closeAllMenus();
                 setShowEmojiPicker(!showEmojiPicker);
               }}
-              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200"
+              className={getToolBtnStyle(showEmojiPicker)}
               title="ইমোজি / সিম্বল (Emojis)"
             >
               <Smile className="w-4 h-4 text-amber-500" />
@@ -528,7 +588,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
 
         <div className="h-5 w-[1px] bg-slate-300 dark:bg-slate-700 mx-0.5 hidden sm:block" />
 
-        {/* GROUP 5: Alignment, Lists, Quote & Indent */}
+        {/* GROUP 5: Alignment & Lists - Blockquote, Indent, Outdent Removed */}
         <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
           {/* Alignment Menu */}
           <div className="relative">
@@ -539,7 +599,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
                 closeAllMenus();
                 setShowAlignMenu(!showAlignMenu);
               }}
-              className="px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center gap-1"
+              className={getDropdownBtnStyle(showAlignMenu || activeFormats.justifyLeft || activeFormats.justifyCenter || activeFormats.justifyRight || activeFormats.justifyFull)}
               title="টেক্সট এলাইনমেন্ট (Text Alignment)"
             >
               <AlignLeft className="w-4 h-4 text-slate-700 dark:text-slate-300" />
@@ -553,7 +613,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
                     executeCommand('justifyLeft');
                     setShowAlignMenu(false);
                   }}
-                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                  className={getToolBtnStyle(activeFormats.justifyLeft)}
                   title="বামপাশ (Align Left)"
                 >
                   <AlignLeft className="w-4 h-4" />
@@ -564,7 +624,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
                     executeCommand('justifyCenter');
                     setShowAlignMenu(false);
                   }}
-                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                  className={getToolBtnStyle(activeFormats.justifyCenter)}
                   title="মাঝখানে (Align Center)"
                 >
                   <AlignCenter className="w-4 h-4" />
@@ -575,7 +635,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
                     executeCommand('justifyRight');
                     setShowAlignMenu(false);
                   }}
-                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                  className={getToolBtnStyle(activeFormats.justifyRight)}
                   title="ডানপাশ (Align Right)"
                 >
                   <AlignRight className="w-4 h-4" />
@@ -586,7 +646,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
                     executeCommand('justifyFull');
                     setShowAlignMenu(false);
                   }}
-                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                  className={getToolBtnStyle(activeFormats.justifyFull)}
                   title="জাস্টিফাই (Justify)"
                 >
                   <AlignJustify className="w-4 h-4" />
@@ -602,7 +662,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
               e.preventDefault();
               executeCommand('insertUnorderedList');
             }}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200"
+            className={getToolBtnStyle(activeFormats.ul)}
             title="বুলেট তালিকা (Bulleted List)"
           >
             <List className="w-4 h-4" />
@@ -615,74 +675,24 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
               e.preventDefault();
               executeCommand('insertOrderedList');
             }}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200"
+            className={getToolBtnStyle(activeFormats.ol)}
             title="সংখ্যা তালিকা (Numbered List)"
           >
             <ListOrdered className="w-4 h-4" />
-          </button>
-
-          {/* Blockquote */}
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              executeCommand('formatBlock', 'blockquote');
-            }}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200"
-            title="উক্তি বা উদ্ধৃতি ব্লক (Blockquote)"
-          >
-            <Quote className="w-4 h-4 text-indigo-500" />
-          </button>
-
-          {/* Indent / Outdent */}
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              executeCommand('outdent');
-            }}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200"
-            title="ডানে সরান (Indent)"
-          >
-            <Outdent className="w-4 h-4" />
-          </button>
-
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              executeCommand('indent');
-            }}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200"
-            title="বামে সরান (Outdent)"
-          >
-            <Indent className="w-4 h-4" />
           </button>
         </div>
 
         <div className="h-5 w-[1px] bg-slate-300 dark:bg-slate-700 mx-0.5 hidden sm:block" />
 
-        {/* GROUP 6: Clear Formatting, Undo, Redo */}
+        {/* GROUP 6: Undo, Redo - Clear Formatting Removed */}
         <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              executeCommand('removeFormat');
-            }}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-red-500"
-            title="ফরম্যাটিং মুছুন (Clear Formatting)"
-          >
-            <RemoveFormatting className="w-4 h-4" />
-          </button>
-
           <button
             type="button"
             onMouseDown={(e) => {
               e.preventDefault();
               executeCommand('undo');
             }}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200"
+            className={getToolBtnStyle(false)}
             title="পূর্বাবস্থায় ফেরান (Undo Ctrl+Z)"
           >
             <Undo className="w-4 h-4" />
@@ -694,7 +704,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
               e.preventDefault();
               executeCommand('redo');
             }}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200"
+            className={getToolBtnStyle(false)}
             title="পুনরায় করুন (Redo Ctrl+Y)"
           >
             <Redo className="w-4 h-4" />
@@ -844,13 +854,13 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
         </div>
       )}
 
-      {/* MODAL 3: INSERT VIDEO */}
+      {/* MODAL 3: INSERT VIDEO (Device Video Upload + YouTube) */}
       {showVideoModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 max-w-md w-full shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                <VideoIcon className="w-4 h-4 text-red-600" /> ইউটিউব বা ভিডিও যুক্ত করুন
+                <VideoIcon className="w-4 h-4 text-red-600" /> ডিভাইস থেকে ভিডিও বা ইউটিউব লিঙ্ক যুক্ত করুন
               </h3>
               <button
                 type="button"
@@ -860,14 +870,37 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {/* Device Video File Upload Option */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                ১. ডিভাইস থেকে ভিডিও আপলোড (Device Video Upload)
+              </label>
+              <label className="w-full py-3.5 px-4 border-2 border-dashed border-red-300 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-red-700 dark:text-red-300 transition-colors">
+                <UploadCloud className="w-4.5 h-4.5 text-red-600" /> পিসি/ফোন থেকে ভিডিও সিলেক্ট করুন (Videos Only)
+                <input
+                  type="file"
+                  accept="video/*"
+                  onChange={handleVideoFileUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
+            <div className="relative flex py-1 items-center">
+              <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+              <span className="flex-shrink mx-3 text-[10px] text-slate-400 font-bold uppercase">অথবা ইউটিউব লিঙ্ক দিন</span>
+              <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+            </div>
+
+            {/* YouTube Link Option */}
             <form onSubmit={handleInsertVideo} className="space-y-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  ইউটিউব ভিডিও লিঙ্ক (YouTube Video Link) *
+                  ২. ইউটিউব ভিডিও লিঙ্ক (YouTube Video Link)
                 </label>
                 <input
                   type="text"
-                  required
                   value={videoUrl}
                   onChange={(e) => setVideoUrl(e.target.value)}
                   placeholder="https://www.youtube.com/watch?v=..."
@@ -884,9 +917,10 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-md"
+                  disabled={!videoUrl.trim()}
+                  className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-xl shadow-md"
                 >
-                  ভিডিও সংযুক্ত করুন
+                  ইউটিউব ভিডিও যুক্ত করুন
                 </button>
               </div>
             </form>

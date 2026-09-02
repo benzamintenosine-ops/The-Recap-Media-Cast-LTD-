@@ -101,7 +101,7 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
                 <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 text-center space-y-1">
                   <Users className="w-5 h-5 text-emerald-500 mx-auto" />
                   <h4 className="font-bold text-xs text-slate-900 dark:text-white">স্মার্ট প্রযুক্তি প্যানেল</h4>
-                  <p className="text-[10px] text-slate-500">এআই ভেরিফাইড লেখক প্যানেল</p>
+                  <p className="text-[10px] text-slate-500">এআই ভেরিফাইড প্রতিবেদক প্যানেল</p>
                 </div>
               </div>
 
@@ -153,7 +153,7 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
                 <div>
                   <h4 className="font-bold text-xs text-slate-900 dark:text-white mb-1">১. তথ্য সংগ্রহ (Data Collection)</h4>
                   <p className="text-xs text-slate-600 dark:text-slate-400">
-                    আমাদের পোর্টালে সাধারণ সংবাদ পড়ার জন্য কোনো তথ্যের প্রয়োজন নেই। লেখক প্যানেলে নিবন্ধনের সময় প্রদত্ত নাম, ইমেইল, মোবাইল নম্বর ও প্রোফাইল ছবি নিরাপদ সার্ভারে সংরক্ষিত থাকে।
+                    আমাদের পোর্টালে সাধারণ সংবাদ পড়ার জন্য কোনো তথ্যের প্রয়োজন নেই। প্রতিবেদক প্যানেলে নিবন্ধনের সময় প্রদত্ত নাম, ইমেইল, মোবাইল নম্বর, NID ও প্রোফাইল ছবি নিরাপদ সার্ভারে সংরক্ষিত থাকে।
                   </p>
                 </div>
 

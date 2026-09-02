@@ -9,11 +9,12 @@ import { Header } from './components/Header';
 import { ViewerSite } from './components/ViewerSite';
 import { AdminPortal } from './components/AdminPortal';
 import { SystemAdminPortal } from './components/SystemAdminPortal';
+import { ManagingPanel } from './components/ManagingPanel';
 import { ArticleModal } from './components/ArticleModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { AdBlockerDetector } from './components/AdBlockerDetector';
 import { CloudflareSecurityBadge } from './components/BotProtection';
-import { NewsArticle, Category, Language, UserProfile, SiteSettings, WriterProfile, WithdrawalRequest, SystemNotification, CategoryConfig, SocialWidget } from './types';
+import { NewsArticle, Category, Language, UserProfile, SiteSettings, WriterProfile, ManagerProfile, WithdrawalRequest, SystemNotification, CategoryConfig, SocialWidget } from './types';
 
 const DEFAULT_CATEGORIES: CategoryConfig[] = [
   { id: 'cat-1', name: 'জাতীয়', showIcon: true, isHidden: false },
@@ -71,21 +72,51 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
 };
 
 export default function App() {
-  const [currentMode, setCurrentMode] = useState<'viewer' | 'writer' | 'systemAdmin'>('viewer');
+  const [currentMode, setCurrentMode] = useState<'viewer' | 'writer' | 'managing' | 'systemAdmin'>('viewer');
   const [currentLang, setCurrentLang] = useState<Language>('bn');
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     return localStorage.getItem('theme') !== 'light';
   });
 
-  // Dynamic Categories list
+  // Dynamic Categories list with deduplication
   const [categories, setCategories] = useState<CategoryConfig[]>(() => {
     const saved = localStorage.getItem('recap_categories');
-    return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const seenNames = new Set<string>();
+          const seenIds = new Set<string>();
+          const deduplicated: CategoryConfig[] = [];
+          for (const item of parsed) {
+            if (item && item.name && !seenNames.has(item.name) && !seenIds.has(item.id)) {
+              seenNames.add(item.name);
+              seenIds.add(item.id);
+              deduplicated.push(item);
+            }
+          }
+          if (deduplicated.length > 0) return deduplicated;
+        }
+      } catch (e) {
+        console.error('Failed to parse saved categories:', e);
+      }
+    }
+    return DEFAULT_CATEGORIES;
   });
 
   const handleUpdateCategories = (newCats: CategoryConfig[]) => {
-    setCategories(newCats);
-    localStorage.setItem('recap_categories', JSON.stringify(newCats));
+    const seenNames = new Set<string>();
+    const seenIds = new Set<string>();
+    const deduplicated: CategoryConfig[] = [];
+    for (const item of newCats) {
+      if (item && item.name && !seenNames.has(item.name) && !seenIds.has(item.id)) {
+        seenNames.add(item.name);
+        seenIds.add(item.id);
+        deduplicated.push(item);
+      }
+    }
+    setCategories(deduplicated);
+    localStorage.setItem('recap_categories', JSON.stringify(deduplicated));
   };
 
   // Site Settings
@@ -115,6 +146,17 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  // Registered Managers list
+  const [managers, setManagers] = useState<ManagerProfile[]>(() => {
+    const saved = localStorage.getItem('recap_managers');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const handleUpdateManagers = (newManagers: ManagerProfile[]) => {
+    setManagers(newManagers);
+    localStorage.setItem('recap_managers', JSON.stringify(newManagers));
+  };
+
   // Withdrawal Requests list
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>(() => {
     const saved = localStorage.getItem('recap_withdrawals');
@@ -127,8 +169,8 @@ export default function App() {
     return saved ? JSON.parse(saved) : [
       {
         id: 'notif-1',
-        title: 'অফিশিয়াল লেখক প্যানেলে স্বাগতম',
-        message: 'The Recap Media Cast LTD-এর লেখক প্যানেলে সংবাদ প্রকাশ শুরু করুন। বস্তুনিষ্ঠ সংবাদ প্রকাশে আমরা অঙ্গীকারবদ্ধ।',
+        title: 'অফিশিয়াল প্রতিবেদক প্যানেলে স্বাগতম',
+        message: 'The Recap Media Cast LTD-এর প্রতিবেদক প্যানেলে সংবাদ প্রকাশ শুরু করুন। বস্তুনিষ্ঠ সংবাদ প্রকাশে আমরা অঙ্গীকারবদ্ধ।',
         senderName: 'The Recap Media Cast LTD',
         recipientWriterId: 'ALL',
         createdAt: new Date().toISOString(),
@@ -254,36 +296,53 @@ export default function App() {
     );
   };
 
-  // Add Article (Admin - saves directly to Firebase Firestore)
+  // Add Article (Admin - saves directly to Firebase Firestore & local state)
   const handleAddArticle = async (newArt: Partial<NewsArticle>) => {
+    const created: NewsArticle = {
+      id: newArt.id || `news-${Date.now()}`,
+      title: newArt.title || 'শিরোনামহীন সংবাদ',
+      titleEn: newArt.titleEn || '',
+      summary: newArt.summary || '',
+      summaryEn: newArt.summaryEn || '',
+      content: newArt.content || '',
+      contentEn: newArt.contentEn || '',
+      category: newArt.category || 'জাতীয়',
+      tags: newArt.tags || [],
+      imageUrl: newArt.imageUrl || 'https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=1200&q=80',
+      videoUrl: newArt.videoUrl,
+      hasVideo: newArt.hasVideo,
+      author: newArt.author || 'THE RECAP MEDIA',
+      source: newArt.source || '',
+      publishedAt: newArt.publishedAt || new Date().toISOString(),
+      isBreaking: newArt.isBreaking || false,
+      isTrending: newArt.isTrending || false,
+      viewsCount: 0,
+      readTimeMinutes: newArt.readTimeMinutes || 3,
+      comments: [],
+      aiFlagged: newArt.aiFlagged,
+      aiIssues: newArt.aiIssues,
+      aiCredibilityScore: newArt.aiCredibilityScore,
+      aiOffensiveReason: newArt.aiOffensiveReason,
+    };
+
     try {
-      await addArticleToFirebase(newArt);
-      // Sync to local Express backend server as well
+      await addArticleToFirebase(created);
       fetch('/api/news', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newArt),
+        body: JSON.stringify(created),
       }).catch(() => {});
     } catch (err) {
       console.warn('Firebase add fallback to local:', err);
-      const created: NewsArticle = {
-        id: `news-${Date.now()}`,
-        title: newArt.title || 'শিরোনামহীন সংবাদ',
-        summary: newArt.summary || '',
-        content: newArt.content || '',
-        category: newArt.category || 'জাতীয়',
-        tags: newArt.tags || [],
-        imageUrl: newArt.imageUrl || 'https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=1200&q=80',
-        videoUrl: newArt.videoUrl,
-        author: newArt.author || 'THE RECAP MEDIA',
-        publishedAt: new Date().toISOString(),
-        isBreaking: newArt.isBreaking || false,
-        viewsCount: 0,
-        readTimeMinutes: 3,
-        comments: [],
-      };
-      setArticles((prev) => [created, ...prev]);
     }
+
+    setArticles((prev) => {
+      const updated = [created, ...prev.filter((a) => a.id !== created.id)];
+      try {
+        localStorage.setItem('recap_news_cache', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
   };
 
   // Delete Article (Admin - deletes from Firebase Firestore)
@@ -294,10 +353,16 @@ export default function App() {
     } catch (err) {
       console.warn('Firebase delete fallback:', err);
     }
-    setArticles((prev) => prev.filter((a) => a.id !== id));
+    setArticles((prev) => {
+      const updated = prev.filter((a) => a.id !== id);
+      try {
+        localStorage.setItem('recap_news_cache', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
   };
 
-  // Update Article (Writer / Admin - updates in Firebase Firestore)
+  // Update Article (Writer / Admin / Manager)
   const handleUpdateArticle = async (id: string, updatedArt: Partial<NewsArticle>) => {
     try {
       await updateArticleInFirebase(id, updatedArt);
@@ -309,9 +374,13 @@ export default function App() {
     } catch (err) {
       console.warn('Firebase update fallback:', err);
     }
-    setArticles((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, ...updatedArt } : a))
-    );
+    setArticles((prev) => {
+      const updated = prev.map((a) => (a.id === id ? { ...a, ...updatedArt } : a));
+      try {
+        localStorage.setItem('recap_news_cache', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
   };
 
   // Add Comment to Article (Saves to Firebase Firestore)
@@ -497,9 +566,26 @@ export default function App() {
             currentLang={currentLang}
             writerSecretCode={siteSettings.writerSecretCode}
             notifications={notifications}
+            onSendNotification={handleSendNotification}
             withdrawals={withdrawals}
             onRequestWithdrawal={handleRequestWithdrawal}
             onRegisterWriter={handleRegisterWriter}
+          />
+        )}
+
+        {currentMode === 'managing' && (
+          <ManagingPanel
+            articles={articles}
+            onDeleteArticle={handleDeleteArticle}
+            onUpdateArticle={handleUpdateArticle}
+            currentLang={currentLang}
+            siteSettings={siteSettings}
+            writers={writers}
+            onUpdateWriters={handleUpdateWriters}
+            notifications={notifications}
+            onSendNotification={handleSendNotification}
+            managers={managers}
+            onUpdateManagers={handleUpdateManagers}
           />
         )}
 
@@ -517,6 +603,8 @@ export default function App() {
             onSendNotification={handleSendNotification}
             categories={categories}
             onUpdateCategories={handleUpdateCategories}
+            managers={managers}
+            onUpdateManagers={handleUpdateManagers}
           />
         )}
       </main>
@@ -580,26 +668,24 @@ export default function App() {
           <div className="space-y-2">
             <h4 className="font-bold text-white text-xs uppercase tracking-wider">বিভাগসমূহ</h4>
             <ul className="space-y-1">
-              {(categories && categories.length > 0
-                ? categories.filter(c => !c.isHidden).slice(0, 6)
-                : [
-                    { name: 'জাতীয়' },
-                    { name: 'রাজনীতি' },
-                    { name: 'অর্থনীতি' },
-                    { name: 'আন্তর্জাতিক' },
-                    { name: 'প্রযুক্তি' }
-                  ]
-              ).map((cat) => (
-                <li key={cat.name}>
+              {Array.from(
+                new Set(
+                  (categories && categories.length > 0
+                    ? categories.filter(c => !c.isHidden).map(c => c.name)
+                    : ['জাতীয়', 'রাজনীতি', 'অর্থনীতি', 'আন্তর্জাতিক', 'প্রযুক্তি']
+                  )
+                )
+              ).slice(0, 6).map((catName, idx) => (
+                <li key={`footer-cat-${catName}-${idx}`}>
                   <button
                     onClick={() => {
-                      setSelectedCategory(cat.name as Category);
+                      setSelectedCategory(catName as Category);
                       setCurrentMode('viewer');
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
                     className="hover:text-red-400"
                   >
-                    {cat.name}
+                    {catName}
                   </button>
                 </li>
               ))}

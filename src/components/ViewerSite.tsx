@@ -60,6 +60,9 @@ export const ViewerSite: React.FC<ViewerSiteProps> = ({
 
   // Filter Articles
   let filtered = articles.filter((art) => {
+    // Hide unpublished articles from readers
+    if (art.isUnpublished) return false;
+
     // Mode filters
     if (showBookmarksOnly && !bookmarks.includes(art.id)) return false;
     if (showOfflineOnly && !offlineSaved.includes(art.id)) return false;
@@ -122,9 +125,9 @@ export const ViewerSite: React.FC<ViewerSiteProps> = ({
         <span className="font-bold text-gray-400 shrink-0 flex items-center gap-1 uppercase tracking-wider text-[11px]">
           <Tag className="w-3.5 h-3.5 text-red-500" /> ট্রেন্ডিং ট্যাগ:
         </span>
-        {allTags.map((tag) => (
+        {allTags.map((tag, idx) => (
           <button
-            key={tag}
+            key={`tag-${tag}-${idx}`}
             onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
             className={`px-3 py-1 rounded-full text-[11px] font-semibold tracking-wide whitespace-nowrap transition-all border ${
               selectedTag === tag
@@ -174,22 +177,22 @@ export const ViewerSite: React.FC<ViewerSiteProps> = ({
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/50 to-transparent"></div>
 
-                    {/* Top Badges */}
-                    <div className="absolute top-4 left-4 flex flex-wrap gap-2">
-                      <span className="px-3 py-1 bg-red-600 text-white rounded text-[10px] font-bold uppercase tracking-widest shadow">
-                        {heroArticle.category}
-                      </span>
-                      {heroArticle.isBreaking && (
-                        <span className="px-3 py-1 bg-amber-500 text-black rounded text-[10px] font-black uppercase tracking-widest flex items-center gap-1 shadow animate-pulse">
-                          <Flame className="w-3.5 h-3.5 fill-black" /> BREAKING
+                      {/* Top Badges */}
+                      <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+                        <span className="px-3 py-1 bg-red-600 text-white rounded text-[10px] font-bold uppercase tracking-widest shadow">
+                          {heroArticle.category}
                         </span>
-                      )}
-                      {heroArticle.videoUrl && (
-                        <span className="px-2.5 py-1 bg-black/80 text-white rounded text-[10px] font-bold flex items-center gap-1 uppercase tracking-wider">
-                          <Play className="w-3 h-3 text-red-500 fill-red-500" /> VIDEO
-                        </span>
-                      )}
-                    </div>
+                        {heroArticle.isBreaking && (
+                          <span className="px-3 py-1 bg-amber-500 text-black rounded text-[10px] font-black uppercase tracking-widest flex items-center gap-1 shadow animate-pulse">
+                            <Flame className="w-3.5 h-3.5 fill-black" /> BREAKING
+                          </span>
+                        )}
+                        {(heroArticle.videoUrl || heroArticle.hasVideo || heroArticle.content?.includes('<iframe') || heroArticle.content?.includes('<video')) && (
+                          <span className="px-2.5 py-1 bg-red-600 text-white rounded text-[10px] font-bold flex items-center gap-1 uppercase tracking-wider shadow">
+                            <Play className="w-3 h-3 text-white fill-white" /> ভিডিও আছে
+                          </span>
+                        )}
+                      </div>
 
                     {/* Quick Bookmark button */}
                     <button
@@ -228,9 +231,9 @@ export const ViewerSite: React.FC<ViewerSiteProps> = ({
 
               {/* Grid of Secondary News Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {secondaryArticles.map((art) => (
+                {secondaryArticles.map((art, idx) => (
                   <div
-                    key={art.id}
+                    key={`sec-art-${art.id}-${idx}`}
                     onClick={() => onSelectArticle(art)}
                     className="group bg-white dark:bg-[#111111] rounded-2xl overflow-hidden border border-slate-200 dark:border-white/10 hover:border-red-600/30 transition-all duration-200 cursor-pointer flex flex-col"
                   >
@@ -244,6 +247,11 @@ export const ViewerSite: React.FC<ViewerSiteProps> = ({
                       <span className="absolute top-3 left-3 px-2 py-0.5 bg-black/80 backdrop-blur text-white rounded text-[10px] font-bold uppercase tracking-wider">
                         {art.category}
                       </span>
+                      {(art.videoUrl || art.hasVideo || art.content?.includes('<iframe') || art.content?.includes('<video')) && (
+                        <span className="absolute bottom-3 left-3 px-2.5 py-1 bg-red-600 text-white rounded text-[10px] font-bold flex items-center gap-1 uppercase tracking-wider shadow">
+                          <Play className="w-3 h-3 text-white fill-white" /> ভিডিও আছে
+                        </span>
+                      )}
                       <button
                         onClick={(e) => { e.stopPropagation(); onToggleBookmark(art.id); }}
                         className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white backdrop-blur hover:bg-red-600 transition-colors border border-white/10"
@@ -297,7 +305,7 @@ export const ViewerSite: React.FC<ViewerSiteProps> = ({
                 <div className="space-y-4">
                   {articles.slice(0, 5).map((tArt, i) => (
                     <div
-                      key={tArt.id}
+                      key={`trend-art-${tArt.id}-${i}`}
                       onClick={() => onSelectArticle(tArt)}
                       className="flex items-start gap-3 group cursor-pointer"
                     >

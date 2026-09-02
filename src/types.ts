@@ -43,6 +43,7 @@ export interface NewsArticle {
   tags: string[];
   imageUrl: string;
   videoUrl?: string;
+  hasVideo?: boolean;
   author: string;
   source?: string; // তথ্যসূত্র / Reference source
   publishedAt: string;
@@ -52,6 +53,11 @@ export interface NewsArticle {
   comments: Comment[];
   readTimeMinutes: number;
   isAiGenerated?: boolean;
+  aiFlagged?: boolean;
+  aiIssues?: string[];
+  aiCredibilityScore?: number;
+  aiOffensiveReason?: string;
+  isUnpublished?: boolean;
   seoMeta?: {
     title: string;
     metaDescription: string;
@@ -87,6 +93,12 @@ export interface WriterProfile {
   name: string;
   email: string;
   address: string;
+  postOffice?: string;
+  postCode?: string;
+  thana?: string;
+  district?: string;
+  division?: string;
+  nidNumber?: string;
   mobile: string;
   age: number;
   avatarUrl?: string;
@@ -100,8 +112,24 @@ export interface AdminProfile {
   name: string;
   email: string;
   address: string;
+  postOffice?: string;
+  postCode?: string;
+  thana?: string;
+  district?: string;
+  division?: string;
+  nidNumber?: string;
   mobile: string;
   age: number;
+  avatarUrl?: string;
+  secretCodeUsed: string;
+  createdAt: string;
+}
+
+export interface ManagerProfile {
+  id: string;
+  name: string;
+  email: string;
+  mobile: string;
   avatarUrl?: string;
   secretCodeUsed: string;
   createdAt: string;
@@ -126,6 +154,7 @@ export interface SiteSettings {
   officeAddress?: string;
   writerSecretCode: string;
   adminSecretCode: string;
+  managingSecretCode?: string;
   aboutUsHtml?: string;
   privacyPolicyHtml?: string;
   contactUsHtml?: string;

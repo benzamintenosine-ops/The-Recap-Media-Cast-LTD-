@@ -62,6 +62,7 @@ interface WritersPortalProps {
   currentLang: Language;
   writerSecretCode?: string;
   notifications?: SystemNotification[];
+  onSendNotification?: (notification: Omit<SystemNotification, 'id' | 'createdAt' | 'read'>) => void;
   withdrawals?: WithdrawalRequest[];
   onRequestWithdrawal?: (req: Omit<WithdrawalRequest, 'id' | 'createdAt' | 'status'>) => void;
   onRegisterWriter?: (writer: WriterProfile) => void;
@@ -87,6 +88,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   currentLang,
   writerSecretCode = 'RECAP2026',
   notifications = [],
+  onSendNotification,
   withdrawals = [],
   onRequestWithdrawal,
   onRegisterWriter
@@ -107,8 +109,14 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     return saved ? JSON.parse(saved) : null;
   });
 
-  // Writer Profile Setup Form State
+  // Writer / Reporter Profile Setup Form State
   const [setupName, setSetupName] = useState(writerProfile?.name || '');
+  const [setupPostOffice, setSetupPostOffice] = useState(writerProfile?.postOffice || '');
+  const [setupPostCode, setSetupPostCode] = useState(writerProfile?.postCode || '');
+  const [setupThana, setSetupThana] = useState(writerProfile?.thana || '');
+  const [setupDistrict, setSetupDistrict] = useState(writerProfile?.district || '');
+  const [setupDivision, setSetupDivision] = useState(writerProfile?.division || '');
+  const [setupNidNumber, setSetupNidNumber] = useState(writerProfile?.nidNumber || '');
   const [setupAddress, setSetupAddress] = useState(writerProfile?.address || '');
   const [setupMobile, setSetupMobile] = useState(writerProfile?.mobile || '');
   const [setupAge, setSetupAge] = useState<number | ''>(writerProfile?.age || '');
@@ -152,7 +160,8 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   const [postSuccessMessage, setPostSuccessMessage] = useState('');
   const [editorError, setEditorError] = useState('');
 
-  // Image upload state & validation
+  // Reporter Sign Up Terms Agreement State
+  const [agreedToTerms, setAgreedToTerms] = useState<boolean>(false);
   const [imageSizeError, setImageSizeError] = useState('');
 
   // Unverified / Doubtful News Affirmation Modal State ("আপনার পোস্ট করা নিউজের বিষয়বস্তু কি সত্য? (হ্যাঁ/না)")
@@ -195,6 +204,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   const [authenticityResult, setAuthenticityResult] = useState<ArticleAuthenticityResult | null>(null);
   const [isVerifyingAuthenticity, setIsVerifyingAuthenticity] = useState<boolean>(false);
   const [authenticityError, setAuthenticityError] = useState<string>('');
+  const [ruleCheckboxes, setRuleCheckboxes] = useState<boolean[]>([false, false, false, false, false, false]);
 
   // Cloudflare & reCAPTCHA Bot Protection modal state
   const [showBotModal, setShowBotModal] = useState<boolean>(false);
@@ -242,17 +252,6 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     if (!emailInput.trim() || !passwordInput.trim()) {
       setAuthError('ইমেইল এবং পাসওয়ার্ড বাধ্যতামূলক!');
       return;
-    }
-
-    if (authMode === 'signup') {
-      if (!secretCodeInput.trim()) {
-        setAuthError('গোপন রেফার কোড প্রদান করা বাধ্যতামূলক!');
-        return;
-      }
-      if (secretCodeInput.trim().toUpperCase() !== writerSecretCode.toUpperCase()) {
-        setAuthError(`ভুল গোপন রেফার কোড! সঠিক গোপন রেফার কোডটি টাইপ করুন।`);
-        return;
-      }
     }
 
     // Check if writer profile is banned by admin
@@ -304,13 +303,29 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     reader.readAsDataURL(file);
   };
 
-  // Writer Profile Setup Submission
+  // Reporter / Writer Profile Setup Submission
   const handleProfileSetupSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setProfileError('');
 
-    if (!setupName.trim() || !setupAddress.trim() || !setupMobile.trim() || setupAge === '') {
-      setProfileError('সকল ক্ষেত্র (নাম, ঠিকানা, মোবাইল নম্বর, বয়স, ছবি) পূরণ করা বাধ্যতামূলক!');
+    if (
+      !setupName.trim() ||
+      !setupPostOffice.trim() ||
+      !setupPostCode.trim() ||
+      !setupThana.trim() ||
+      !setupDistrict.trim() ||
+      !setupDivision.trim() ||
+      !setupNidNumber.trim() ||
+      !setupMobile.trim() ||
+      setupAge === ''
+    ) {
+      setProfileError('সকল ক্ষেত্র (নাম, পোস্ট অফিস, পোস্ট কোড, থানা, জেলা, বিভাগ, NID নম্বর, মোবাইল নম্বর, বয়স, ছবি) পূরণ করা বাধ্যতামূলক!');
+      return;
+    }
+
+    const cleanMobile = setupMobile.trim().replace(/\D/g, '');
+    if (cleanMobile.length !== 11) {
+      setProfileError('মোবাইল নম্বরটি অবশ্যই সঠিক ১১ ডিজিটের হতে হবে (যেমন: 01712345678)!');
       return;
     }
 
@@ -320,21 +335,40 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       return;
     }
 
+    const nidDigits = setupNidNumber.trim().replace(/\D/g, '');
+    if (nidDigits.length < 10) {
+      setProfileError('NID নম্বরটি সঠিক নয়! সর্বনিম্ন ১০ বা ১৩ ডিজিটের জাতীয় পরিচয়পত্র (NID) নম্বর লিখুন।');
+      return;
+    }
+
     if (!setupAvatarUrl || !photoVerified) {
       setProfileError('ডিভাইস থেকে নিজস্ব মানুষের প্রোফাইল ছবি আপলোড এবং AI যাচাইকরণ বাধ্যতামূলক!');
       return;
     }
 
+    if (!ruleCheckboxes.every(Boolean) || !agreedToTerms) {
+      setProfileError('প্রতিবেদক হিসেবে নীতিমালার ৬টি বক্সে এবং স্বীকারোক্তিতে টিক চিহ্ন দেওয়া বাধ্যতামূলক!');
+      return;
+    }
+
+    const formattedAddress = `পোস্ট অফিস: ${setupPostOffice.trim()}, পোস্ট কোড: ${setupPostCode.trim()}, থানা: ${setupThana.trim()}, জেলা: ${setupDistrict.trim()}, বিভাগ: ${setupDivision.trim()}`;
+
     const newProfile: WriterProfile = {
-      id: `writer-${Date.now()}`,
+      id: writerProfile?.id || `writer-${Date.now()}`,
       name: setupName.trim(),
-      email: emailInput || writerProfile?.email || 'writer@therecapmedia.com',
-      address: setupAddress.trim(),
+      email: emailInput || writerProfile?.email || 'reporter@therecapmedia.com',
+      address: formattedAddress,
+      postOffice: setupPostOffice.trim(),
+      postCode: setupPostCode.trim(),
+      thana: setupThana.trim(),
+      district: setupDistrict.trim(),
+      division: setupDivision.trim(),
+      nidNumber: nidDigits,
       mobile: setupMobile.trim(),
       age: ageNum,
       avatarUrl: setupAvatarUrl,
-      secretCodeUsed: secretCodeInput || writerSecretCode,
-      createdAt: new Date().toISOString()
+      secretCodeUsed: 'DIRECT_SIGNUP',
+      createdAt: writerProfile?.createdAt || new Date().toISOString()
     };
 
     setWriterProfile(newProfile);
@@ -421,7 +455,35 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     }
   };
 
-  // Step 1 -> Step 2 transition with 50-Word Minimum Validation
+  // Helper to extract top-most image URL from HTML content for Cover Image
+  const extractTopImageFromHtml = (html: string): string | null => {
+    if (!html) return null;
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const img = doc.querySelector('img');
+      return img ? img.getAttribute('src') : null;
+    } catch {
+      return null;
+    }
+  };
+
+  // Helper to check if post content contains embedded video or iframe
+  const checkHasVideoInHtml = (html: string, videoUrl?: string): boolean => {
+    if (videoUrl && videoUrl.trim().length > 0) return true;
+    if (!html) return false;
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const hasIframe = doc.querySelector('iframe') !== null;
+      const hasVideo = doc.querySelector('video') !== null;
+      return hasIframe || hasVideo;
+    } catch {
+      return false;
+    }
+  };
+
+  // Step 1 -> Step 2 transition with 50-Word Minimum & Mandatory Cover Image Validation
   const handleProceedToStep2 = () => {
     setEditorError('');
     if (!editingArticleId && todayPostsCount >= DAILY_POST_LIMIT) {
@@ -441,6 +503,13 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     const wordCount = countWords(postContent);
     if (wordCount < 50) {
       setEditorError(`সংবাদটি সর্বনিম্ন ৫০ শব্দের হতে হবে। বর্তমানে আপনার লেখায় রয়েছে ${wordCount}টি শব্দ। অনুগ্রহ করে আরও বিস্তারিত লিখুন (ন্যূনতম ৫০ শব্দ আবশ্যক)।`);
+      return;
+    }
+
+    // Mandatory Cover Image Validation (Must have at least 1 image in post board)
+    const coverImg = extractTopImageFromHtml(postContent) || postImageUrl;
+    if (!coverImg) {
+      setEditorError('📷 পোস্টে অন্তত একটি ছবি যোগ করা বাধ্যতামূলক! ওপরের টেক্সট এডিটিং টুলস থেকে ছবির আইকনে ক্লিক করে সংবাদ বোর্ডে অন্তত একটি ছবি যুক্ত করুন (যা সংবাদটির প্রচ্ছদ হিসেবে থাকবে)।');
       return;
     }
 
@@ -496,24 +565,6 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       return;
     }
 
-    // Check if AI Fact Check flagged offensive content
-    if (authenticityResult?.status === 'REJECTED_OFFENSIVE' || authenticityResult?.isOffensiveOrHarmful) {
-      setEditorError('🚫 অশালীন, উস্কানিমূলক, ব্যক্তিগত আক্রমণ বা যৌন হয়রানিমূলক উপাদান থাকায় পোস্টটি আনপাবলিশ রাখা হয়েছে। অনুগ্রহ করে লেখাটি এডিট করুন।');
-      return;
-    }
-
-    // Check if AI Fact Check flagged duplicate content
-    if (authenticityResult?.status === 'FLAGGED_DUPLICATE' || authenticityResult?.isDuplicate) {
-      setEditorError('🚫 ওয়েবসাইটে একই ধরনের লেখা বা ছবি দ্বিতীয়বার কেউ পোস্ট করতে পারবে না। অনুগ্রহ করে অন্য কোনো অনন্য বিষয় নিয়ে সংবাদ লিখুন।');
-      return;
-    }
-
-    // Check if AI Fact Check found doubtful / unverified internet rumor
-    if (authenticityResult && (authenticityResult.isUnverifiedOrDoubtful || authenticityResult.factCheckVerdict === 'UNVERIFIED_RUMOR' || authenticityResult.factCheckVerdict === 'QUESTIONABLE')) {
-      setDoubtModalOpen(true);
-      return;
-    }
-
     // Check if human verification is required
     const isHumanVerified = sessionStorage.getItem('recap_human_verified') === 'true';
     if (!isHumanVerified) {
@@ -537,6 +588,20 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
     const authorName = `${writerProfile?.name || 'লেখক'}${shareNameUnderPost ? ' (প্রতিবেদক)' : ''}`;
 
+    // Extract top-most image as cover image
+    const coverImg = extractTopImageFromHtml(postContent) || postImageUrl || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80';
+    const hasVideo = checkHasVideoInHtml(postContent, postVideoUrl);
+
+    // AI Analysis check - limited to flagging for Managing Panel review
+    const isAiFlagged = !!(
+      authenticityResult?.isOffensiveOrHarmful ||
+      authenticityResult?.status === 'REJECTED_OFFENSIVE' ||
+      authenticityResult?.isDuplicate ||
+      authenticityResult?.status === 'FLAGGED_DUPLICATE' ||
+      (authenticityResult?.issuesFound && authenticityResult.issuesFound.length > 0) ||
+      (authenticityResult?.credibilityScore && authenticityResult.credibilityScore < 60)
+    );
+
     const articlePayload: Partial<NewsArticle> = {
       title: postTitle,
       summary: postSummary || postTitle.slice(0, 100),
@@ -544,15 +609,30 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       source: postSource.trim() || undefined,
       category: postCategory,
       tags: postTags,
-      imageUrl: postImageUrl,
+      imageUrl: coverImg,
       videoUrl: postVideoUrl.trim() || undefined,
+      hasVideo,
       isBreaking,
       author: authorName,
       publishedAt: new Date().toISOString(),
       viewsCount: 0,
       comments: [],
       readTimeMinutes: Math.max(2, Math.ceil(postContent.length / 400)),
+      aiFlagged: isAiFlagged,
+      aiIssues: authenticityResult?.issuesFound,
+      aiCredibilityScore: authenticityResult?.credibilityScore,
+      aiOffensiveReason: authenticityResult?.offensiveReason,
     };
+
+    // Notify Managing Panel if AI detected issues
+    if (isAiFlagged && onSendNotification) {
+      onSendNotification({
+        title: '⚠️ AI ফ্ল্যাগযুক্ত সংবাদ রিভিউ প্রয়োজন',
+        message: `প্রতিবেদক "${writerProfile?.name || authorName}" এর সংবাদটি AI বিশ্লেষণে সমস্যাযুক্ত বলে চিহ্নিত হয়েছে। ম্যানাজিং প্যানেলে রিভিউ বা আনপাবলিশ করার অনুরোধ।`,
+        senderName: writerProfile?.name || authorName,
+        recipientWriterId: 'MANAGING',
+      });
+    }
 
     if (editingArticleId) {
       if (onUpdateArticle) {
@@ -624,12 +704,12 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
             <PenTool className="w-7 h-7" />
           </div>
           <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white font-serif">
-            লেখক প্যানেল (Writers Panel)
+            প্রতিবেদক প্যানেল (Reporters Panel)
           </h2>
           <p className="text-xs text-slate-500">
             {authMode === 'signup' 
-              ? 'নতুন লেখক / প্রতিবেদক হিসেবে সাইন-আপ করতে গোপন রেফার কোড লিখুন'
-              : 'লেখক প্যানেলে প্রবেশের জন্য আপনার অ্যাকাউন্ট সাইন ইন করুন'}
+              ? 'নতুন প্রতিবেদক হিসেবে সাইন-আপ করতে গোপন রেফার কোড লিখুন'
+              : 'প্রতিবেদক প্যানেলে প্রবেশের জন্য আপনার অ্যাকাউন্ট সাইন ইন করুন'}
           </p>
         </div>
 
@@ -640,7 +720,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
             onClick={() => { setAuthMode('signup'); setSecretCodeInput(''); setAuthError(''); }}
             className={`flex-1 py-2 rounded-xl transition-all ${authMode === 'signup' ? 'bg-red-600 text-white shadow' : 'text-slate-600 dark:text-slate-400'}`}
           >
-            লেখক সাইন-আপ (Sign Up)
+            প্রতিবেদক সাইন-আপ (Sign Up)
           </button>
           <button
             type="button"
@@ -668,7 +748,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
               required
               value={emailInput}
               onChange={(e) => setEmailInput(e.target.value)}
-              placeholder="writer@therecapmedia.com"
+              placeholder="reporter@therecapmedia.com"
               className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
             />
           </div>
@@ -687,38 +767,19 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
             />
           </div>
 
-          {/* Secret Referral Code field for Registration */}
-          {authMode === 'signup' && (
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <label className="block text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                  <Lock className="w-3.5 h-3.5" /> গোপন রেফার কোড (Secret Referral Code) *
-                </label>
-              </div>
-              <input
-                type="text"
-                required
-                value={secretCodeInput}
-                onChange={(e) => setSecretCodeInput(e.target.value)}
-                placeholder="গোপন রেফার কোডটি লিখুন..."
-                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-amber-400 dark:border-amber-600/60 bg-amber-50/50 dark:bg-amber-950/30 text-slate-900 dark:text-amber-200 font-mono font-bold tracking-widest focus:ring-2 focus:ring-amber-500 uppercase"
-              />
-            </div>
-          )}
-
           <button
             type="submit"
             className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-red-600/20 transition-all flex items-center justify-center gap-2"
           >
             <ShieldCheck className="w-4 h-4" />
-            {authMode === 'signup' ? 'গোপন কোড যাচাই ও পরবর্তী ধাপ' : 'লেখক প্যানেলে সাইন ইন করুন'}
+            {authMode === 'signup' ? 'রেজিস্ট্রেশন করুন ও পরবর্তী ধাপ' : 'প্রতিবেদক প্যানেলে সাইন ইন করুন'}
           </button>
         </form>
       </div>
     );
   }
 
-  // SCREEN 2: Mandatory Writer Profile Setup Window (If Profile is incomplete or being edited)
+  // SCREEN 2: Mandatory Reporter Profile Setup Window (If Profile is incomplete or being edited)
   if (!writerProfile || isEditingProfile) {
     return (
       <div className="max-w-xl mx-auto my-10 p-6 sm:p-8 bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 space-y-6">
@@ -731,10 +792,10 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
             />
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white font-serif">
-            প্রতিবেদক/লেখক প্রোফাইল প্রস্তুতকরণ
+            প্রতিবেদক প্রোফাইল প্রস্তুতকরণ
           </h2>
           <p className="text-xs text-slate-500">
-            সংবাদ পোস্ট প্রকাশ করার জন্য আপনার বিস্তারিত তথ্যগুলো বাধ্যতামূলকভাবে পূরণ করুন।
+            সংবাদ পোস্ট প্রকাশ করার জন্য আপনার বিস্তারিত ব্যক্তিগত তথ্যগুলো বাধ্যতামূলকভাবে পূরণ করুন।
           </p>
         </div>
 
@@ -794,18 +855,109 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
             </div>
           </div>
 
+          {/* NID Number Input Box */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              বর্তমান ঠিকানা (Address) *
-            </label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                জাতীয় পরিচয়পত্র নম্বর (NID Number) *
+              </label>
+              <span className="text-[10px] text-red-500 font-bold">(সর্বনিম্ন ১০ বা ১৩ ডিজিটের NID নম্বর)</span>
+            </div>
             <input
               type="text"
               required
-              value={setupAddress}
-              onChange={(e) => setSetupAddress(e.target.value)}
-              placeholder="যেমন: গুলশান, ঢাকা-১২১২"
-              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+              value={setupNidNumber}
+              onChange={(e) => setSetupNidNumber(e.target.value)}
+              placeholder="১০ বা ১৩ ডিজিটের এনআইডি (NID) নম্বর লিখুন..."
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 font-mono font-bold"
             />
+          </div>
+
+          {/* Address Breakdown Grid (Post Office, Post Code, Thana, District, Division) */}
+          <div className="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+            <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+              <MapPin className="w-4 h-4 text-red-500" /> বর্তমান ঠিকানার বিবরণ (Address Breakdown) *
+            </label>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  🔸 পোস্ট অফিস (Post Office) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={setupPostOffice}
+                  onChange={(e) => setSetupPostOffice(e.target.value)}
+                  placeholder="যেমন: গুলশান পোস্ট অফিস"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  🔸 পোস্ট কোড (Post Code) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={setupPostCode}
+                  onChange={(e) => setSetupPostCode(e.target.value)}
+                  placeholder="যেমন: ১২১২"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  🔸 থানা / উপজেলা (Thana / Upazila) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={setupThana}
+                  onChange={(e) => setSetupThana(e.target.value)}
+                  placeholder="যেমন: গুলশান"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  🔸 জেলা (District) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={setupDistrict}
+                  onChange={(e) => setSetupDistrict(e.target.value)}
+                  placeholder="যেমন: ঢাকা"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  🔸 বিভাগ (Division) *
+                </label>
+                <select
+                  required
+                  value={setupDivision}
+                  onChange={(e) => setSetupDivision(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 font-bold"
+                >
+                  <option value="">বিভাগ সিলেক্ট করুন...</option>
+                  <option value="ঢাকা">ঢাকা (Dhaka)</option>
+                  <option value="চট্টগ্রাম">চট্টগ্রাম (Chattogram)</option>
+                  <option value="রাজশাহী">রাজশাহী (Rajshahi)</option>
+                  <option value="খুলনা">খুলনা (Khulna)</option>
+                  <option value="বরিশাল">বরিশাল (Barishal)</option>
+                  <option value="সিলেট">সিলেট (Sylhet)</option>
+                  <option value="রংপুর">রংপুর (Rangpur)</option>
+                  <option value="ময়মনসিংহ">ময়মনসিংহ (Mymensingh)</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           <div>
@@ -847,19 +999,71 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
             </div>
           </div>
 
+          {/* Reporter Commitment Checklist / Mandatory Rules Box */}
+          <div className="p-4 bg-amber-50/80 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-900/60 space-y-3">
+            <label className="block text-xs font-extrabold text-amber-950 dark:text-amber-200 flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
+              আমি প্রতিবেদক হিসেবে নিম্নোক্ত বিষয়গুলো মানতে বাধ্য থাকবো (৬টি শর্তে টিক চিহ্ন দিন): *
+            </label>
+            <div className="space-y-2.5 text-xs text-slate-700 dark:text-slate-300 pl-1">
+              {[
+                "উস্কানি মূলক, অশালীন, ভিত্তিহীন কোন পোস্ট করবো না।",
+                "পোস্টের মাধ্যমে কারো ধর্মীয় অনুভূতিতে আঘাত দেওয়ার চেষ্টা করবো না।",
+                "গুজব ও মিথ্যাচার রটানো থেকে বিরত থাকবো।",
+                "কারো লেখা বা ছবি কপি করে পোস্ট দেবো না।",
+                "ব্যক্তিগত আক্রমন ও মানহানি মূলক পোস্ট করবো না।",
+                "সদা সত্য সংবাদ প্রচার করবো।"
+              ].map((ruleText, idx) => (
+                <label key={idx} className="flex items-start gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={ruleCheckboxes[idx] || false}
+                    onChange={(e) => {
+                      const updated = [...ruleCheckboxes];
+                      updated[idx] = e.target.checked;
+                      setRuleCheckboxes(updated);
+                      setAgreedToTerms(updated.every(Boolean));
+                    }}
+                    className="w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500 cursor-pointer shrink-0 mt-0.5"
+                  />
+                  <span className={ruleCheckboxes[idx] ? 'text-slate-900 dark:text-white font-semibold' : 'text-slate-700 dark:text-slate-300'}>
+                    ⚪ {ruleText}
+                  </span>
+                </label>
+              ))}
+            </div>
+
+            <div className="pt-2 border-t border-amber-200 dark:border-amber-900/60">
+              <label className="flex items-center gap-2.5 cursor-pointer text-xs font-extrabold text-amber-950 dark:text-amber-200 select-none">
+                <input
+                  type="checkbox"
+                  required
+                  checked={agreedToTerms}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setAgreedToTerms(checked);
+                    setRuleCheckboxes([checked, checked, checked, checked, checked, checked]);
+                  }}
+                  className="w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500 cursor-pointer"
+                />
+                <span>আমি বর্ণিত সকল ৬টি নিয়মাবলী সজ্ঞানে স্বীকার করছি ও বাস্তবায়নে বাধ্য থাকবো।</span>
+              </label>
+            </div>
+          </div>
+
           <button
             type="submit"
             className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-red-600/20 transition-all flex items-center justify-center gap-2"
           >
             <CheckCircle className="w-4 h-4" />
-            প্রোফাইল জমা দিন ও লেখক প্যানেলে প্রবেশ করুন
+            প্রোফাইল জমা দিন ও প্রতিবেদক প্যানেলে প্রবেশ করুন
           </button>
         </form>
       </div>
     );
   }
 
-  // SCREEN 3: Writers Panel Main Control Room
+  // SCREEN 3: Reporters Panel Main Control Room
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8">
       {/* Top Banner & Profile Overview */}
@@ -869,10 +1073,10 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         <div className="space-y-3 z-10">
           <div className="flex items-center gap-2">
             <span className="px-3 py-1 bg-red-600 text-white text-[10px] font-bold rounded-md uppercase tracking-widest shadow">
-              WRITERS PANEL / লেখক প্যানেল
+              REPORTERS PANEL / প্রতিবেদক প্যানেল
             </span>
             <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1 font-mono">
-              <CheckCircle className="w-3.5 h-3.5" /> অনুমোদিত লেখক
+              <CheckCircle className="w-3.5 h-3.5" /> অনুমোদিত প্রতিবেদক
             </span>
           </div>
 
@@ -1013,7 +1217,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
               </div>
               <div>
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  ব্লগার স্টাইল নিউজ ক্রিয়েটর — {createStep === 1 ? 'ধাপ ১: সংবাদ সম্পাদনা' : 'ধাপ ২: কী-ওয়ার্ড ও লেখক নাম'}
+                  নিউজ ক্রিয়েটর — {createStep === 1 ? 'ধাপ ১: সংবাদ সম্পাদনা' : 'ধাপ ২: কী-ওয়ার্ড ও লেখক নাম'}
                 </h3>
                 <p className="text-[11px] text-gray-400">
                   {createStep === 1 ? 'হেডলাইন, মুল বিবরণ, টেক্সট এডিটিং টুলস ও ছবি যুক্ত করুন' : 'কিওয়ার্ড সিলেক্ট করুন এবং পোস্টের নিচে নিজের নাম প্রচার করুন'}
@@ -1185,65 +1389,49 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                 />
               </div>
 
-              {/* Image Upload & Featured Image Tools */}
-              <div className="space-y-3 pt-2">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  সংবাদের প্রচ্ছদ ছবি (Featured Image)
-                </label>
-
-                {imageSizeError && (
-                  <div className="p-3 bg-red-50 dark:bg-red-950/80 text-red-700 dark:text-red-300 text-xs font-bold rounded-xl border border-red-200 dark:border-red-900 flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
-                    <span>{imageSizeError}</span>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Tool 1: Device File Upload with 500KB Validation */}
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 space-y-2">
+              {/* Cover Image Auto-Extraction Notice & Preview */}
+              {(() => {
+                const detectedCover = extractTopImageFromHtml(postContent) || postImageUrl;
+                return (
+                  <div className="p-4 bg-emerald-50/70 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                        <UploadCloud className="w-4 h-4 text-red-500" /> ডিভাইস থেকে ছবি আপলোড
+                      <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
+                        <ImageIcon className="w-4 h-4 text-emerald-600" />
+                        সংবাদের কভার ছবি (Cover Image Status)
                       </span>
-                      <span className="text-[10px] text-red-500 font-bold bg-red-50 dark:bg-red-950/60 px-2 py-0.5 rounded">
-                        সর্বনিম্ন 500 KB
+                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-600 text-white uppercase tracking-wider">
+                        স্বয়ংক্রিয় প্রচ্ছদ
                       </span>
                     </div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageFileUpload}
-                      className="text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-red-600 file:text-white hover:file:bg-red-700 cursor-pointer"
-                    />
+                    <p className="text-[11px] text-emerald-800 dark:text-emerald-300 leading-relaxed">
+                      সংবাদ বোর্ডের ভেতর থাকা <strong>প্রথম/ওপরের ছবিকে স্বয়ংক্রিয়ভাবে Cover Image হিসেবে সেট করা হবে</strong>। বোর্ডে যদি একাধিক ছবি যুক্ত করেন, তবে ওপরে থাকা ছবিটিই ওয়েবসাইটে সংবাদের প্রচ্ছদ হিসেবে দর্শকরা দেখতে পাবেন।
+                    </p>
+                    {detectedCover ? (
+                      <div className="pt-2 flex items-center gap-3">
+                        <div className="w-20 h-14 rounded-xl overflow-hidden border border-emerald-300 dark:border-emerald-700 shrink-0 bg-slate-900">
+                          <img
+                            src={detectedCover}
+                            alt="Detected Cover"
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="text-xs text-emerald-900 dark:text-emerald-200">
+                          <span className="font-bold block text-emerald-700 dark:text-emerald-400">✓ প্রচ্ছদ ছবি সনাক্ত হয়েছে</span>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-xs block">
+                            {detectedCover}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="pt-1 text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                        <AlertCircle className="w-4 h-4" />
+                        <span>সংবাদ বোর্ডে এখনও কোনো ছবি যুক্ত করা হয়নি (ছবি যুক্ত করা বাধ্যতামূলক)</span>
+                      </div>
+                    )}
                   </div>
-
-                  {/* Tool 2: Web Image URL */}
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2">
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                      <ImageIcon className="w-4 h-4 text-red-500" /> ছবির ওয়েব লিঙ্ক / URL
-                    </span>
-                    <input
-                      type="url"
-                      value={postImageUrl}
-                      onChange={(e) => setPostImageUrl(e.target.value)}
-                      placeholder="https://example.com/image.jpg"
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                    />
-                  </div>
-                </div>
-
-                {/* Selected Image Preview */}
-                {postImageUrl && (
-                  <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 max-h-56 mt-2">
-                    <img
-                      src={postImageUrl}
-                      alt="News Preview"
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
-              </div>
+                );
+              })()}
             </div>
           )}
 
@@ -1261,8 +1449,8 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                     onChange={(e) => setPostCategory(e.target.value as Category)}
                     className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
                   >
-                    {CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
+                    {Array.from(new Set(CATEGORIES)).map((cat, idx) => (
+                      <option key={`opt-cat-${cat}-${idx}`} value={cat}>{cat}</option>
                     ))}
                   </select>
                 </div>
@@ -1305,9 +1493,9 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
                 {/* Tags List */}
                 <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                  {postTags.map((tag) => (
+                  {postTags.map((tag, idx) => (
                     <span
-                      key={tag}
+                      key={`post-tag-${tag}-${idx}`}
                       className="px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center gap-1 border border-red-200 dark:border-red-900"
                     >
                       #{tag}
@@ -1532,8 +1720,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
               {/* Final Submit Button */}
               <button
                 type="submit"
-                disabled={authenticityResult?.isOffensiveOrHarmful || authenticityResult?.status === 'REJECTED_OFFENSIVE' || authenticityResult?.isDuplicate || authenticityResult?.status === 'FLAGGED_DUPLICATE'}
-                className="w-full py-4 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-red-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-red-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 {editingArticleId 
@@ -2292,7 +2479,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
               <div>
                 <span className="text-[10px] text-gray-400 font-bold uppercase block">প্রতিবেদক নাম</span>
                 <span className="text-base font-bold text-slate-900 dark:text-white">{writerProfile.name}</span>
-                <span className="text-xs text-emerald-500 font-bold block mt-0.5">অফিসিয়াল নিউজ লেখক</span>
+                <span className="text-xs text-emerald-500 font-bold block mt-0.5">অফিসিয়াল নিউজ প্রতিবেদক</span>
               </div>
             </div>
 
@@ -2304,6 +2491,10 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
               <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
                 <span className="text-slate-500 font-semibold">মোবাইল নম্বর:</span>
                 <span className="font-bold text-slate-900 dark:text-white">{writerProfile.mobile}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+                <span className="text-slate-500 font-semibold">NID নম্বর:</span>
+                <span className="font-bold text-slate-900 dark:text-white font-mono">{writerProfile.nidNumber || 'তথ্য দেওয়া হয়নি'}</span>
               </div>
               <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
                 <span className="text-slate-500 font-semibold">বয়স:</span>

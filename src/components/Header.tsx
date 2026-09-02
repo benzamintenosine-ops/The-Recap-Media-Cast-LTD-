@@ -27,7 +27,8 @@ import {
   ChevronRight,
   ExternalLink,
   MessageSquare,
-  Home
+  Home,
+  Building2
 } from 'lucide-react';
 import { Language, NewsArticle, Category, UserProfile, CategoryConfig, SiteSettings } from '../types';
 import { getTranslation } from '../utils/i18n';
@@ -38,8 +39,8 @@ interface HeaderProps {
   onLanguageChange: (lang: Language) => void;
   darkMode: boolean;
   onDarkModeToggle: () => void;
-  currentMode: 'viewer' | 'writer' | 'systemAdmin';
-  onModeSwitch: (mode: 'viewer' | 'writer' | 'systemAdmin') => void;
+  currentMode: 'viewer' | 'writer' | 'managing' | 'systemAdmin';
+  onModeSwitch: (mode: 'viewer' | 'writer' | 'managing' | 'systemAdmin') => void;
   breakingArticles: NewsArticle[];
   onSelectArticle: (article: NewsArticle) => void;
   selectedCategory: Category | 'ALL';
@@ -184,7 +185,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <span
                   key={art.id}
                   onClick={() => onSelectArticle(art)}
-                  className="inline-flex items-center gap-2 mr-8 hover:underline text-slate-900 dark:text-gray-100 font-bold text-xs sm:text-sm transition-colors hover:text-red-600 dark:hover:text-red-400"
+                  className="inline-flex items-center gap-2 mr-8 hover:underline text-slate-900 dark:text-slate-100 font-bold text-xs sm:text-sm transition-colors hover:text-red-600 dark:hover:text-red-400"
                 >
                   <span className="text-red-600 dark:text-red-500 font-black">•</span>
                   {currentLang === 'en' && art.titleEn ? art.titleEn : art.title}
@@ -350,13 +351,16 @@ export const Header: React.FC<HeaderProps> = ({
           >
             {t('allCategories')}
           </button>
-          {(categories && categories.length > 0
-            ? categories.filter((c) => !c.isHidden).map((c) => c.name)
-            : CATEGORIES
-          ).map((catName) => (
+          {Array.from(
+            new Set(
+              categories && categories.length > 0
+                ? categories.filter((c) => !c.isHidden).map((c) => c.name)
+                : CATEGORIES
+            )
+          ).map((catName, idx) => (
             <button
-              key={catName}
-              onClick={() => onCategorySelect(catName)}
+              key={`nav-cat-${catName}-${idx}`}
+              onClick={() => onCategorySelect(catName as Category)}
               className={`px-3.5 py-1 rounded-md text-xs font-bold uppercase tracking-widest whitespace-nowrap transition-all ${
                 selectedCategory === catName
                   ? 'text-red-600 dark:text-red-500 border-b-2 border-red-600 font-extrabold'
@@ -390,9 +394,9 @@ export const Header: React.FC<HeaderProps> = ({
             >
               {t('allCategories')}
             </button>
-            {CATEGORIES.map((cat) => (
+            {Array.from(new Set(CATEGORIES)).map((cat, idx) => (
               <button
-                key={cat}
+                key={`mobile-cat-${cat}-${idx}`}
                 onClick={() => { onCategorySelect(cat); setMobileMenuOpen(false); }}
                 className="p-2 text-left bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 rounded-md text-slate-800 dark:text-slate-200"
               >
@@ -487,10 +491,34 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                     <div className="text-left">
                       <h4 className="text-xs font-bold flex items-center gap-1.5">
-                        ✍️ লেখক প্যানেল (Writers Panel)
+                        ✍️ প্রতিবেদক প্যানেল (Reporters Panel)
                       </h4>
                       <p className="text-[10px] text-white/80">
                         সংবাদ ও রিপোর্ট প্রকাশ প্যানেলে যান
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-white/80 group-hover:translate-x-1 transition-transform" />
+                </button>
+
+                {/* Managing Panel Button */}
+                <button
+                  onClick={() => {
+                    onModeSwitch('managing');
+                    setLeftMenuOpen(false);
+                  }}
+                  className="w-full p-3 bg-gradient-to-r from-blue-700 via-indigo-800 to-slate-900 hover:from-blue-800 hover:to-indigo-900 text-white rounded-2xl shadow-md border border-blue-500/30 transition-all flex items-center justify-between group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-blue-600/30 border border-blue-500/40 flex items-center justify-center font-bold">
+                      <Building2 className="w-4 h-4 text-blue-400" />
+                    </div>
+                    <div className="text-left">
+                      <h4 className="text-xs font-bold flex items-center gap-1.5 text-white">
+                        🏢 Managing Panel (ব্যবস্থাপনা প্যানেল)
+                      </h4>
+                      <p className="text-[10px] text-blue-200">
+                        প্রতিবেদক নিয়ন্ত্রণ ও কন্টেন্ট মডারেশন
                       </p>
                     </div>
                   </div>
@@ -660,12 +688,15 @@ export const Header: React.FC<HeaderProps> = ({
                   সংবাদ ক্যাটাগরি (Categories)
                 </span>
                 <div className="grid grid-cols-2 gap-1.5 text-xs">
-                  {(categories && categories.length > 0
-                    ? categories.filter(c => !c.isHidden).map(c => c.name as Category)
-                    : CATEGORIES
-                  ).map((cat) => (
+                  {Array.from(
+                    new Set(
+                      categories && categories.length > 0
+                        ? categories.filter(c => !c.isHidden).map(c => c.name as Category)
+                        : CATEGORIES
+                    )
+                  ).map((cat, idx) => (
                     <button
-                      key={cat}
+                      key={`drawer-cat-${cat}-${idx}`}
                       onClick={() => {
                         onCategorySelect(cat);
                         onModeSwitch('viewer');
