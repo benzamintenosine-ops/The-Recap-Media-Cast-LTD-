@@ -46,13 +46,15 @@ import {
   CreditCard,
   Wallet,
   AlertTriangle,
-  Globe
+  Globe,
+  Upload
 } from 'lucide-react';
 import { NewsArticle, Category, Language, AnalyticsOverview, WriterProfile, SystemNotification, WithdrawalRequest, ArticleAuthenticityResult } from '../types';
 import { getTranslation } from '../utils/i18n';
 import { renderFormattedContent } from '../utils/formatContent';
 import { RichContentEditor } from './BloggerRichEditor';
 import { BotProtectionModal } from './BotProtection';
+import { BANGLADESH_GEO_DATA } from '../data/bangladeshGeoData';
 
 interface WritersPortalProps {
   articles: NewsArticle[];
@@ -163,6 +165,27 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   // Reporter Sign Up Terms Agreement State
   const [agreedToTerms, setAgreedToTerms] = useState<boolean>(false);
   const [imageSizeError, setImageSizeError] = useState('');
+
+  // Post Type Choice State: 'written' (Full Blogger editor) | 'video' (Title + Video only) | null (Selection view)
+  const [postType, setPostType] = useState<'written' | 'video' | null>(null);
+  const [videoFileBase64, setVideoFileBase64] = useState<string>('');
+  const [isUploadingVideo, setIsUploadingVideo] = useState<boolean>(false);
+
+  // Cascading Location Helpers from BANGLADESH_GEO_DATA
+  const selectedDivisionObj = BANGLADESH_GEO_DATA.find(
+    (d) => d.name === setupDivision || d.nameEn?.toLowerCase() === setupDivision.toLowerCase()
+  );
+  const availableDistricts = selectedDivisionObj ? selectedDivisionObj.districts : [];
+
+  const selectedDistrictObj = availableDistricts.find(
+    (d) => d.name === setupDistrict || d.nameEn?.toLowerCase() === setupDistrict.toLowerCase()
+  );
+  const availableUpazilas = selectedDistrictObj ? selectedDistrictObj.upazilas : [];
+
+  const selectedUpazilaObj = availableUpazilas.find(
+    (u) => u.name === setupThana || u.nameEn?.toLowerCase() === setupThana.toLowerCase()
+  );
+  const availablePostOffices = selectedUpazilaObj ? selectedUpazilaObj.postOffices : [];
 
   // Unverified / Doubtful News Affirmation Modal State ("আপনার পোস্ট করা নিউজের বিষয়বস্তু কি সত্য? (হ্যাঁ/না)")
   const [doubtModalOpen, setDoubtModalOpen] = useState<boolean>(false);
@@ -381,6 +404,35 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     localStorage.removeItem('recap_writer_logged');
   };
 
+  // Video File Upload Handler
+  const handleVideoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditorError('');
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check size limit: max 50MB for video
+    const maxSize = 50 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setEditorError('ভিডিও ফাইলের সাইজ সর্বোচ্চ 50MB হতে হবে!');
+      return;
+    }
+
+    setIsUploadingVideo(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setVideoFileBase64(event.target.result as string);
+        setPostVideoUrl(''); // Clear url input if file is uploaded
+      }
+      setIsUploadingVideo(false);
+    };
+    reader.onerror = () => {
+      setEditorError('ভিডিও ফাইল পড়তে সমস্যা হয়েছে।');
+      setIsUploadingVideo(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Image Upload handler with 500KB Minimum File Size Validation
   const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     setImageSizeError('');
@@ -403,7 +455,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     reader.readAsDataURL(file);
   };
 
-  // Gemini AI Fact-Checking & Duplicate / Social Media Copy Verification
+  // Gemini AI Fact-Checking & Duplicate / Social Media Copy Verification (Manual run if needed)
   const handleRunAuthenticityCheck = async () => {
     if (!postTitle.trim() || !postContent.trim()) {
       setAuthenticityError('যাচাই করার জন্য সংবাদের শিরোনাম ও বিবরণ লেখা প্রয়োজন।');
@@ -449,7 +501,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       setAuthenticityResult(data);
     } catch (err: any) {
       console.error('Authenticity check error:', err);
-      setAuthenticityError('এআই যাচাই সম্পন্ন করতে সমস্যা হয়েছে। দয়া করে পুনরায় চেষ্টা করুন।');
+      setAuthenticityError('এআই যাচাই সম্পন্ন করতে সমস্যা হয়েছে।');
     } finally {
       setIsVerifyingAuthenticity(false);
     }
@@ -526,10 +578,16 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     setPostTags(art.tags || ['সংবাদ', 'জাতীয়']);
     setPostImageUrl(art.imageUrl);
     setPostVideoUrl(art.videoUrl || '');
+    setVideoFileBase64('');
     setPostSource(art.source || '');
     setIsBreaking(!!art.isBreaking);
     setAuthenticityResult(null);
     setEditorError('');
+    if (art.postType === 'video' || (art.videoUrl && !art.content.includes('<p>'))) {
+      setPostType('video');
+    } else {
+      setPostType('written');
+    }
     setActiveTab('create');
     setCreateStep(1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -542,12 +600,147 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     setPostSummary('');
     setPostContent('');
     setPostSource('');
+    setPostVideoUrl('');
+    setVideoFileBase64('');
     setAuthenticityResult(null);
     setEditorError('');
     setCreateStep(1);
+    setPostType(null);
   };
 
-  // Publish Post Handler with Fact-Checking, Offensive/Duplicate Blocks & Bot Protection
+  // Core Publishing Execution with Background AI Verification
+  const executePublishFlow = async (isForVideo: boolean = false) => {
+    const currentTodayCount = getTodayPostsCount();
+    if (!editingArticleId && currentTodayCount >= DAILY_POST_LIMIT) {
+      setEditorError(`আপনি আজকের জন্য সর্বোচ্চ ${DAILY_POST_LIMIT}টি পোস্টের কোটা পূর্ণ করেছেন। নতুন পোস্টের জন্য অনুগ্রহ করে আগামীকাল চেষ্টা করুন।`);
+      return;
+    }
+
+    const effectiveVideoUrl = postVideoUrl.trim() || videoFileBase64;
+    const isVideo = isForVideo || postType === 'video';
+    const effectiveContent = isVideo ? (postContent.trim() || `<p>${postTitle}</p>`) : postContent;
+    const authorName = `${writerProfile?.name || 'লেখক'}${shareNameUnderPost ? ' (প্রতিবেদক)' : ''}`;
+
+    // Extract top-most image as cover image
+    const coverImg = extractTopImageFromHtml(effectiveContent) || postImageUrl || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80';
+    const hasVideo = isVideo || checkHasVideoInHtml(effectiveContent, effectiveVideoUrl);
+
+    // Silent background AI verification
+    let isAiFlagged = false;
+    let issuesFound: string[] = [];
+    let offensiveReason = '';
+    let credibilityScore = 95;
+
+    try {
+      const res = await fetch('/api/gemini/verify-article-authenticity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: postTitle,
+          summary: postSummary || postTitle.slice(0, 100),
+          content: effectiveContent,
+          category: postCategory,
+          imageUrl: coverImg,
+          videoUrl: effectiveVideoUrl || undefined,
+          source: postSource.trim() || undefined,
+          articleId: editingArticleId || undefined,
+          authorName: writerProfile?.name || 'প্রতিবেদক',
+          existingArticles: articles.slice(0, 20).map(a => ({
+            id: a.id,
+            title: a.title,
+            summary: a.summary,
+            imageUrl: a.imageUrl,
+          })),
+        }),
+      });
+
+      if (res.ok) {
+        const aiData: ArticleAuthenticityResult = await res.json();
+        if (
+          aiData.isOffensiveOrHarmful ||
+          aiData.status === 'REJECTED_OFFENSIVE' ||
+          aiData.isDuplicate ||
+          aiData.status === 'FLAGGED_DUPLICATE' ||
+          (aiData.issuesFound && aiData.issuesFound.length > 0) ||
+          (aiData.credibilityScore && aiData.credibilityScore < 60)
+        ) {
+          isAiFlagged = true;
+          issuesFound = aiData.issuesFound || [];
+          offensiveReason = aiData.offensiveReason || 'AI বিশ্লেষণে অসঙ্গতি পরিলক্ষিত হয়েছে।';
+          credibilityScore = aiData.credibilityScore || 50;
+        }
+      }
+    } catch (err) {
+      console.warn('Background AI check silent error:', err);
+    }
+
+    const articlePayload: Partial<NewsArticle> = {
+      title: postTitle,
+      summary: postSummary || postTitle.slice(0, 120),
+      content: effectiveContent,
+      source: postSource.trim() || undefined,
+      category: postCategory,
+      tags: postTags,
+      imageUrl: coverImg,
+      videoUrl: effectiveVideoUrl || undefined,
+      hasVideo,
+      postType: isVideo ? 'video' : 'written',
+      isBreaking,
+      author: authorName,
+      publishedAt: new Date().toISOString(),
+      viewsCount: 0,
+      comments: [],
+      readTimeMinutes: isVideo ? 2 : Math.max(2, Math.ceil(effectiveContent.length / 400)),
+      aiFlagged: isAiFlagged,
+      aiIssues: issuesFound.length > 0 ? issuesFound : undefined,
+      aiCredibilityScore: credibilityScore,
+      aiOffensiveReason: offensiveReason || undefined,
+    };
+
+    // If AI detected issues, notify Managing Panel immediately with reason
+    if (isAiFlagged && onSendNotification) {
+      onSendNotification({
+        title: '⚠️ AI ফ্ল্যাগযুক্ত সংবাদ রিভিউ প্রয়োজন',
+        message: `প্রতিবেদক "${writerProfile?.name || authorName}" এর সংবাদটি ("${postTitle.slice(0, 30)}...") AI বিশ্লেষণে সমস্যাযুক্ত বলে ফ্ল্যাগ করা হয়েছে। ম্যানাজিং প্যানেলে রিভিউ বা আনপাবলিশ করার অনুরোধ।`,
+        senderName: writerProfile?.name || authorName,
+        recipientWriterId: 'MANAGING',
+      });
+    }
+
+    if (editingArticleId) {
+      if (onUpdateArticle) {
+        onUpdateArticle(editingArticleId, articlePayload);
+      } else {
+        onAddArticle({ ...articlePayload, id: editingArticleId });
+      }
+      setPostSuccessMessage('সংবাদটি সফলভাবে আপডেট / সংশোধিত হয়েছে!');
+    } else {
+      onAddArticle(articlePayload);
+      // Update today's post quota counter
+      try {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const writerNameLower = (writerProfile?.name || 'writer').trim().toLowerCase();
+        localStorage.setItem(`recap_daily_posts_${writerNameLower}_${todayStr}`, (currentTodayCount + 1).toString());
+      } catch {}
+      setPostSuccessMessage(isVideo ? 'ভিডিও সংবাদ পোস্টটি সফলভাবে লাইভ প্রকাশিত হয়েছে!' : 'সংবাদ পোস্টটি সফলভাবে লাইভ প্রকাশিত হয়েছে!');
+    }
+
+    setTimeout(() => setPostSuccessMessage(''), 4000);
+
+    // Reset editor state
+    setEditingArticleId(null);
+    setPostTitle('');
+    setPostSummary('');
+    setPostContent('');
+    setPostSource('');
+    setPostVideoUrl('');
+    setVideoFileBase64('');
+    setAuthenticityResult(null);
+    setCreateStep(1);
+    setPostType(null);
+  };
+
+  // Publish Written Post Handler
   const handlePublishPost = (e: React.FormEvent) => {
     e.preventDefault();
     setEditorError('');
@@ -570,104 +763,50 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     if (!isHumanVerified) {
       setBotModalActionTitle('সংবাদ প্রকাশের জন্য Cloudflare & reCAPTCHA মানবীয় যাচাই');
       setBotSuccessCallback(() => () => {
-        executePublishPost();
+        executePublishFlow(false);
       });
       setShowBotModal(true);
       return;
     }
 
-    executePublishPost();
+    executePublishFlow(false);
   };
 
-  const executePublishPost = () => {
-    const currentTodayCount = getTodayPostsCount();
-    if (!editingArticleId && currentTodayCount >= DAILY_POST_LIMIT) {
-      setEditorError(`আপনি আজকের জন্য সর্বোচ্চ ${DAILY_POST_LIMIT}টি পোস্টের কোটা পূর্ণ করেছেন। নতুন পোস্টের জন্য অনুগ্রহ করে আগামীকাল চেষ্টা করুন।`);
+  // Publish Video Post Handler (Title + Video only)
+  const handlePublishVideoPost = (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditorError('');
+    if (!postTitle.trim()) {
+      setEditorError('ভিডিও সংবাদের শিরোনাম লেখা বাধ্যতামূলক!');
+      return;
+    }
+    if (!postVideoUrl.trim() && !videoFileBase64) {
+      setEditorError('ভিডিও লিঙ্ক প্রদান করুন অথবা ডিভাইস থেকে ভিডিও ফাইল আপলোড করুন!');
       return;
     }
 
-    const authorName = `${writerProfile?.name || 'লেখক'}${shareNameUnderPost ? ' (প্রতিবেদক)' : ''}`;
+    if (!editingArticleId && getTodayPostsCount() >= DAILY_POST_LIMIT) {
+      setEditorError(`আপনি আজকের জন্য সর্বোচ্চ ${DAILY_POST_LIMIT}টি পোস্টের কোটা পূর্ণ করেছেন।`);
+      return;
+    }
 
-    // Extract top-most image as cover image
-    const coverImg = extractTopImageFromHtml(postContent) || postImageUrl || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80';
-    const hasVideo = checkHasVideoInHtml(postContent, postVideoUrl);
-
-    // AI Analysis check - limited to flagging for Managing Panel review
-    const isAiFlagged = !!(
-      authenticityResult?.isOffensiveOrHarmful ||
-      authenticityResult?.status === 'REJECTED_OFFENSIVE' ||
-      authenticityResult?.isDuplicate ||
-      authenticityResult?.status === 'FLAGGED_DUPLICATE' ||
-      (authenticityResult?.issuesFound && authenticityResult.issuesFound.length > 0) ||
-      (authenticityResult?.credibilityScore && authenticityResult.credibilityScore < 60)
-    );
-
-    const articlePayload: Partial<NewsArticle> = {
-      title: postTitle,
-      summary: postSummary || postTitle.slice(0, 100),
-      content: postContent,
-      source: postSource.trim() || undefined,
-      category: postCategory,
-      tags: postTags,
-      imageUrl: coverImg,
-      videoUrl: postVideoUrl.trim() || undefined,
-      hasVideo,
-      isBreaking,
-      author: authorName,
-      publishedAt: new Date().toISOString(),
-      viewsCount: 0,
-      comments: [],
-      readTimeMinutes: Math.max(2, Math.ceil(postContent.length / 400)),
-      aiFlagged: isAiFlagged,
-      aiIssues: authenticityResult?.issuesFound,
-      aiCredibilityScore: authenticityResult?.credibilityScore,
-      aiOffensiveReason: authenticityResult?.offensiveReason,
-    };
-
-    // Notify Managing Panel if AI detected issues
-    if (isAiFlagged && onSendNotification) {
-      onSendNotification({
-        title: '⚠️ AI ফ্ল্যাগযুক্ত সংবাদ রিভিউ প্রয়োজন',
-        message: `প্রতিবেদক "${writerProfile?.name || authorName}" এর সংবাদটি AI বিশ্লেষণে সমস্যাযুক্ত বলে চিহ্নিত হয়েছে। ম্যানাজিং প্যানেলে রিভিউ বা আনপাবলিশ করার অনুরোধ।`,
-        senderName: writerProfile?.name || authorName,
-        recipientWriterId: 'MANAGING',
+    const isHumanVerified = sessionStorage.getItem('recap_human_verified') === 'true';
+    if (!isHumanVerified) {
+      setBotModalActionTitle('ভিডিও সংবাদ প্রকাশের জন্য Cloudflare & reCAPTCHA মানবীয় যাচাই');
+      setBotSuccessCallback(() => () => {
+        executePublishFlow(true);
       });
+      setShowBotModal(true);
+      return;
     }
 
-    if (editingArticleId) {
-      if (onUpdateArticle) {
-        onUpdateArticle(editingArticleId, articlePayload);
-      } else {
-        onAddArticle({ ...articlePayload, id: editingArticleId });
-      }
-      setPostSuccessMessage('সংবাদটি সফলভাবে আপডেট / সংশোধিত হয়েছে!');
-    } else {
-      onAddArticle(articlePayload);
-      // Update today's post quota counter
-      try {
-        const todayStr = new Date().toISOString().split('T')[0];
-        const writerNameLower = (writerProfile?.name || 'writer').trim().toLowerCase();
-        localStorage.setItem(`recap_daily_posts_${writerNameLower}_${todayStr}`, (currentTodayCount + 1).toString());
-      } catch {}
-      setPostSuccessMessage('সংবাদ পোস্টটি সফলভাবে লাইভ প্রকাশিত হয়েছে!');
-    }
-
-    setTimeout(() => setPostSuccessMessage(''), 4000);
-
-    // Reset editor
-    setEditingArticleId(null);
-    setPostTitle('');
-    setPostSummary('');
-    setPostContent('');
-    setPostSource('');
-    setAuthenticityResult(null);
-    setCreateStep(1);
+    executePublishFlow(true);
   };
 
   // Affirmation callback when writer chooses 'হ্যাঁ' (Yes) for unverified news
   const handleConfirmDoubtfulPublish = () => {
     setDoubtModalOpen(false);
-    executePublishPost();
+    executePublishFlow(true);
   };
 
   // Affirmation callback when writer chooses 'না' (No) for unverified news
@@ -873,89 +1012,148 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
             />
           </div>
 
-          {/* Address Breakdown Grid (Post Office, Post Code, Thana, District, Division) */}
+          {/* Address Breakdown Grid (Cascading Division -> District -> Thana/Upazila -> Post Office -> Auto Post Code) */}
           <div className="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
             <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
               <MapPin className="w-4 h-4 text-red-500" /> বর্তমান ঠিকানার বিবরণ (Address Breakdown) *
             </label>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-3">
+              {/* 1. বিভাগ (Division) - Top Level */}
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                  🔸 পোস্ট অফিস (Post Office) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={setupPostOffice}
-                  onChange={(e) => setSetupPostOffice(e.target.value)}
-                  placeholder="যেমন: গুলশান পোস্ট অফিস"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                  🔸 পোস্ট কোড (Post Code) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={setupPostCode}
-                  onChange={(e) => setSetupPostCode(e.target.value)}
-                  placeholder="যেমন: ১২১২"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                  🔸 থানা / উপজেলা (Thana / Upazila) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={setupThana}
-                  onChange={(e) => setSetupThana(e.target.value)}
-                  placeholder="যেমন: গুলশান"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                  🔸 জেলা (District) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={setupDistrict}
-                  onChange={(e) => setSetupDistrict(e.target.value)}
-                  placeholder="যেমন: ঢাকা"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                  🔸 বিভাগ (Division) *
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  ১. বিভাগ (Division) *
                 </label>
                 <select
                   required
                   value={setupDivision}
-                  onChange={(e) => setSetupDivision(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 font-bold"
+                  onChange={(e) => {
+                    setSetupDivision(e.target.value);
+                    setSetupDistrict('');
+                    setSetupThana('');
+                    setSetupPostOffice('');
+                    setSetupPostCode('');
+                  }}
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 font-bold"
                 >
-                  <option value="">বিভাগ সিলেক্ট করুন...</option>
-                  <option value="ঢাকা">ঢাকা (Dhaka)</option>
-                  <option value="চট্টগ্রাম">চট্টগ্রাম (Chattogram)</option>
-                  <option value="রাজশাহী">রাজশাহী (Rajshahi)</option>
-                  <option value="খুলনা">খুলনা (Khulna)</option>
-                  <option value="বরিশাল">বরিশাল (Barishal)</option>
-                  <option value="সিলেট">সিলেট (Sylhet)</option>
-                  <option value="রংপুর">রংপুর (Rangpur)</option>
-                  <option value="ময়মনসিংহ">ময়মনসিংহ (Mymensingh)</option>
+                  <option value="">-- বিভাগ নির্বাচন করুন --</option>
+                  {BANGLADESH_GEO_DATA.map((div) => (
+                    <option key={div.name} value={div.name}>
+                      {div.name} {div.nameEn ? `(${div.nameEn})` : ''}
+                    </option>
+                  ))}
                 </select>
+              </div>
+
+              {/* Grid for District and Thana/Upazila */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* 2. জেলা (District) */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    ২. জেলা (District) *
+                  </label>
+                  <select
+                    required
+                    disabled={!setupDivision || availableDistricts.length === 0}
+                    value={setupDistrict}
+                    onChange={(e) => {
+                      setSetupDistrict(e.target.value);
+                      setSetupThana('');
+                      setSetupPostOffice('');
+                      setSetupPostCode('');
+                    }}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800"
+                  >
+                    <option value="">
+                      {!setupDivision ? 'প্রথমে বিভাগ সিলেক্ট করুন' : '-- জেলা নির্বাচন করুন --'}
+                    </option>
+                    {availableDistricts.map((dist) => (
+                      <option key={dist.name} value={dist.name}>
+                        {dist.name} {dist.nameEn ? `(${dist.nameEn})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 3. থানা / উপজেলা (Thana / Upazila) */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    ৩. থানা / উপজেলা (Thana / Upazila) *
+                  </label>
+                  <select
+                    required
+                    disabled={!setupDistrict || availableUpazilas.length === 0}
+                    value={setupThana}
+                    onChange={(e) => {
+                      setSetupThana(e.target.value);
+                      setSetupPostOffice('');
+                      setSetupPostCode('');
+                    }}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800"
+                  >
+                    <option value="">
+                      {!setupDistrict ? 'প্রথমে জেলা সিলেক্ট করুন' : '-- থানা/উপজেলা নির্বাচন করুন --'}
+                    </option>
+                    {availableUpazilas.map((upa) => (
+                      <option key={upa.name} value={upa.name}>
+                        {upa.name} {upa.nameEn ? `(${upa.nameEn})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Grid for Post Office and Auto Post Code */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* 4. পোস্ট অফিস (Post Office) */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    ৪. পোস্ট অফিস (Post Office) *
+                  </label>
+                  <select
+                    required
+                    disabled={!setupThana || availablePostOffices.length === 0}
+                    value={setupPostOffice}
+                    onChange={(e) => {
+                      const poName = e.target.value;
+                      setSetupPostOffice(poName);
+                      const matched = availablePostOffices.find((p) => p.name === poName);
+                      if (matched) {
+                        setSetupPostCode(matched.code);
+                      }
+                    }}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800 font-medium"
+                  >
+                    <option value="">
+                      {!setupThana ? 'প্রথমে থানা সিলেক্ট করুন' : '-- পোস্ট অফিস নির্বাচন করুন --'}
+                    </option>
+                    {availablePostOffices.map((po, idx) => (
+                      <option key={`${po.name}-${idx}`} value={po.name}>
+                        {po.name} ({po.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 5. পোস্ট কোড (Post Code) - Auto-filled */}
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                      ৫. পোস্ট কোড (Post Code) *
+                    </label>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
+                      (অটো-ফিল হবে)
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={setupPostCode}
+                    onChange={(e) => setSetupPostCode(e.target.value)}
+                    placeholder={setupPostOffice ? 'অটো-ফিল্ড পোস্ট কোড' : 'পোস্ট অফিস সিলেক্ট করুন'}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-emerald-50/50 dark:bg-emerald-950/20 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 font-mono font-bold"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -1209,52 +1407,326 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       {/* TAB 1: BLOGGER-STYLE POST CREATOR (Multi-Step Window) */}
       {activeTab === 'create' && (
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-lg overflow-hidden space-y-0">
-          {/* Blogger Header Header Bar */}
-          <div className="p-5 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-4 border-b border-slate-800">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center font-bold text-sm text-white">
-                {createStep}
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  নিউজ ক্রিয়েটর — {createStep === 1 ? 'ধাপ ১: সংবাদ সম্পাদনা' : 'ধাপ ২: কী-ওয়ার্ড ও লেখক নাম'}
+          {/* Post Type Selector (Shown if no type selected yet and not currently editing) */}
+          {postType === null && !editingArticleId ? (
+            <div className="p-6 sm:p-10 space-y-6">
+              <div className="text-center max-w-xl mx-auto space-y-2">
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-serif">
+                  নতুন সংবাদ বা কনটেন্টের ধরন বেছে নিন
                 </h3>
-                <p className="text-[11px] text-gray-400">
-                  {createStep === 1 ? 'হেডলাইন, মুল বিবরণ, টেক্সট এডিটিং টুলস ও ছবি যুক্ত করুন' : 'কিওয়ার্ড সিলেক্ট করুন এবং পোস্টের নিচে নিজের নাম প্রচার করুন'}
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+                  আপনি কি ভিডিও নিউজ প্রকাশ করতে চান, নাকি পূর্ণাঙ্গ লিখিত সংবাদ প্রস্তুত করবেন?
                 </p>
               </div>
-            </div>
 
-            {/* Step 1 vs Step 2 Control */}
-            <div className="flex items-center gap-2">
-              {createStep === 2 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto pt-4">
+                {/* Option 1: Video Post */}
                 <button
                   type="button"
-                  onClick={() => setCreateStep(1)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-gray-200 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5"
+                  onClick={() => setPostType('video')}
+                  className="p-6 rounded-3xl border-2 border-red-200 dark:border-red-900/60 bg-gradient-to-br from-red-50/50 to-orange-50/50 dark:from-red-950/20 dark:to-orange-950/20 hover:border-red-500 dark:hover:border-red-500 hover:shadow-xl hover:shadow-red-600/10 transition-all text-left flex flex-col items-start justify-between gap-6 group cursor-pointer"
                 >
-                  <ArrowLeft className="w-4 h-4" /> পূর্ববর্তী ধাপ
-                </button>
-              )}
+                  <div className="space-y-3">
+                    <div className="w-14 h-14 rounded-2xl bg-red-600 text-white flex items-center justify-center shadow-lg shadow-red-600/30 group-hover:scale-105 transition-transform">
+                      <Video className="w-7 h-7" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider block">
+                        অপশন ১ • দ্রুত প্রকাশ
+                      </span>
+                      <h4 className="text-lg font-black text-slate-900 dark:text-white group-hover:text-red-600 dark:hover:text-red-400 transition-colors">
+                        ১. ভিডিও পোস্ট (Video News)
+                      </h4>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                      শুধু শিরোনাম ও ভিডিও ফাইল/লিঙ্ক দিয়ে তাৎক্ষণিকভাবে ভিডিও সংবাদ তৈরি করুন।
+                    </p>
+                  </div>
 
-              {createStep === 1 && (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-red-600 dark:text-red-400 group-hover:translate-x-1 transition-transform">
+                    ভিডিও তৈরি শুরু করুন &rarr;
+                  </span>
+                </button>
+
+                {/* Option 2: Written Post */}
                 <button
                   type="button"
-                  onClick={handleProceedToStep2}
-                  className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-600/30 transition-all flex items-center gap-1.5"
+                  onClick={() => setPostType('written')}
+                  className="p-6 rounded-3xl border-2 border-indigo-200 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/50 to-blue-50/50 dark:from-indigo-950/20 dark:to-blue-950/20 hover:border-indigo-500 dark:hover:border-indigo-500 hover:shadow-xl hover:shadow-indigo-600/10 transition-all text-left flex flex-col items-start justify-between gap-6 group cursor-pointer"
                 >
-                  পরবর্তী ধাপ (Next) <ArrowRight className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
+                  <div className="space-y-3">
+                    <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30 group-hover:scale-105 transition-transform">
+                      <FileText className="w-7 h-7" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block">
+                        অপশন ২ • বিস্তারিত আর্টিকেল
+                      </span>
+                      <h4 className="text-lg font-black text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                        ২. লিখিত পোস্ট (Written News)
+                      </h4>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                      হেডলাইন, ছবি, সমৃদ্ধ টেক্সট এডিটর ও প্যারাগ্রাফ দিয়ে পূর্ণাঙ্গ প্রতিবেদন লিখুন।
+                    </p>
+                  </div>
 
-          {editorError && (
-            <div className="mx-6 mt-4 p-3.5 bg-red-50 dark:bg-red-950/70 text-red-700 dark:text-red-300 text-xs font-bold rounded-xl border border-red-200 dark:border-red-900 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
-              <span>{editorError}</span>
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 group-hover:translate-x-1 transition-transform">
+                    লেখা শুরু করুন &rarr;
+                  </span>
+                </button>
+              </div>
             </div>
-          )}
+          ) : postType === 'video' ? (
+            /* VIDEO POST FORM (Title + Video Only) */
+            <div className="space-y-0">
+              {/* Header Bar */}
+              <div className="p-5 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-4 border-b border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-red-600 flex items-center justify-center font-bold text-sm text-white shadow-md shadow-red-600/30">
+                    <Video className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      ভিডিও পোস্ট ক্রিয়েটর (Video News Portal)
+                    </h3>
+                    <p className="text-[11px] text-gray-400">
+                      সংবাদের শিরোনাম ও ভিডিও ফাইল/লিঙ্ক দিন — সিস্টেম স্বয়ংক্রিয়ভাবে ভিডিও প্লেয়ার তৈরি করবে
+                    </p>
+                  </div>
+                </div>
+
+                {!editingArticleId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPostType(null);
+                      setPostTitle('');
+                      setPostVideoUrl('');
+                      setVideoFileBase64('');
+                    }}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-gray-200 text-xs font-bold rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" /> পোস্টের ধরন পরিবর্তন করুন
+                  </button>
+                )}
+              </div>
+
+              {editorError && (
+                <div className="mx-6 mt-4 p-3.5 bg-red-50 dark:bg-red-950/70 text-red-700 dark:text-red-300 text-xs font-bold rounded-xl border border-red-200 dark:border-red-900 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                  <span>{editorError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handlePublishVideoPost} className="p-6 sm:p-8 space-y-6">
+                {/* Headline Input */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span>সংবাদের শিরোনাম (Video Headline) <strong className="text-red-600">*</strong></span>
+                    <span className="text-[11px] text-slate-400 font-normal">{postTitle.length}/180 অক্ষর</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={postTitle}
+                    onChange={(e) => setPostTitle(e.target.value)}
+                    placeholder="ভিডিও সংবাদের স্পষ্ট ও আকর্ষণীয় শিরোনাম লিখুন..."
+                    maxLength={180}
+                    required
+                    className="w-full p-4 rounded-2xl border-2 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-bold text-sm sm:text-base focus:border-red-500 focus:outline-none transition-all shadow-sm"
+                  />
+                </div>
+
+                {/* Video Selection: URL or Upload */}
+                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-4">
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                    <Video className="w-4 h-4 text-red-500" /> ভিডিও যোগ করুন (Video Source) <strong className="text-red-600">*</strong>
+                  </span>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Video URL */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                        ভিডিও লিঙ্ক (YouTube, Facebook, MP4 ইত্যাদি)
+                      </label>
+                      <input
+                        type="url"
+                        value={postVideoUrl}
+                        onChange={(e) => {
+                          setPostVideoUrl(e.target.value);
+                          if (e.target.value) setVideoFileBase64('');
+                        }}
+                        placeholder="https://www.youtube.com/watch?v=... বা ভিডিও URL"
+                        className="w-full p-3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                      />
+                    </div>
+
+                    {/* File Upload */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                        অথবা ডিভাইস থেকে সরাসরি ভিডিও ফাইল আপলোড করুন
+                      </label>
+                      <label className="flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 border-dashed border-red-300 dark:border-red-800 bg-white dark:bg-slate-900 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all cursor-pointer text-xs font-bold text-red-600 dark:text-red-400">
+                        <Upload className="w-4 h-4" />
+                        {isUploadingVideo ? 'ভিডিও আপলোড হচ্ছে...' : videoFileBase64 ? 'ভিডিও আপলোড সম্পন্ন ✓' : 'ভিডিও ফাইল সিলেক্ট করুন (সর্বোচ্চ 50MB)'}
+                        <input
+                          type="file"
+                          accept="video/*"
+                          onChange={handleVideoFileUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Video Live Preview */}
+                  {(postVideoUrl || videoFileBase64) && (
+                    <div className="p-3 bg-slate-900 rounded-xl space-y-2 border border-slate-800">
+                      <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">ভিডিও প্রিভিউ</span>
+                      {videoFileBase64 ? (
+                        <video
+                          src={videoFileBase64}
+                          controls
+                          className="w-full max-h-72 rounded-lg bg-black object-contain"
+                        />
+                      ) : (
+                        <div className="text-xs text-emerald-400 font-mono break-all">
+                          ✓ লিঙ্ক সংযুক্ত: {postVideoUrl}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Category Selection */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      ভিডিও ক্যাটাগরি (Category)
+                    </label>
+                    <select
+                      value={postCategory}
+                      onChange={(e) => setPostCategory(e.target.value)}
+                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold focus:ring-2 focus:ring-red-500"
+                    >
+                      {['ভিডিও', 'জাতীয়', 'আন্তর্জাতিক', 'রাজনীতি', 'খেলাধুলা', 'বিনোদন', 'বাণিজ্য', 'বিজ্ঞান ও তথ্যপ্রযুক্তি', 'সারাদেশ'].map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      সংবাদের তথ্যসূত্র / সূত্র (ঐচ্ছিক)
+                    </label>
+                    <input
+                      type="text"
+                      value={postSource}
+                      onChange={(e) => setPostSource(e.target.value)}
+                      placeholder="যেমন: নিজস্ব প্রতিবেদক, রয়টার্স বা সোর্স নাম"
+                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs"
+                    />
+                  </div>
+                </div>
+
+                {/* Options Checkboxes */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="videoShareNameCheck"
+                      checked={shareNameUnderPost}
+                      onChange={(e) => setShareNameUnderPost(e.target.checked)}
+                      className="w-4 h-4 rounded text-red-600"
+                    />
+                    <label htmlFor="videoShareNameCheck" className="text-xs font-bold text-slate-900 dark:text-white cursor-pointer">
+                      ওয়েবসাইটে ভিডিওর নিচে প্রতিবেদক হিসেবে আমার নাম দেখান ({writerProfile?.name || 'প্রতিবেদক'})
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="videoBreakingCheck"
+                      checked={isBreaking}
+                      onChange={(e) => setIsBreaking(e.target.checked)}
+                      className="w-4 h-4 rounded text-red-600"
+                    />
+                    <label htmlFor="videoBreakingCheck" className="text-xs font-bold text-red-600 dark:text-red-400 cursor-pointer">
+                      ব্রেকিং নিউজ হিসেবে সাইটের টপ মার্কিতে দেখান
+                    </label>
+                  </div>
+                </div>
+
+                {/* Publish Video Button */}
+                <button
+                  type="submit"
+                  className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-red-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Video className="w-4 h-4" />
+                  {editingArticleId ? 'ভিডিও সংবাদটি আপডেট করুন' : 'ভিডিও সংবাদ লাইভ প্রকাশ করুন (Publish Video Live)'}
+                </button>
+              </form>
+            </div>
+          ) : (
+            /* WRITTEN POST CREATOR */
+            <div className="space-y-0">
+              {/* Blogger Header Header Bar */}
+              <div className="p-5 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-4 border-b border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center font-bold text-sm text-white">
+                    {createStep}
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      লিখিত সংবাদ ক্রিয়েটর — {createStep === 1 ? 'ধাপ ১: সংবাদ সম্পাদনা' : 'ধাপ ২: কী-ওয়ার্ড ও লেখক নাম'}
+                    </h3>
+                    <p className="text-[11px] text-gray-400">
+                      {createStep === 1 ? 'হেডলাইন, মুল বিবরণ, টেক্সট এডিটিং টুলস ও ছবি যুক্ত করুন' : 'কিওয়ার্ড সিলেক্ট করুন এবং পোস্টের নিচে নিজের নাম প্রচার করুন'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Step 1 vs Step 2 Control */}
+                <div className="flex items-center gap-2">
+                  {!editingArticleId && createStep === 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setPostType(null)}
+                      className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-gray-200 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" /> ধরন পরিবর্তন
+                    </button>
+                  )}
+
+                  {createStep === 2 && (
+                    <button
+                      type="button"
+                      onClick={() => setCreateStep(1)}
+                      className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-gray-200 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5"
+                    >
+                      <ArrowLeft className="w-4 h-4" /> পূর্ববর্তী ধাপ
+                    </button>
+                  )}
+
+                  {createStep === 1 && (
+                    <button
+                      type="button"
+                      onClick={handleProceedToStep2}
+                      className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-600/30 transition-all flex items-center gap-1.5"
+                    >
+                      পরবর্তী ধাপ (Next) <ArrowRight className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {editorError && (
+                <div className="mx-6 mt-4 p-3.5 bg-red-50 dark:bg-red-950/70 text-red-700 dark:text-red-300 text-xs font-bold rounded-xl border border-red-200 dark:border-red-900 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                  <span>{editorError}</span>
+                </div>
+              )}
 
           {/* STEP 1: Main Content Editor Canvas */}
           {createStep === 1 && (
@@ -1731,6 +2203,8 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           )}
         </div>
       )}
+    </div>
+  )}
 
       {/* TAB 2: Real-Time Writer-Specific Analytics */}
       {activeTab === 'analytics' && (() => {

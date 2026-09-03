@@ -21,7 +21,8 @@ import {
   Building2,
   Calendar,
   Layers,
-  ChevronRight
+  ChevronRight,
+  AlertTriangle
 } from 'lucide-react';
 import { 
   NewsArticle, 
@@ -91,6 +92,10 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
   // Article Deletion Modal
   const [deleteModalArticle, setDeleteModalArticle] = useState<NewsArticle | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
+
+  // Article Unpublish Modal
+  const [unpublishModalArticle, setUnpublishModalArticle] = useState<NewsArticle | null>(null);
+  const [unpublishReasonText, setUnpublishReasonText] = useState('');
 
   // Notification State
   const [notifTargetWriterId, setNotifTargetWriterId] = useState<string>('ALL');
@@ -212,6 +217,41 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
     onDeleteArticle(deleteModalArticle.id, deleteReason);
     setDeleteModalArticle(null);
     setDeleteReason('');
+  };
+
+  // Confirm Article Unpublish
+  const confirmUnpublishArticle = () => {
+    if (!unpublishModalArticle || !onUpdateArticle) return;
+    const reason = unpublishReasonText.trim() || 'ম্যানেজমেন্ট দ্বারা আনপাবলিশ করা হয়েছে';
+
+    onUpdateArticle(unpublishModalArticle.id, {
+      isUnpublished: true,
+      unpublishReason: reason
+    });
+
+    // Notify the author if possible
+    const authorWriter = writers.find(w => w.name.toLowerCase() === unpublishModalArticle.author.toLowerCase());
+    if (authorWriter) {
+      onSendNotification({
+        recipientWriterId: authorWriter.id,
+        senderName: siteSettings.siteName || 'Managing Panel',
+        title: `সংবাদ আনপাবলিশ করা হয়েছে: "${unpublishModalArticle.title.substring(0, 40)}..."`,
+        message: `আপনার পোস্টটি পাঠকদের জন্য সাময়িকভাবে আনপাবলিশ করা হয়েছে। কারণ: ${reason}। আপনি এটি এডিট করে সংশোধন করতে পারেন।`,
+        type: 'warning'
+      });
+    }
+
+    setUnpublishModalArticle(null);
+    setUnpublishReasonText('');
+  };
+
+  // Direct Re-Publish
+  const handleDirectPublish = (article: NewsArticle) => {
+    if (!onUpdateArticle) return;
+    onUpdateArticle(article.id, {
+      isUnpublished: false,
+      unpublishReason: undefined
+    });
   };
 
   // Send Notification Submit
@@ -716,7 +756,14 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
                             />
                           )}
                           <div className="space-y-1">
-                            <span className="line-clamp-2">{article.title}</span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="line-clamp-2">{article.title}</span>
+                              {article.postType === 'video' && (
+                                <span className="px-2 py-0.5 bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 rounded text-[10px] font-bold shrink-0 flex items-center gap-1">
+                                  📹 ভিডিও
+                                </span>
+                              )}
+                            </div>
                             <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                               {article.isUnpublished ? (
                                 <span className="px-2 py-0.5 bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 rounded text-[10px] font-bold">
@@ -734,8 +781,15 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
                                 </span>
                               )}
                             </div>
+
+                            {article.unpublishReason && (
+                              <p className="text-[10px] text-red-600 dark:text-red-400 font-semibold line-clamp-1 bg-red-50 dark:bg-red-950/40 px-2 py-0.5 rounded border border-red-200 dark:border-red-900">
+                                🚫 আনপাবলিশ কারণ: {article.unpublishReason}
+                              </p>
+                            )}
+
                             {article.aiOffensiveReason && (
-                              <p className="text-[10px] text-red-500 font-normal line-clamp-1">
+                              <p className="text-[10px] text-amber-600 dark:text-amber-400 font-normal line-clamp-1">
                                 💡 AI রিপোর্ট: {article.aiOffensiveReason}
                               </p>
                             )}
@@ -759,24 +813,30 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           {onUpdateArticle && (
-                            <button
-                              onClick={() => {
-                                const nextState = !article.isUnpublished;
-                                onUpdateArticle(article.id, { isUnpublished: nextState });
-                              }}
-                              className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
-                                article.isUnpublished
-                                  ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white'
-                                  : 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 hover:bg-amber-600 hover:text-white'
-                              }`}
-                              title={article.isUnpublished ? 'পুনরায় লাইভ পাবলিশ করুন' : 'সাময়িকভাবে আনপাবলিশ করুন'}
-                            >
-                              <span>{article.isUnpublished ? 'পাবলিশ করুন' : 'আনপাবলিশ'}</span>
-                            </button>
+                            article.isUnpublished ? (
+                              <button
+                                onClick={() => handleDirectPublish(article)}
+                                className="px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white cursor-pointer"
+                                title="পুনরায় লাইভ পাবলিশ করুন"
+                              >
+                                <span>পাবলিশ করুন</span>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setUnpublishModalArticle(article);
+                                  setUnpublishReasonText(article.aiOffensiveReason || '');
+                                }}
+                                className="px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 hover:bg-amber-600 hover:text-white cursor-pointer"
+                                title="কারণ উল্লেখ করে আনপাবলিশ করুন"
+                              >
+                                <span>আনপাবলিশ</span>
+                              </button>
+                            )
                           )}
                           <button
                             onClick={() => setDeleteModalArticle(article)}
-                            className="px-2.5 py-1.5 bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 hover:bg-red-600 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1"
+                            className="px-2.5 py-1.5 bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 hover:bg-red-600 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                             <span>ডিলিট</span>
@@ -1042,6 +1102,72 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
                 className="flex-1 py-2 text-xs font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-md"
               >
                 নিশ্চিত ডিলিট করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ARTICLE UNPUBLISH CONFIRMATION MODAL */}
+      {unpublishModalArticle && (
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-500" /> সংবাদ আনপাবলিশ করার কারণ
+            </h3>
+            <p className="text-xs text-slate-500">
+              শিরোনাম: <strong className="text-slate-900 dark:text-white">{unpublishModalArticle.title}</strong>
+              <br />
+              প্রতিবেদক: <strong className="text-blue-600 dark:text-blue-400">{unpublishModalArticle.author}</strong>
+            </p>
+
+            {/* Quick Reason Presets */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block">
+                দ্রুত কারণ নির্বাচন করুন:
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  'AI বিশ্লেষণে ডুপ্লিকেট বা কপি কনটেন্ট চিহ্নিত',
+                  'অশালীন / উস্কানিমূলক ভাষা বা তথ্য',
+                  'অসমর্থিত / তথ্যের ঘাটতি ও ভুল খবর',
+                  'নীতিমালা পরিপন্থী কনটেন্ট',
+                  'ছবি বা ভিডিও কপিরাইট সমস্যা'
+                ].map((reason) => (
+                  <button
+                    key={reason}
+                    type="button"
+                    onClick={() => setUnpublishReasonText(reason)}
+                    className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-950/60 text-slate-700 dark:text-slate-300 transition-colors text-left"
+                  >
+                    + {reason}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <textarea
+              rows={3}
+              value={unpublishReasonText}
+              onChange={(e) => setUnpublishReasonText(e.target.value)}
+              placeholder="আনপাবলিশ করার বিস্তারিত কারণ লিখুন (যা প্রতিবেদকের নোটিফিকেশনে যাবে)..."
+              className="w-full p-3 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500"
+            ></textarea>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setUnpublishModalArticle(null);
+                  setUnpublishReasonText('');
+                }}
+                className="flex-1 py-2 text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl"
+              >
+                বাতিল
+              </button>
+              <button
+                onClick={confirmUnpublishArticle}
+                className="flex-1 py-2 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-xl shadow-md"
+              >
+                নিশ্চিত আনপাবলিশ করুন
               </button>
             </div>
           </div>

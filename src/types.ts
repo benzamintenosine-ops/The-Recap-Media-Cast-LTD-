@@ -53,11 +53,13 @@ export interface NewsArticle {
   comments: Comment[];
   readTimeMinutes: number;
   isAiGenerated?: boolean;
+  postType?: 'written' | 'video';
   aiFlagged?: boolean;
   aiIssues?: string[];
   aiCredibilityScore?: number;
   aiOffensiveReason?: string;
   isUnpublished?: boolean;
+  unpublishReason?: string;
   seoMeta?: {
     title: string;
     metaDescription: string;
