@@ -49,12 +49,13 @@ import {
   Globe,
   Upload
 } from 'lucide-react';
-import { NewsArticle, Category, Language, AnalyticsOverview, WriterProfile, SystemNotification, WithdrawalRequest, ArticleAuthenticityResult } from '../types';
+import { NewsArticle, Category, Language, AnalyticsOverview, WriterProfile, SystemNotification, WithdrawalRequest, ArticleAuthenticityResult, SiteSettings } from '../types';
 import { getTranslation } from '../utils/i18n';
 import { renderFormattedContent } from '../utils/formatContent';
 import { RichContentEditor } from './BloggerRichEditor';
 import { BotProtectionModal } from './BotProtection';
 import { BANGLADESH_GEO_DATA } from '../data/bangladeshGeoData';
+import { NativeBannerAd } from './DynamicAdServices';
 
 interface WritersPortalProps {
   articles: NewsArticle[];
@@ -68,6 +69,7 @@ interface WritersPortalProps {
   withdrawals?: WithdrawalRequest[];
   onRequestWithdrawal?: (req: Omit<WithdrawalRequest, 'id' | 'createdAt' | 'status'>) => void;
   onRegisterWriter?: (writer: WriterProfile) => void;
+  siteSettings?: SiteSettings;
 }
 
 const CATEGORIES: Category[] = [
@@ -93,7 +95,8 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   onSendNotification,
   withdrawals = [],
   onRequestWithdrawal,
-  onRegisterWriter
+  onRegisterWriter,
+  siteSettings
 }) => {
   // Auth state for Writer
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -1403,6 +1406,13 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           </button>
         </div>
       )}
+
+      {/* Native Banner Ad for Writer Panel (Automatically hidden when activeTab is 'create' or post editing) */}
+      <NativeBannerAd
+        settings={siteSettings?.dynamicAds?.nativeBanner}
+        isPostWriting={activeTab === 'create' || editingArticleId !== null}
+        panelLabel="লেখক প্যানেল"
+      />
 
       {/* TAB 1: BLOGGER-STYLE POST CREATOR (Multi-Step Window) */}
       {activeTab === 'create' && (

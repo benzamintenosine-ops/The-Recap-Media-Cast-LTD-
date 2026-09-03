@@ -17,6 +17,7 @@ import {
 import { NewsArticle, Category, Language, SiteSettings } from '../types';
 import { getTranslation } from '../utils/i18n';
 import { AdPanel } from './AdPanel';
+import { SocialBarController } from './DynamicAdServices';
 
 interface ViewerSiteProps {
   articles: NewsArticle[];
@@ -93,6 +94,9 @@ export const ViewerSite: React.FC<ViewerSiteProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8">
+      {/* Dynamic Social Bar Controller */}
+      <SocialBarController settings={siteSettings?.dynamicAds?.socialBar} />
+
       {/* Header Advertisement Banner Space */}
       <AdPanel placement="header_top" siteSettings={siteSettings} />
 

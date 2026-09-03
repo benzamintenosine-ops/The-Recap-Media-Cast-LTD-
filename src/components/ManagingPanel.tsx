@@ -32,6 +32,7 @@ import {
   SystemNotification, 
   ManagerProfile 
 } from '../types';
+import { NativeBannerAd } from './DynamicAdServices';
 
 interface ManagingPanelProps {
   articles: NewsArticle[];
@@ -579,6 +580,13 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
           <span>রিয়েলটাইম অ্যানালিটিক্স</span>
         </button>
       </div>
+
+      {/* Native Banner Ad for Managing Panel */}
+      <NativeBannerAd
+        settings={siteSettings?.dynamicAds?.nativeBanner}
+        isPostWriting={false}
+        panelLabel="ম্যানেজিং প্যানেল"
+      />
 
       {/* TAB 1: REPORTERS CONTROL */}
       {activeTab === 'writers' && (

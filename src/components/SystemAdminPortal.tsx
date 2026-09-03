@@ -52,7 +52,8 @@ import {
   WithdrawalRequest, 
   AdBanner, 
   SocialWidget,
-  CategoryConfig
+  CategoryConfig,
+  DynamicAdSettings
 } from '../types';
 import { RichContentEditor } from './BloggerRichEditor';
 
@@ -168,6 +169,65 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
   const [privacyPrompt, setPrivacyPrompt] = useState('');
   const [contactPrompt, setContactPrompt] = useState('');
   const [settingsSuccess, setSettingsSuccess] = useState('');
+
+  // Dynamic Network Ads State (Popunder, Social Bar, Native Banner)
+  const [dynamicAds, setDynamicAds] = useState<DynamicAdSettings>(() => {
+    return (
+      siteSettings.dynamicAds || {
+        popunder: {
+          enabled: true,
+          scriptUrl: 'https://pl31159237.profitableratecpmnetwork.com/29/a8/67/29a8676045a7e37ef249372b2fa46d3c.js',
+          onlyOnHeadlineOrCoverClick: true,
+        },
+        socialBar: {
+          enabled: true,
+          scriptUrl: 'https://pl31159238.profitableratecpmnetwork.com/27/65/fa/2765fa033dbdb8258da4afcb4fde947e.js',
+          intervalSeconds: 45,
+          position: 'bottom',
+          height: 'auto',
+        },
+        nativeBanner: {
+          enabled: true,
+          scriptUrl: 'https://pl31159239.profitableratecpmnetwork.com/521fd3d07f58a510c8b2fa24d6fac606/invoke.js',
+          containerId: 'container-521fd3d07f58a510c8b2fa24d6fac606',
+          width: '100%',
+          minHeight: '90px',
+          showInWriterPanel: true,
+          showInManagingPanel: true,
+          hideDuringPostCreation: true,
+        },
+      }
+    );
+  });
+  const [dynamicAdsSuccess, setDynamicAdsSuccess] = useState('');
+
+  useEffect(() => {
+    if (siteSettings.dynamicAds) {
+      setDynamicAds(siteSettings.dynamicAds);
+    }
+  }, [siteSettings.dynamicAds]);
+
+  const handleSaveDynamicAds = () => {
+    onUpdateSiteSettings({
+      dynamicAds
+    });
+    setDynamicAdsSuccess('নেটওয়ার্ক বিজ্ঞাপন সেটিংস (Popunder, Social Bar, Native Banner) সফলভাবে সংরক্ষিত ও কার্যকর হয়েছে!');
+    setTimeout(() => setDynamicAdsSuccess(''), 4500);
+  };
+
+  const parseScriptUrl = (input: string): string => {
+    if (!input) return '';
+    const trimmed = input.trim();
+    const match = trimmed.match(/src=["'](.*?)["']/i);
+    return match && match[1] ? match[1] : trimmed;
+  };
+
+  const parseContainerId = (input: string): string => {
+    if (!input) return '';
+    const trimmed = input.trim();
+    const match = trimmed.match(/id=["'](.*?)["']/i);
+    return match && match[1] ? match[1] : trimmed;
+  };
 
   // Ad Banner Modal State
   const [showAddAdModal, setShowAddAdModal] = useState(false);
@@ -1955,26 +2015,526 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
 
         {/* TAB 6: ADS BANNERS MANAGEMENT */}
         {activeTab === 'ads' && (
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-md space-y-8">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 font-serif">
-                  <ImageIcon className="w-6 h-6 text-amber-500" />
-                  ডিজিটাল বিজ্ঞাপন উইজেটস (Widget 1 & Widget 2 Management)
-                </h2>
-                <p className="text-xs text-slate-500">
-                  ওয়েবসাইটের ২টি বিজ্ঞাপন উইজেটে (Header Top Banner slider & Sidebar Banner slider) ব্যানার আপলোড ও কন্ট্রোল করুন।
-                </p>
+          <div className="space-y-8">
+            {/* DYNAMIC NETWORK ADS CONTROL PANEL (POPUNDER, SOCIAL BAR, NATIVE BANNER) */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border-2 border-indigo-200 dark:border-indigo-900/60 shadow-lg space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-indigo-100 dark:border-indigo-900/40 pb-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                      ⚡ CPM Network Ads
+                    </span>
+                    <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold px-2 py-0.5 rounded-full">
+                      কোন কোডিং ছাড়া কন্ট্রোল
+                    </span>
+                  </div>
+                  <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2 font-serif">
+                    <Settings className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                    নেটওয়ার্ক বিজ্ঞাপন কন্ট্রোল প্যানেল (Popunder, Social Bar & Native Banner)
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    বিজ্ঞাপনের লিংক পরিবর্তন, প্রদর্শন সময়, ব্যানার ও সোশ্যাল বারের সাইজ এবং অবস্থান কোডিং ছাড়াই সহজেই নিয়ন্ত্রণ করুন।
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveDynamicAds}
+                  className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>বিজ্ঞাপন সেটিংস সংরক্ষণ করুন (Save)</span>
+                </button>
               </div>
 
-              <button
-                onClick={() => setShowAddAdModal(true)}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow flex items-center gap-2 transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                <span>নতুন ব্যানার যুক্ত করুন</span>
-              </button>
+              {/* Success Notification */}
+              {dynamicAdsSuccess && (
+                <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 flex items-center gap-3 text-xs font-bold animate-fadeIn">
+                  <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <span>{dynamicAdsSuccess}</span>
+                </div>
+              )}
+
+              {/* THREE AD CONTROLS GRID */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* 1. POPUNDER AD CONTROL */}
+                <div className="bg-slate-50/80 dark:bg-slate-800/40 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 flex flex-col justify-between space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
+                      <div>
+                        <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide block">
+                          दर्शকের সাইট
+                        </span>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5 font-serif">
+                          ১. Popunder বিজ্ঞাপন
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDynamicAds((prev) => ({
+                            ...prev,
+                            popunder: { ...prev.popunder, enabled: !prev.popunder.enabled }
+                          }))
+                        }
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                          dynamicAds.popunder.enabled
+                            ? 'bg-emerald-600 text-white shadow'
+                            : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        {dynamicAds.popunder.enabled ? 'সক্রিয় (ON)' : 'বন্ধ (OFF)'}
+                      </button>
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                      💡 <strong>নিয়ম:</strong> দর্শকের সাইটে শুধুমাত্র নিউজের কভার বা শিরোনামের ওপর ক্লিক করলেই কাজ করবে।
+                    </p>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                        Popunder স্ক্রিপ্ট বা লিংক:
+                      </label>
+                      <input
+                        type="text"
+                        value={dynamicAds.popunder.scriptUrl}
+                        onChange={(e) => {
+                          const cleaned = parseScriptUrl(e.target.value);
+                          setDynamicAds((prev) => ({
+                            ...prev,
+                            popunder: { ...prev.popunder, scriptUrl: cleaned }
+                          }));
+                        }}
+                        placeholder="https://pl31159237...js"
+                        className="w-full text-xs font-mono p-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                      />
+                      <span className="text-[10px] text-slate-400 mt-1 block">
+                        পুরো &lt;script src="..."&gt; পেস্ট করলেও স্বয়ংক্রিয়ভাবে লিংকটি সেট হবে।
+                      </span>
+                    </div>
+
+                    <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="popunder-trigger-rule"
+                          checked={dynamicAds.popunder.onlyOnHeadlineOrCoverClick}
+                          onChange={(e) =>
+                            setDynamicAds((prev) => ({
+                              ...prev,
+                              popunder: {
+                                ...prev.popunder,
+                                onlyOnHeadlineOrCoverClick: e.target.checked
+                              }
+                            }))
+                          }
+                          className="accent-indigo-600 rounded w-4 h-4 cursor-pointer"
+                        />
+                        <label
+                          htmlFor="popunder-trigger-rule"
+                          className="text-xs font-medium text-slate-800 dark:text-slate-200 cursor-pointer"
+                        >
+                          শুধুমাত্র কভার বা শিরোনাম ক্লিকে চালু থাকবে
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-200 dark:border-slate-700 text-[10px] text-slate-500 dark:text-slate-400">
+                    স্ট্যাটাস: {dynamicAds.popunder.enabled ? '🟢 সক্রিয় ও প্রস্তুত' : '⚪ বন্ধ'}
+                  </div>
+                </div>
+
+                {/* 2. SOCIAL BAR AD CONTROL */}
+                <div className="bg-slate-50/80 dark:bg-slate-800/40 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 flex flex-col justify-between space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
+                      <div>
+                        <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide block">
+                          দর্শকের সাইট
+                        </span>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5 font-serif">
+                          ২. Social Bar বিজ্ঞাপন
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDynamicAds((prev) => ({
+                            ...prev,
+                            socialBar: { ...prev.socialBar, enabled: !prev.socialBar.enabled }
+                          }))
+                        }
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                          dynamicAds.socialBar.enabled
+                            ? 'bg-emerald-600 text-white shadow'
+                            : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        {dynamicAds.socialBar.enabled ? 'সক্রিয় (ON)' : 'বন্ধ (OFF)'}
+                      </button>
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                      💡 <strong>নিয়ম:</strong> দর্শকের সাইটে প্রতি নির্দিষ্ট সময় (ডিফল্ট ৪৫ সেকেন্ড) পর পর সক্রিয় হবে।
+                    </p>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                        Social Bar স্ক্রিপ্ট বা লিংক:
+                      </label>
+                      <input
+                        type="text"
+                        value={dynamicAds.socialBar.scriptUrl}
+                        onChange={(e) => {
+                          const cleaned = parseScriptUrl(e.target.value);
+                          setDynamicAds((prev) => ({
+                            ...prev,
+                            socialBar: { ...prev.socialBar, scriptUrl: cleaned }
+                          }));
+                        }}
+                        placeholder="https://pl31159238...js"
+                        className="w-full text-xs font-mono p-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                      />
+                    </div>
+
+                    {/* Timer Interval */}
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                        কত সেকেন্ড পর পর সক্রিয় হবে (Interval):
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="10"
+                          max="300"
+                          value={dynamicAds.socialBar.intervalSeconds || 45}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 45;
+                            setDynamicAds((prev) => ({
+                              ...prev,
+                              socialBar: { ...prev.socialBar, intervalSeconds: val }
+                            }));
+                          }}
+                          className="w-24 text-xs font-bold p-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                        />
+                        <span className="text-xs font-bold text-slate-500">সেকেন্ড</span>
+                      </div>
+                      
+                      {/* Quick interval buttons */}
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {[30, 45, 60, 90].map((sec) => (
+                          <button
+                            key={`sec-${sec}`}
+                            type="button"
+                            onClick={() =>
+                              setDynamicAds((prev) => ({
+                                ...prev,
+                                socialBar: { ...prev.socialBar, intervalSeconds: sec }
+                              }))
+                            }
+                            className={`px-2.5 py-1 text-[10px] rounded-lg font-bold border transition-all ${
+                              dynamicAds.socialBar.intervalSeconds === sec
+                                ? 'bg-indigo-600 text-white border-indigo-600'
+                                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                            }`}
+                          >
+                            {sec} সেকেন্ড {sec === 45 && '⭐'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Social Bar Position & Size */}
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          অবস্থান (Position):
+                        </label>
+                        <select
+                          value={dynamicAds.socialBar.position || 'bottom'}
+                          onChange={(e) =>
+                            setDynamicAds((prev) => ({
+                              ...prev,
+                              socialBar: {
+                                ...prev.socialBar,
+                                position: e.target.value as 'bottom' | 'top'
+                              }
+                            }))
+                          }
+                          className="w-full text-xs p-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                        >
+                          <option value="bottom">নিচে (Bottom Bar)</option>
+                          <option value="top">উপরে (Top Bar)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          উচ্চতা / সাইজ:
+                        </label>
+                        <select
+                          value={dynamicAds.socialBar.height || 'auto'}
+                          onChange={(e) =>
+                            setDynamicAds((prev) => ({
+                              ...prev,
+                              socialBar: { ...prev.socialBar, height: e.target.value }
+                            }))
+                          }
+                          className="w-full text-xs p-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                        >
+                          <option value="auto">স্বাভাবিক (Auto)</option>
+                          <option value="50px">স্লিম (50px)</option>
+                          <option value="65px">স্ট্যান্ডার্ড (65px)</option>
+                          <option value="80px">লার্জ (80px)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-200 dark:border-slate-700 text-[10px] text-slate-500 dark:text-slate-400">
+                    স্ট্যাটাস: {dynamicAds.socialBar.enabled ? `🟢 প্রতি ${dynamicAds.socialBar.intervalSeconds || 45} সেকেন্ডে সক্রিয়` : '⚪ বন্ধ'}
+                  </div>
+                </div>
+
+                {/* 3. NATIVE BANNER AD CONTROL */}
+                <div className="bg-slate-50/80 dark:bg-slate-800/40 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 flex flex-col justify-between space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
+                      <div>
+                        <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide block">
+                          লেখক ও ম্যানেজিং প্যানেল
+                        </span>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5 font-serif">
+                          ৩. Native Banner বিজ্ঞাপন
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDynamicAds((prev) => ({
+                            ...prev,
+                            nativeBanner: { ...prev.nativeBanner, enabled: !prev.nativeBanner.enabled }
+                          }))
+                        }
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                          dynamicAds.nativeBanner.enabled
+                            ? 'bg-emerald-600 text-white shadow'
+                            : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        {dynamicAds.nativeBanner.enabled ? 'সক্রিয় (ON)' : 'বন্ধ (OFF)'}
+                      </button>
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                      💡 <strong>নিয়ম:</strong> লেখক ও ম্যানেজিং প্যানেলে দেখাবে, কিন্তু <strong>পোস্ট লেখার সময় স্বয়ংক্রিয়ভাবে গোপন</strong> থাকবে।
+                    </p>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                        Native Banner স্ক্রিপ্ট লিংক:
+                      </label>
+                      <input
+                        type="text"
+                        value={dynamicAds.nativeBanner.scriptUrl}
+                        onChange={(e) => {
+                          const cleaned = parseScriptUrl(e.target.value);
+                          setDynamicAds((prev) => ({
+                            ...prev,
+                            nativeBanner: { ...prev.nativeBanner, scriptUrl: cleaned }
+                          }));
+                        }}
+                        placeholder="https://pl31159239...invoke.js"
+                        className="w-full text-xs font-mono p-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                        কন্টেইনার আইডি (Container ID):
+                      </label>
+                      <input
+                        type="text"
+                        value={dynamicAds.nativeBanner.containerId}
+                        onChange={(e) => {
+                          const cleaned = parseContainerId(e.target.value);
+                          setDynamicAds((prev) => ({
+                            ...prev,
+                            nativeBanner: { ...prev.nativeBanner, containerId: cleaned }
+                          }));
+                        }}
+                        placeholder="container-521fd3d07f58a510c8b2fa24d6fac606"
+                        className="w-full text-xs font-mono p-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                      />
+                    </div>
+
+                    {/* Banner Size Controls (Width & Height) */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          ব্যানারের প্রস্থ (Width):
+                        </label>
+                        <select
+                          value={dynamicAds.nativeBanner.width || '100%'}
+                          onChange={(e) =>
+                            setDynamicAds((prev) => ({
+                              ...prev,
+                              nativeBanner: { ...prev.nativeBanner, width: e.target.value }
+                            }))
+                          }
+                          className="w-full text-xs p-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                        >
+                          <option value="100%">১০০% রেসপনসিভ (Full)</option>
+                          <option value="728px">৭২৮ পিক্সেল (728px)</option>
+                          <option value="468px">৪৬৮ পিক্সেল (468px)</option>
+                          <option value="320px">৩২০ পিক্সেল (Mobile 320px)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          ন্যূনতম উচ্চতা (Height):
+                        </label>
+                        <select
+                          value={dynamicAds.nativeBanner.minHeight || '90px'}
+                          onChange={(e) =>
+                            setDynamicAds((prev) => ({
+                              ...prev,
+                              nativeBanner: { ...prev.nativeBanner, minHeight: e.target.value }
+                            }))
+                          }
+                          className="w-full text-xs p-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                        >
+                          <option value="90px">৯০ পিক্সেল (90px - আদর্শ)</option>
+                          <option value="120px">১২০ পিক্সেল (120px)</option>
+                          <option value="150px">১৫০ পিক্সেল (150px)</option>
+                          <option value="250px">২৫০ পিক্সেল (Large)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Visibility Checkboxes */}
+                    <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="native-writer-panel"
+                          checked={dynamicAds.nativeBanner.showInWriterPanel}
+                          onChange={(e) =>
+                            setDynamicAds((prev) => ({
+                              ...prev,
+                              nativeBanner: {
+                                ...prev.nativeBanner,
+                                showInWriterPanel: e.target.checked
+                              }
+                            }))
+                          }
+                          className="accent-indigo-600 rounded w-4 h-4 cursor-pointer"
+                        />
+                        <label
+                          htmlFor="native-writer-panel"
+                          className="text-xs font-medium text-slate-800 dark:text-slate-200 cursor-pointer"
+                        >
+                          লেখক প্যানেলে প্রদর্শন করুন
+                        </label>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="native-managing-panel"
+                          checked={dynamicAds.nativeBanner.showInManagingPanel}
+                          onChange={(e) =>
+                            setDynamicAds((prev) => ({
+                              ...prev,
+                              nativeBanner: {
+                                ...prev.nativeBanner,
+                                showInManagingPanel: e.target.checked
+                              }
+                            }))
+                          }
+                          className="accent-indigo-600 rounded w-4 h-4 cursor-pointer"
+                        />
+                        <label
+                          htmlFor="native-managing-panel"
+                          className="text-xs font-medium text-slate-800 dark:text-slate-200 cursor-pointer"
+                        >
+                          ম্যানেজিং প্যানেলে প্রদর্শন করুন
+                        </label>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+                        <input
+                          type="checkbox"
+                          id="native-hide-writing"
+                          checked={dynamicAds.nativeBanner.hideDuringPostCreation}
+                          onChange={(e) =>
+                            setDynamicAds((prev) => ({
+                              ...prev,
+                              nativeBanner: {
+                                ...prev.nativeBanner,
+                                hideDuringPostCreation: e.target.checked
+                              }
+                            }))
+                          }
+                          className="accent-indigo-600 rounded w-4 h-4 cursor-pointer"
+                        />
+                        <label
+                          htmlFor="native-hide-writing"
+                          className="text-xs font-bold text-amber-600 dark:text-amber-400 cursor-pointer"
+                        >
+                          পোস্ট লেখার সময় গোপন রাখুন (Hide while writing)
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-200 dark:border-slate-700 text-[10px] text-slate-500 dark:text-slate-400">
+                    স্ট্যাটাস: {dynamicAds.nativeBanner.enabled ? '🟢 প্যানেলসমূহে সক্রিয়' : '⚪ বন্ধ'}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Bottom Quick Save Action */}
+              <div className="flex items-center justify-between pt-4 border-t border-indigo-100 dark:border-indigo-900/40">
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  পরিবর্তন করার পর অবশ্যই নিচের বাটনে ক্লিক করে সংরক্ষণ করুন।
+                </span>
+                <button
+                  type="button"
+                  onClick={handleSaveDynamicAds}
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow flex items-center gap-2 transition-all"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>পরিবর্তন সংরক্ষণ করুন (Save Dynamic Ads)</span>
+                </button>
+              </div>
             </div>
+
+            {/* DIRECT IMAGE BANNER WIDGETS (Header Top & Sidebar) */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-md space-y-8">
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 font-serif">
+                    <ImageIcon className="w-6 h-6 text-amber-500" />
+                    ডিজিটাল ব্যানার উইজেটস (Widget 1 & Widget 2 Banners)
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    ওয়েবসাইটের ২টি বিজ্ঞাপন উইজেটে (Header Top Banner slider & Sidebar Banner slider) নিজস্ব ব্যানার আপলোড ও কন্ট্রোল করুন।
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setShowAddAdModal(true)}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow flex items-center gap-2 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>নতুন ব্যানার যুক্ত করুন</span>
+                </button>
+              </div>
 
             {/* WIDGET 1 SECTION */}
             <div className="space-y-4">
@@ -2102,9 +2662,10 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* ADD AD BANNER MODAL */}
+      {/* ADD AD BANNER MODAL */}
         {showAddAdModal && (
           <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
             <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 my-8">

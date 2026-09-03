@@ -27,8 +27,8 @@ export const AdBlockerDetector: React.FC<AdBlockerDetectorProps> = ({ onStatusCh
       bait.innerHTML = '&nbsp;';
       document.body.appendChild(bait);
 
-      // Allow microtask to process CSS and extension blockers
-      await new Promise(r => setTimeout(r, 100));
+      // Fast check
+      await new Promise(r => setTimeout(r, 60));
 
       const styles = window.getComputedStyle(bait);
       if (
@@ -45,30 +45,7 @@ export const AdBlockerDetector: React.FC<AdBlockerDetectorProps> = ({ onStatusCh
         bait.parentNode.removeChild(bait);
       }
     } catch {
-      detected = true;
-    }
-
-    // Method 2: Request Bait probe to common ad script endpoints (blocked by Private DNS like AdGuard/NextDNS)
-    if (!detected) {
-      try {
-        const baitUrl = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 1200);
-
-        await fetch(baitUrl, {
-          method: 'HEAD',
-          mode: 'no-cors',
-          cache: 'no-store',
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-      } catch (err: any) {
-        // If aborted or network blocked by private DNS/Adblocker
-        if (err?.name !== 'AbortError') {
-          // Network failure for ad domain indicates ad block DNS / extension
-          detected = true;
-        }
-      }
+      // Ignore
     }
 
     setIsChecking(false);

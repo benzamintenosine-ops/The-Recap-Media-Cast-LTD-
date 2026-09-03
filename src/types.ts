@@ -147,6 +147,32 @@ export interface SocialWidget {
   isActive?: boolean;
 }
 
+export interface DynamicAdSettings {
+  popunder: {
+    enabled: boolean;
+    scriptUrl: string;
+    onlyOnHeadlineOrCoverClick: boolean;
+  };
+  socialBar: {
+    enabled: boolean;
+    scriptUrl: string;
+    intervalSeconds: number; // e.g. 45
+    position?: 'bottom' | 'top';
+    height?: string; // e.g. 'auto', '60px'
+  };
+  nativeBanner: {
+    enabled: boolean;
+    scriptUrl: string;
+    containerId: string;
+    width?: string;
+    height?: string;
+    minHeight?: string;
+    showInWriterPanel: boolean;
+    showInManagingPanel: boolean;
+    hideDuringPostCreation: boolean;
+  };
+}
+
 export interface SiteSettings {
   siteName: string;
   siteTagline: string;
@@ -162,6 +188,7 @@ export interface SiteSettings {
   contactUsHtml?: string;
   socialWidgets: SocialWidget[];
   adBanners: AdBanner[];
+  dynamicAds?: DynamicAdSettings;
   staticPages?: {
     aboutUs?: string;
     privacyPolicy?: string;

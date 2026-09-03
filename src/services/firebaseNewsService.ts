@@ -60,21 +60,16 @@ async function purgeLegacyMockNews() {
  * Both Viewer Site and Admin Portal receive live updates automatically.
  */
 export function subscribeToArticles(onUpdate: (articles: NewsArticle[]) => void) {
-  // Purge any legacy mock news on initial mount
-  purgeLegacyMockNews().catch(() => {});
-
   const colRef = collection(db, ARTICLES_COLLECTION);
   const q = query(colRef, orderBy('publishedAt', 'desc'));
 
   return onSnapshot(
     q,
-    { includeMetadataChanges: true },
+    { includeMetadataChanges: false },
     (snapshot) => {
       if (snapshot.empty) {
-        try {
-          localStorage.setItem('recap_news_cache', JSON.stringify([]));
-        } catch (e) {}
-        onUpdate([]);
+        // When cloud collection is brand new or empty, show rich initial news
+        onUpdate(INITIAL_NEWS);
         return;
       }
       const articlesList: NewsArticle[] = snapshot.docs
@@ -106,6 +101,11 @@ export function subscribeToArticles(onUpdate: (articles: NewsArticle[]) => void)
           } as NewsArticle;
         });
 
+      if (articlesList.length === 0) {
+        onUpdate(INITIAL_NEWS);
+        return;
+      }
+
       // Save to cache for seamless offline fallback
       try {
         localStorage.setItem('recap_news_cache', JSON.stringify(articlesList));
@@ -114,19 +114,18 @@ export function subscribeToArticles(onUpdate: (articles: NewsArticle[]) => void)
       onUpdate(articlesList);
     },
     (error) => {
-      console.warn('Firestore snapshot listener connection notice (operating in offline mode):', error?.message || error);
+      console.warn('Firestore snapshot listener note:', error?.message || error);
       const savedCache = localStorage.getItem('recap_news_cache');
       if (savedCache) {
         try {
           const parsed = JSON.parse(savedCache);
-          if (Array.isArray(parsed)) {
-            const filtered = parsed.filter(a => a && a.id && !MOCK_ARTICLE_IDS.includes(a.id));
-            onUpdate(filtered);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            onUpdate(parsed);
             return;
           }
         } catch (e) {}
       }
-      onUpdate([]);
+      onUpdate(INITIAL_NEWS);
     }
   );
 }

@@ -14,7 +14,7 @@ import { ArticleModal } from './components/ArticleModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { AdBlockerDetector } from './components/AdBlockerDetector';
 import { CloudflareSecurityBadge } from './components/BotProtection';
-import { NewsArticle, Category, Language, UserProfile, SiteSettings, WriterProfile, ManagerProfile, WithdrawalRequest, SystemNotification, CategoryConfig, SocialWidget } from './types';
+import { NewsArticle, Category, Language, UserProfile, SiteSettings, WriterProfile, ManagerProfile, WithdrawalRequest, SystemNotification, CategoryConfig, SocialWidget, DynamicAdSettings } from './types';
 
 const DEFAULT_CATEGORIES: CategoryConfig[] = [
   { id: 'cat-1', name: 'জাতীয়', showIcon: true, isHidden: false },
@@ -41,12 +41,38 @@ import {
   subscribeToSiteSettings,
   saveSiteSettingsToFirebase
 } from './services/firebaseSettingsService';
+import { triggerPopunder } from './components/DynamicAdServices';
 
 const DEFAULT_SOCIAL_WIDGETS: SocialWidget[] = [
   { id: 'soc-fb', platform: 'facebook', name: 'Facebook Page', url: 'https://facebook.com/therecapmediacast', badge: 'ফলো', isActive: true },
   { id: 'soc-yt', platform: 'youtube', name: 'YouTube Channel', url: 'https://youtube.com/@therecapmediacast', badge: 'সাবস্ক্রাইব', isActive: true },
   { id: 'soc-ig', platform: 'instagram', name: 'Instagram Profile', url: 'https://instagram.com/therecapmediacast', badge: 'ফলো', isActive: true }
 ];
+
+const DEFAULT_DYNAMIC_ADS: DynamicAdSettings = {
+  popunder: {
+    enabled: true,
+    scriptUrl: 'https://pl31159237.profitableratecpmnetwork.com/29/a8/67/29a8676045a7e37ef249372b2fa46d3c.js',
+    onlyOnHeadlineOrCoverClick: true
+  },
+  socialBar: {
+    enabled: true,
+    scriptUrl: 'https://pl31159238.profitableratecpmnetwork.com/27/65/fa/2765fa033dbdb8258da4afcb4fde947e.js',
+    intervalSeconds: 45,
+    position: 'bottom',
+    height: 'auto'
+  },
+  nativeBanner: {
+    enabled: true,
+    scriptUrl: 'https://pl31159239.profitableratecpmnetwork.com/521fd3d07f58a510c8b2fa24d6fac606/invoke.js',
+    containerId: 'container-521fd3d07f58a510c8b2fa24d6fac606',
+    width: '100%',
+    minHeight: '90px',
+    showInWriterPanel: true,
+    showInManagingPanel: true,
+    hideDuringPostCreation: true
+  }
+};
 
 const DEFAULT_SITE_SETTINGS: SiteSettings = {
   siteName: 'The Recap Media Cast LTD',
@@ -67,6 +93,7 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
       isActive: true
     }
   ],
+  dynamicAds: DEFAULT_DYNAMIC_ADS,
   socialWidgets: DEFAULT_SOCIAL_WIDGETS,
   staticPages: {
     aboutUs: '<h2>আমাদের সম্পর্কে (About Us)</h2><p>The Recap Media Cast LTD একটি আধুনিক বাংলা অনলাইন সংবাদ মাধ্যম...</p>',
@@ -132,6 +159,20 @@ export default function App() {
       return {
         ...DEFAULT_SITE_SETTINGS,
         ...parsed,
+        dynamicAds: {
+          popunder: {
+            ...DEFAULT_DYNAMIC_ADS.popunder,
+            ...(parsed.dynamicAds?.popunder || {})
+          },
+          socialBar: {
+            ...DEFAULT_DYNAMIC_ADS.socialBar,
+            ...(parsed.dynamicAds?.socialBar || {})
+          },
+          nativeBanner: {
+            ...DEFAULT_DYNAMIC_ADS.nativeBanner,
+            ...(parsed.dynamicAds?.nativeBanner || {})
+          }
+        },
         socialWidgets: (parsed.socialWidgets && Array.isArray(parsed.socialWidgets) && parsed.socialWidgets.length > 0)
           ? parsed.socialWidgets
           : DEFAULT_SOCIAL_WIDGETS,
@@ -188,13 +229,12 @@ export default function App() {
       const cached = localStorage.getItem('recap_news_cache');
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed)) {
-          const mockIds = ['news-1', 'news-2', 'news-3', 'news-4', 'news-5'];
-          return parsed.filter((a) => a && a.id && !mockIds.includes(a.id));
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
         }
       }
     } catch {}
-    return [];
+    return INITIAL_NEWS;
   });
   const [selectedCategory, setSelectedCategory] = useState<Category | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -432,6 +472,12 @@ export default function App() {
     setArticles((prev) =>
       prev.map((a) => (a.id === art.id ? { ...a, viewsCount: (a.viewsCount || 0) + 1 } : a))
     );
+
+    // Trigger Popunder when clicking on news cover / headline if enabled
+    const popunderConfig = siteSettings?.dynamicAds?.popunder;
+    if (popunderConfig?.enabled ?? true) {
+      triggerPopunder(popunderConfig?.scriptUrl);
+    }
   };
 
   // Persistence effects
@@ -595,6 +641,7 @@ export default function App() {
             withdrawals={withdrawals}
             onRequestWithdrawal={handleRequestWithdrawal}
             onRegisterWriter={handleRegisterWriter}
+            siteSettings={siteSettings}
           />
         )}
 
