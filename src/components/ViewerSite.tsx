@@ -14,7 +14,7 @@ import {
   TrendingUp,
   Tag
 } from 'lucide-react';
-import { NewsArticle, Category, Language } from '../types';
+import { NewsArticle, Category, Language, SiteSettings } from '../types';
 import { getTranslation } from '../utils/i18n';
 import { AdPanel } from './AdPanel';
 
@@ -32,6 +32,7 @@ interface ViewerSiteProps {
   setShowBookmarksOnly: (val: boolean) => void;
   showOfflineOnly: boolean;
   setShowOfflineOnly: (val: boolean) => void;
+  siteSettings?: SiteSettings;
 }
 
 export const ViewerSite: React.FC<ViewerSiteProps> = ({
@@ -47,7 +48,8 @@ export const ViewerSite: React.FC<ViewerSiteProps> = ({
   showBookmarksOnly,
   setShowBookmarksOnly,
   showOfflineOnly,
-  setShowOfflineOnly
+  setShowOfflineOnly,
+  siteSettings
 }) => {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
@@ -92,7 +94,7 @@ export const ViewerSite: React.FC<ViewerSiteProps> = ({
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8">
       {/* Header Advertisement Banner Space */}
-      <AdPanel placement="header_top" />
+      <AdPanel placement="header_top" siteSettings={siteSettings} />
 
       {/* Filter Status Notification Bar if active */}
       {(showBookmarksOnly || showOfflineOnly || selectedTag || searchQuery) && (
@@ -294,7 +296,7 @@ export const ViewerSite: React.FC<ViewerSiteProps> = ({
             <div className="lg:col-span-4 space-y-6">
               
               {/* Sidebar Advertisement Card */}
-              <AdPanel placement="sidebar" />
+              <AdPanel placement="sidebar" siteSettings={siteSettings} />
 
               {/* Trending News Widget */}
               <div className="bg-white dark:bg-[#111111] rounded-2xl p-6 border border-slate-200 dark:border-white/10 space-y-4 shadow-sm">

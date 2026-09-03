@@ -37,6 +37,10 @@ import {
   addCommentToFirebase,
   incrementArticleViewsInFirebase
 } from './services/firebaseNewsService';
+import {
+  subscribeToSiteSettings,
+  saveSiteSettingsToFirebase
+} from './services/firebaseSettingsService';
 
 const DEFAULT_SOCIAL_WIDGETS: SocialWidget[] = [
   { id: 'soc-fb', platform: 'facebook', name: 'Facebook Page', url: 'https://facebook.com/therecapmediacast', badge: 'ফলো', isActive: true },
@@ -241,10 +245,19 @@ export default function App() {
     };
   }, []);
 
-  // Subscribe to real-time Firebase Firestore news updates
+  // Subscribe to real-time Firebase Firestore news updates & Site Settings
   useEffect(() => {
-    const unsubscribe = subscribeToArticles((liveArticles) => {
+    const unsubscribeArticles = subscribeToArticles((liveArticles) => {
       setArticles(liveArticles || []);
+    });
+
+    const unsubscribeSettings = subscribeToSiteSettings((liveSettings) => {
+      if (liveSettings) {
+        setSiteSettings((prev) => ({
+          ...prev,
+          ...liveSettings
+        }));
+      }
     });
 
     // Also fetch server fallback if available
@@ -266,7 +279,10 @@ export default function App() {
       })
       .catch((err) => console.log('API fallback notice:', err));
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeArticles();
+      unsubscribeSettings();
+    };
   }, []);
 
   // Sync Bookmarks to LocalStorage
@@ -442,6 +458,9 @@ export default function App() {
       try {
         localStorage.setItem('recap_site_settings', JSON.stringify(merged));
       } catch {}
+      saveSiteSettingsToFirebase(merged).catch((err) =>
+        console.warn('Failed to sync settings to Firestore:', err)
+      );
       return merged;
     });
   };
@@ -559,6 +578,7 @@ export default function App() {
             setShowBookmarksOnly={setShowBookmarksOnly}
             showOfflineOnly={showOfflineOnly}
             setShowOfflineOnly={setShowOfflineOnly}
+            siteSettings={siteSettings}
           />
         )}
 
@@ -629,6 +649,7 @@ export default function App() {
             (a) => a.category === selectedArticle.category && a.id !== selectedArticle.id
           )}
           onSelectRelated={handleSelectArticle}
+          siteSettings={siteSettings}
         />
       )}
 

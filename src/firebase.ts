@@ -1,6 +1,12 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics, isSupported } from "firebase/analytics";
-import { getFirestore, Firestore, enableIndexedDbPersistence } from "firebase/firestore";
+import {
+  initializeFirestore,
+  getFirestore,
+  Firestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
+} from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import firebaseAppletConfig from "../firebase-applet-config.json";
 
@@ -18,27 +24,31 @@ const firebaseConfig = {
 // Initialize Firebase App
 export const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore
+// Initialize Firestore with robust connection handling & multi-tab cache
 let firestoreInstance: Firestore;
+const dbId = firebaseAppletConfig.firestoreDatabaseId || undefined;
+
 try {
-  if (firebaseAppletConfig.firestoreDatabaseId) {
-    firestoreInstance = getFirestore(app, firebaseAppletConfig.firestoreDatabaseId);
-  } else {
+  firestoreInstance = initializeFirestore(
+    app,
+    {
+      experimentalAutoDetectLongPolling: true,
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    },
+    dbId
+  );
+} catch {
+  // If already initialized or unsupported cache config, get existing or fallback
+  try {
+    firestoreInstance = dbId ? getFirestore(app, dbId) : getFirestore(app);
+  } catch {
     firestoreInstance = getFirestore(app);
   }
-} catch (e) {
-  firestoreInstance = getFirestore(app);
 }
 
 export const db = firestoreInstance;
-
-// Enable offline persistence gracefully if supported in browser environment
-if (typeof window !== "undefined") {
-  enableIndexedDbPersistence(db).catch((err) => {
-    // Ignore errors for multi-tab or unsupported browsers
-    console.log("Firestore offline persistence notice:", err.code);
-  });
-}
 
 // Initialize Firebase Auth
 export const auth = getAuth(app);
@@ -47,3 +57,4 @@ export const auth = getAuth(app);
 export const analyticsPromise = typeof window !== "undefined"
   ? isSupported().then((supported) => (supported ? getAnalytics(app) : null)).catch(() => null)
   : Promise.resolve(null);
+

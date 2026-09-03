@@ -1051,7 +1051,13 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">ঠিকানা:</span>
-                <span className="text-slate-900 dark:text-white">{selectedWriter.address}</span>
+                <span className="text-slate-900 dark:text-white font-medium text-right max-w-[200px]">
+                  {selectedWriter.postOffice ? `${selectedWriter.postOffice}, ` : ''}
+                  {selectedWriter.thana ? `${selectedWriter.thana}, ` : ''}
+                  {selectedWriter.district ? `${selectedWriter.district}, ` : ''}
+                  {selectedWriter.division || selectedWriter.address}
+                  {selectedWriter.postCode ? ` (${selectedWriter.postCode})` : ''}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">বয়স:</span>

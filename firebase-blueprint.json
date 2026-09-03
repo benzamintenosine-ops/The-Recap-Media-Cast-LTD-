@@ -21,6 +21,16 @@
         "readTimeMinutes": { "type": "number" },
         "comments": { "type": "array" }
       }
+    },
+    "settings": {
+      "title": "Site Settings",
+      "description": "Global website settings, branding, digital ad banners, and configurations",
+      "fields": {
+        "siteName": { "type": "string" },
+        "siteTagline": { "type": "string" },
+        "adBanners": { "type": "array" },
+        "socialWidgets": { "type": "array" }
+      }
     }
   }
 }

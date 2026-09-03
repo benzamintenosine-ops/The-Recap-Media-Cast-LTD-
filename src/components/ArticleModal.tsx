@@ -19,7 +19,7 @@ import {
   Volume2,
   Globe
 } from 'lucide-react';
-import { NewsArticle, Language } from '../types';
+import { NewsArticle, Language, SiteSettings } from '../types';
 import { getTranslation } from '../utils/i18n';
 import { renderFormattedContent } from '../utils/formatContent';
 import { AdPanel } from './AdPanel';
@@ -35,6 +35,7 @@ interface ArticleModalProps {
   onAddComment: (articleId: string, authorName: string, text: string) => void;
   relatedArticles: NewsArticle[];
   onSelectRelated: (article: NewsArticle) => void;
+  siteSettings?: SiteSettings;
 }
 
 export const ArticleModal: React.FC<ArticleModalProps> = ({
@@ -47,7 +48,8 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
   onToggleOffline,
   onAddComment,
   relatedArticles,
-  onSelectRelated
+  onSelectRelated,
+  siteSettings
 }) => {
   if (!article) return null;
 
@@ -294,7 +296,7 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
           )}
 
           {/* In-Article Advertisement Space */}
-          <AdPanel placement="in_article" />
+          <AdPanel placement="in_article" siteSettings={siteSettings} />
 
           {/* Comments Section */}
           <div className="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-6">
