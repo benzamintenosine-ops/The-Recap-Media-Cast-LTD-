@@ -3,13 +3,23 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import nodemailer from "nodemailer";
+import { v2 as cloudinary } from "cloudinary";
 import { INITIAL_NEWS, INITIAL_ADS } from "./src/data/initialNews";
 import { NewsArticle, AdBanner, AgentLog } from "./src/types";
 
 const app = express();
 const PORT = 3000;
 
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+// Configure Cloudinary with user credentials
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || "npswmw1f",
+  api_key: process.env.CLOUDINARY_API_KEY || "112623623549387",
+  api_secret: process.env.CLOUDINARY_API_SECRET || "GEbYCTAwL3LxgG2U-R9SlVxn7PI",
+  secure: true,
+});
 
 // In-Memory store for Email Verification Codes
 interface VerificationEntry {
@@ -66,6 +76,56 @@ let analyticsData = {
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", appName: "THE RECAP MEDIA CAST LTD" });
+});
+
+// GET Cloudinary status check
+app.get("/api/cloudinary-status", async (req, res) => {
+  try {
+    const pingResult = await cloudinary.api.ping();
+    res.json({
+      success: true,
+      status: "connected",
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME || "npswmw1f",
+      ping: pingResult,
+    });
+  } catch (err: any) {
+    console.error("Cloudinary status check error:", err);
+    res.status(500).json({
+      success: false,
+      status: "error",
+      error: err?.message || "Cloudinary connection error",
+    });
+  }
+});
+
+// POST upload image to Cloudinary
+app.post("/api/upload-cloudinary", async (req, res) => {
+  try {
+    const { image, folder = "the_recap_media" } = req.body;
+    if (!image) {
+      return res.status(400).json({ error: "ছবি বা ইমেজ ডেটা প্রদান করুন!" });
+    }
+
+    const uploadResult = await cloudinary.uploader.upload(image, {
+      folder: folder,
+      resource_type: "image",
+    });
+
+    return res.json({
+      success: true,
+      url: uploadResult.secure_url,
+      publicId: uploadResult.public_id,
+      format: uploadResult.format,
+      width: uploadResult.width,
+      height: uploadResult.height,
+    });
+  } catch (error: any) {
+    console.error("Cloudinary image upload error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error?.message || "Cloudinary-এ ছবি আপলোড করতে ব্যর্থ হয়েছে!",
+    });
+  }
 });
 
 // POST send email verification code for Reporter Sign-Up

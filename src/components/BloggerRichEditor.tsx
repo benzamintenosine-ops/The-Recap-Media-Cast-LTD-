@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { uploadImageToCloudinary } from '../services/cloudinaryService';
 import {
   Type,
   Bold,
@@ -209,23 +210,22 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
     setShowImageModal(false);
   };
 
-  // Handle Local File Upload as Data URL (Strictly Images Only)
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle Local File Upload directly to Cloudinary (Strictly Images Only)
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith('image/')) {
         alert('ছবি অপশনে ভিডিও বা অন্য ফাইল দেওয়া যাবে না। শুধুমাত্র ছবি সিলেক্ট করুন।');
         return;
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        if (result) {
-          const imgHtml = `<div style="text-align: center; margin: 12px 0;"><img src="${result}" alt="Uploaded Image" style="max-width: 100%; height: auto; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" /></div><p><br></p>`;
-          executeCommand('insertHTML', imgHtml);
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const cloudinaryUrl = await uploadImageToCloudinary(file, 'article_body');
+        const imgHtml = `<div style="text-align: center; margin: 12px 0;"><img src="${cloudinaryUrl}" alt="Uploaded Image" style="max-width: 100%; height: auto; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" /></div><p><br></p>`;
+        executeCommand('insertHTML', imgHtml);
+      } catch (err: any) {
+        console.error('Cloudinary inline image upload failed:', err);
+        alert(`Cloudinary-এ ছবি আপলোড ব্যর্থ হয়েছে: ${err?.message || 'পুনরায় চেষ্টা করুন'}`);
+      }
     }
     setShowImageModal(false);
   };

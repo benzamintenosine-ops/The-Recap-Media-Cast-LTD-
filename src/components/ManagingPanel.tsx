@@ -127,7 +127,133 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
   const [articleFilter, setArticleFilter] = useState<'all' | 'flagged' | 'safe' | 'unpublished'>('all');
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'writers' | 'articles' | 'notifications' | 'analytics'>('writers');
+  const [activeTab, setActiveTab] = useState<'pending' | 'writers' | 'referral' | 'articles' | 'notifications' | 'analytics' | 'rules'>('pending');
+
+  // Manager Referral Code State
+  const [myRefCodeInput, setMyRefCodeInput] = useState<string>(() => managerProfile?.referralCode || 'MGR-ALPHA');
+  const [myRefCodeMsg, setMyRefCodeMsg] = useState<string>('');
+
+  useEffect(() => {
+    if (managerProfile?.referralCode) {
+      setMyRefCodeInput(managerProfile.referralCode);
+    }
+  }, [managerProfile?.referralCode]);
+
+  const handleSaveMyReferralCode = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!myRefCodeInput.trim() || !managerProfile) return;
+    const newCode = myRefCodeInput.trim().toUpperCase();
+    const updatedProfile: ManagerProfile = {
+      ...managerProfile,
+      referralCode: newCode
+    };
+    setManagerProfile(updatedProfile);
+    localStorage.setItem('recap_manager_profile', JSON.stringify(updatedProfile));
+    const updatedManagers = managers.map(m => m.id === updatedProfile.id ? updatedProfile : m);
+    onUpdateManagers(updatedManagers);
+    setMyRefCodeMsg('আপনার নিজস্ব রেফার কোডটি সফলভাবে সংরক্ষণ করা হয়েছে!');
+    setTimeout(() => setMyRefCodeMsg(''), 4000);
+  };
+
+  const handleApproveReporter = async (writerId: string) => {
+    if (!managerProfile) return;
+
+    const currentManagerRef = managerProfile.referralCode || '';
+    const myReportersCount = writers.filter(w =>
+      (w.managerId === managerProfile.id || w.referralCodeUsed === currentManagerRef) &&
+      (w.status === 'active' || !w.status)
+    ).length;
+
+    const maxLimit = managerProfile.maxReportersLimit || 10;
+    if (myReportersCount >= maxLimit) {
+      alert(`আপনার অধীনে ইতোমধ্যে সর্বোচ্চ ${maxLimit} জন সক্রিয় প্রতিবেদক রয়েছেন! নতুন সদস্য অনুমোদন করতে হলে পূর্বের কোনো প্রতিবেদক বাতিল বা সাময়িক স্থগিত করুন।`);
+      return;
+    }
+
+    const updatedWriters = writers.map(w => {
+      if (w.id === writerId) {
+        return {
+          ...w,
+          status: 'active' as const,
+          managerId: managerProfile.id,
+          managerName: managerProfile.name
+        };
+      }
+      return w;
+    });
+
+    onUpdateWriters(updatedWriters);
+
+    onSendNotification({
+      title: '🎉 অ্যাকাউন্ট অনুমোদিত!',
+      message: `অভিনন্দন! আপনার প্রতিবেদক অ্যাকাউন্টটি আপনার ম্যানেজার (${managerProfile.name}) কর্তৃক সফলভাবে অনুমোদিত হয়েছে।`,
+      sender: `ম্যানেজার ${managerProfile.name}`,
+      type: 'ALERT',
+      recipientWriterId: writerId
+    });
+
+    try {
+      const { updateWriterInFirebase } = await import('../services/firebaseDataService');
+      await updateWriterInFirebase(writerId, {
+        status: 'active',
+        managerId: managerProfile.id,
+        managerName: managerProfile.name
+      });
+    } catch (err) {
+      console.error("Firebase update failed:", err);
+    }
+  };
+
+  const handleRejectReporter = async (writerId: string) => {
+    if (!managerProfile) return;
+
+    const updatedWriters = writers.map(w => {
+      if (w.id === writerId) {
+        return {
+          ...w,
+          status: 'rejected' as const
+        };
+      }
+      return w;
+    });
+
+    onUpdateWriters(updatedWriters);
+
+    try {
+      const { updateWriterInFirebase } = await import('../services/firebaseDataService');
+      await updateWriterInFirebase(writerId, {
+        status: 'rejected'
+      });
+    } catch (err) {
+      console.error("Firebase update failed:", err);
+    }
+  };
+
+  const handleToggleReporterStatus = async (writerId: string, currentStatus?: string) => {
+    if (!managerProfile) return;
+    const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
+
+    const updatedWriters = writers.map(w => {
+      if (w.id === writerId) {
+        return {
+          ...w,
+          status: newStatus as 'active' | 'suspended'
+        };
+      }
+      return w;
+    });
+
+    onUpdateWriters(updatedWriters);
+
+    try {
+      const { updateWriterInFirebase } = await import('../services/firebaseDataService');
+      await updateWriterInFirebase(writerId, {
+        status: newStatus as 'active' | 'suspended'
+      });
+    } catch (err) {
+      console.error("Firebase update failed:", err);
+    }
+  };
 
   // Search & Modals
   const [writerSearchQuery, setWriterSearchQuery] = useState('');
@@ -659,6 +785,23 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
       {/* Navigation Tabs Header */}
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
         <button
+          onClick={() => setActiveTab('pending')}
+          className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 relative ${
+            activeTab === 'pending'
+              ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <AlertCircle className="w-4 h-4 text-amber-900 dark:text-amber-400 shrink-0" />
+          <span>পেন্ডিং আবেদনসমূহ (Pending Requests)</span>
+          {writers.filter(w => w.status === 'pending').length > 0 && (
+            <span className="px-2 py-0.5 bg-red-600 text-white rounded-full text-[10px] font-mono font-bold animate-pulse">
+              {writers.filter(w => w.status === 'pending').length}
+            </span>
+          )}
+        </button>
+
+        <button
           onClick={() => setActiveTab('writers')}
           className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 ${
             activeTab === 'writers'
@@ -667,10 +810,22 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
           }`}
         >
           <Users className="w-4 h-4" />
-          <span>প্রতিবেদক ব্যবস্থাপনা</span>
+          <span>আমার প্রতিবেদকবৃন্দ</span>
           <span className="px-2 py-0.5 bg-white/20 rounded-full text-[10px] font-mono">
-            {writers.length}
+            {writers.filter(w => (w.managerId === managerProfile?.id || w.referralCodeUsed === managerProfile?.referralCode) && w.status !== 'pending').length} / {managerProfile?.maxReportersLimit || 10}
           </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('referral')}
+          className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'referral'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <Lock className="w-4 h-4 text-amber-400" />
+          <span>আমার রেফার কোড</span>
         </button>
 
         <button
@@ -714,6 +869,18 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
           <BarChart3 className="w-4 h-4" />
           <span>রিয়েলটাইম অ্যানালিটিক্স</span>
         </button>
+
+        <button
+          onClick={() => setActiveTab('rules')}
+          className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'rules'
+              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4 text-emerald-300" />
+          <span>প্যানেল নিয়মাবলি</span>
+        </button>
       </div>
 
       {/* Native Banner Ad for Managing Panel */}
@@ -722,6 +889,203 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
         isPostWriting={false}
         panelLabel="ম্যানেজিং প্যানেল"
       />
+
+      {/* TAB 0: PENDING REQUESTS APPROVAL TAB */}
+      {activeTab === 'pending' && (
+        <div className="space-y-6">
+          <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 p-6 rounded-3xl space-y-2">
+            <h2 className="text-xl font-black text-amber-900 dark:text-amber-300 font-serif flex items-center gap-2">
+              <AlertCircle className="w-6 h-6 text-amber-600 shrink-0" />
+              পেন্ডিং প্রতিবেদক আবেদনসমূহ (Pending Reporter Signups)
+            </h2>
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              আপনার ম্যানেজার রেফার কোড ব্যবহার করে সাইনআপ করা নতুন প্রতিবেদকদের তথ্য ও NID পর্যালোচনা করে অনুমোদন বা বাতিল করুন। অনুমোদনের পর প্রতিবেদক সংবাদ পোস্ট তৈরি করতে পারবেন।
+            </p>
+          </div>
+
+          {writers.filter(w => w.status === 'pending').length === 0 ? (
+            <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-3">
+              <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto" />
+              <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
+                কোনো পেন্ডিং আবেদন নেই!
+              </h3>
+              <p className="text-xs text-slate-500">
+                বর্তমানে আপনার কাছে কোনো নতুন প্রতিবেদকের অনুমোদনের আবেদন জমে নেই।
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {writers.filter(w => w.status === 'pending').map((writer) => (
+                <div key={writer.id} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border-2 border-amber-300 dark:border-amber-900/60 shadow-lg space-y-4 relative overflow-hidden">
+                  <div className="flex items-start gap-4">
+                    <img
+                      src={writer.avatarUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80"}
+                      alt={writer.name}
+                      className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-500 shrink-0"
+                    />
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-base font-bold text-slate-900 dark:text-white truncate font-serif">
+                          {writer.name}
+                        </h3>
+                        <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 text-[10px] font-extrabold rounded-full shrink-0">
+                          পেন্ডিং
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 font-mono">
+                        NID: <strong className="text-slate-800 dark:text-slate-200">{writer.nidNumber || 'প্রদান করা হয়নি'}</strong>
+                      </p>
+                      <p className="text-xs text-slate-500 font-mono">
+                        মোবাইল: <strong className="text-slate-800 dark:text-slate-200">{writer.mobile}</strong>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl text-xs space-y-1 border border-slate-200 dark:border-slate-700">
+                    <p className="text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                      <span>ঠিকানা: <strong>{writer.address || 'তথ্য অনুপস্থিত'}</strong></span>
+                    </p>
+                    <p className="text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                      <span>আবেদনের তারিখ: <strong>{writer.createdAt ? new Date(writer.createdAt).toLocaleDateString('bn-BD') : 'আজ'}</strong></span>
+                    </p>
+                    <p className="text-slate-600 dark:text-slate-300 flex items-center gap-1.5 font-mono">
+                      <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span>ব্যবহৃত রেফার কোড: <strong>{writer.referralCodeUsed || 'N/A'}</strong></span>
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-2">
+                    <button
+                      onClick={() => handleApproveReporter(writer.id)}
+                      className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      <span>অনুমোদন করুন (Approve)</span>
+                    </button>
+                    <button
+                      onClick={() => handleRejectReporter(writer.id)}
+                      className="py-2.5 px-4 bg-red-600/10 hover:bg-red-600 text-red-600 hover:text-white border border-red-300 dark:border-red-900 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                      <span>বাতিল (Reject)</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB: MANAGER REFERRAL CODE & LIMIT TAB */}
+      {activeTab === 'referral' && (
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-6 shadow-xl">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 className="text-xl font-black text-slate-900 dark:text-white font-serif flex items-center gap-2">
+                <Lock className="w-6 h-6 text-indigo-600" /> ম্যানেজার নিজস্ব রেফার কোড নিয়ন্ত্রণ
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                আপনার রেফার কোড তৈরি ও এডিট করুন। আপনার রেফার কোড ব্যবহার করেই নতুন প্রতিবেদক আপনার অধীনে যুক্ত হতে পারবে।
+              </p>
+            </div>
+            <div className="p-3 bg-indigo-50 dark:bg-indigo-950/60 rounded-2xl border border-indigo-200 dark:border-indigo-900 text-center">
+              <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400 block">বর্তমান কোটা সীমা</span>
+              <span className="text-lg font-black text-indigo-900 dark:text-indigo-200 font-mono">
+                {writers.filter(w => (w.managerId === managerProfile?.id || w.referralCodeUsed === managerProfile?.referralCode) && w.status === 'active').length} / {managerProfile?.maxReportersLimit || 10} জন
+              </span>
+            </div>
+          </div>
+
+          {myRefCodeMsg && (
+            <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-200 text-xs font-bold rounded-xl border border-emerald-300 dark:border-emerald-800 flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-emerald-500" />
+              <span>{myRefCodeMsg}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSaveMyReferralCode} className="max-w-md space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                আপনার ম্যানেজার রেফার কোড (Manager Referral Code) *
+              </label>
+              <input
+                type="text"
+                required
+                value={myRefCodeInput}
+                onChange={(e) => setMyRefCodeInput(e.target.value)}
+                placeholder="যেমন: MGR-ALPHA"
+                className="w-full px-4 py-3 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold uppercase tracking-wider focus:ring-2 focus:ring-indigo-500"
+              />
+              <p className="text-[11px] text-slate-500 mt-1">
+                নতুন প্রতিবেদক রেজিস্ট্রেশনের সময় এই রেফার কোডটি প্রদান করবে।
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <CheckCircle className="w-4 h-4" />
+              <span>রেফার কোড সংরক্ষণ করুন</span>
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* TAB: MANAGING PANEL RULES & INSTRUCTIONS */}
+      {activeTab === 'rules' && (
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-6 shadow-xl">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white font-serif flex items-center gap-2">
+              <ShieldCheck className="w-7 h-7 text-indigo-600" /> ব্যবস্থাপনা প্যানেলের দায়িত্ব ও নিয়মাবলি
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">
+              The Recap Media-তে ম্যানেজার প্যানেলের পরিচালনার নিয়ম, সীমা ও দায়িত্বসমূহ
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-5 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-2xl border border-indigo-200 dark:border-indigo-900 space-y-2">
+              <h3 className="text-sm font-bold text-indigo-900 dark:text-indigo-300 flex items-center gap-2 font-serif">
+                👥 ১. প্রতিবেদক ধারণ ক্ষমতা (সর্বোচ্চ ১০ জন)
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                একজন ম্যানেজারের অধীনে <strong>সর্বোচ্চ ১০ জন সক্রিয় প্রতিবেদক</strong> পরিচালনা করা যাবে। কোনো নতুন প্রতিবেদককে যুক্ত করতে চাইলে পূর্বের নিষ্ক্রিয় সদস্যকে বাতিল বা সাময়িক স্থগিত করতে হবে।
+              </p>
+            </div>
+
+            <div className="p-5 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-2xl border border-indigo-200 dark:border-indigo-900 space-y-2">
+              <h3 className="text-sm font-bold text-indigo-900 dark:text-indigo-300 flex items-center gap-2 font-serif">
+                🔑 ২. ম্যানেজার রেফার কোড নিয়ন্ত্রণ
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                ম্যানেজার তার প্যানেলের <strong>"আমার রেফার কোড"</strong> ট্যাব থেকে নিজস্ব রেফার কোড তৈরি বা এডিট করবেন। এই রেফার কোড ব্যবহার ব্যতীত কোনো নতুন প্রতিবেদক অ্যাকাউন্টে রেজিস্টার করতে পারবেন না।
+              </p>
+            </div>
+
+            <div className="p-5 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-2xl border border-indigo-200 dark:border-indigo-900 space-y-2">
+              <h3 className="text-sm font-bold text-indigo-900 dark:text-indigo-300 flex items-center gap-2 font-serif">
+                📋 ৩. পেন্ডিং আবেদনপত্র যাচাইকরণ
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                নতুন প্রতিবেদকের NID কার্ড নম্বর, মোবাইল নম্বর ও ঠিকানা সতর্কতার সাথে পর্যবেক্ষণ করে <strong>অনুমোদন (Approve)</strong> বা <strong>বাতিল (Reject)</strong> করতে হবে।
+              </p>
+            </div>
+
+            <div className="p-5 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-2xl border border-indigo-200 dark:border-indigo-900 space-y-2">
+              <h3 className="text-sm font-bold text-indigo-900 dark:text-indigo-300 flex items-center gap-2 font-serif">
+                🛡️ ৪. ভিউ জালিয়াতি ও কন্টেন্ট মডারেশন
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                ম্যানেজার নিয়মিত তার অধীনে থাকা প্রতিবেদকদের প্রকাশিত পোস্ট এবং ভিউ পরিসংখ্যান পর্যবেক্ষণ করবেন। কোনো ভুয়া সংবাদ বা কৃত্রিম ভিউ সৃষ্টির চেষ্টা হলে সংশ্লিষ্ট প্রতিবেদককে স্থগিত করা ম্যানেজারের দায়িত্ব।
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TAB 1: REPORTERS CONTROL */}
       {activeTab === 'writers' && (

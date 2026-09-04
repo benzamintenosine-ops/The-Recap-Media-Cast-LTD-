@@ -106,8 +106,14 @@ export interface WriterProfile {
   age: number;
   avatarUrl?: string;
   secretCodeUsed: string;
-  createdAt: string;
+  managerId?: string;
+  managerName?: string;
+  status?: 'pending' | 'approved' | 'active' | 'banned' | 'restricted' | 'rejected' | 'suspended';
   isBanned?: boolean;
+  isRestricted?: boolean;
+  postLimitPerDay?: number;
+  rejectionReason?: string;
+  createdAt: string;
 }
 
 export interface AdminProfile {
@@ -139,6 +145,8 @@ export interface ManagerProfile {
   age?: number;
   bio?: string;
   secretCodeUsed: string;
+  referralCode?: string; // Manager's unique referral code for their reporters
+  maxReportersLimit?: number; // Default 10
   createdAt: string;
 }
 

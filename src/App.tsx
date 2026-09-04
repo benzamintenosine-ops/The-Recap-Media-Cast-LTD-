@@ -699,6 +699,7 @@ export default function App() {
             onRequestWithdrawal={handleRequestWithdrawal}
             onRegisterWriter={handleRegisterWriter}
             writers={writers}
+            managers={managers}
             siteSettings={siteSettings}
           />
         )}

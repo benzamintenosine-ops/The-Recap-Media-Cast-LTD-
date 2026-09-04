@@ -42,8 +42,14 @@ export function subscribeToWriters(onUpdate: (writers: WriterProfile[]) => void)
           age: typeof data.age === 'number' ? data.age : 25,
           avatarUrl: data.avatarUrl || '',
           secretCodeUsed: data.secretCodeUsed || '',
+          managerId: data.managerId || '',
+          managerName: data.managerName || '',
+          status: data.status || 'approved',
           createdAt: data.createdAt || new Date().toISOString(),
-          isBanned: !!data.isBanned
+          isBanned: !!data.isBanned,
+          isRestricted: !!data.isRestricted,
+          postLimitPerDay: typeof data.postLimitPerDay === 'number' ? data.postLimitPerDay : undefined,
+          rejectionReason: data.rejectionReason || ''
         };
       });
 
@@ -108,6 +114,8 @@ export function subscribeToManagers(onUpdate: (managers: ManagerProfile[]) => vo
           mobile: data.mobile || '',
           avatarUrl: data.avatarUrl || '',
           secretCodeUsed: data.secretCodeUsed || '',
+          referralCode: data.referralCode || '',
+          maxReportersLimit: typeof data.maxReportersLimit === 'number' ? data.maxReportersLimit : 10,
           createdAt: data.createdAt || new Date().toISOString(),
           address: data.address || '',
           designation: data.designation || '',

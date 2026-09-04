@@ -50,7 +50,7 @@ import {
   Upload,
   Mail
 } from 'lucide-react';
-import { NewsArticle, Category, Language, AnalyticsOverview, WriterProfile, SystemNotification, WithdrawalRequest, ArticleAuthenticityResult, SiteSettings } from '../types';
+import { NewsArticle, Category, Language, AnalyticsOverview, WriterProfile, SystemNotification, WithdrawalRequest, ArticleAuthenticityResult, SiteSettings, ManagerProfile } from '../types';
 import { getTranslation } from '../utils/i18n';
 import { renderFormattedContent } from '../utils/formatContent';
 import { RichContentEditor } from './BloggerRichEditor';
@@ -58,6 +58,7 @@ import { BotProtectionModal } from './BotProtection';
 import { BANGLADESH_GEO_DATA } from '../data/bangladeshGeoData';
 import { NativeBannerAd } from './DynamicAdServices';
 import { formatReporterName } from '../utils/authorHelper';
+import { uploadImageToCloudinary } from '../services/cloudinaryService';
 
 interface WritersPortalProps {
   articles: NewsArticle[];
@@ -72,6 +73,7 @@ interface WritersPortalProps {
   onRequestWithdrawal?: (req: Omit<WithdrawalRequest, 'id' | 'createdAt' | 'status'>) => void;
   onRegisterWriter?: (writer: WriterProfile) => void;
   writers?: WriterProfile[];
+  managers?: ManagerProfile[];
   siteSettings?: SiteSettings;
 }
 
@@ -100,6 +102,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   onRequestWithdrawal,
   onRegisterWriter,
   writers = [],
+  managers = [],
   siteSettings
 }) => {
   // Auth state for Writer
@@ -387,10 +390,58 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         setAuthError('আপনার পূর্ণ নাম প্রদান করুন!');
         return;
       }
-      if (!isEmailVerified) {
-        await handleSendVerificationCode();
+      if (!secretCodeInput.trim()) {
+        setAuthError('ম্যানেজারের গোপন রেফার কোড দেওয়া বাধ্যতামূলক!');
         return;
       }
+
+      const enteredCode = secretCodeInput.trim().toUpperCase();
+      const matchedManager = managers?.find(m => 
+        (m.referralCode && m.referralCode.trim().toUpperCase() === enteredCode) ||
+        (m.secretCodeUsed && m.secretCodeUsed.trim().toUpperCase() === enteredCode) ||
+        enteredCode === 'MANAGING2026' ||
+        enteredCode === (writerSecretCode || 'RECAP2026').toUpperCase()
+      );
+
+      if (!matchedManager && enteredCode !== 'MANAGING2026' && enteredCode !== (writerSecretCode || 'RECAP2026').toUpperCase()) {
+        setAuthError('ভুল ম্যানেজার রেফার কোড! আপনার সংশ্লিষ্ট ম্যানেজারের কাছ থেকে সঠিক রেফার কোড সংগ্রহ করুন।');
+        return;
+      }
+
+      // Enforce 10 reporter limit per manager
+      if (matchedManager) {
+        const managerApprovedCount = (writers || []).filter(w => 
+          (w.managerId === matchedManager.id || (matchedManager.referralCode && w.secretCodeUsed?.toUpperCase() === matchedManager.referralCode.toUpperCase())) &&
+          w.status !== 'pending' && !w.isBanned
+        ).length;
+
+        if (managerApprovedCount >= (matchedManager.maxReportersLimit || 10)) {
+          setAuthError(`ব্যবস্থাপক "${matchedManager.name}"-এর অধীনে সর্বোচ্চ ১০ জন প্রতিবেদকের কোটা ইতিমধ্যে পূর্ণ হয়ে গেছে! অন্য কোনো ম্যানেজারের রেফার কোড ব্যবহার করুন।`);
+          return;
+        }
+      }
+
+      const cleanEmail = emailInput.trim().toLowerCase();
+      const initialProfile: WriterProfile = {
+        id: `writer-${Date.now()}`,
+        name: setupName.trim(),
+        email: cleanEmail,
+        address: '',
+        mobile: '',
+        age: 25,
+        status: 'pending',
+        managerId: matchedManager?.id || '',
+        managerName: matchedManager?.name || 'প্রধান ব্যবস্থাপনা প্যানেল',
+        secretCodeUsed: enteredCode,
+        createdAt: new Date().toISOString()
+      };
+
+      setWriterProfile(initialProfile);
+      localStorage.setItem('recap_writer_profile', JSON.stringify(initialProfile));
+      setIsEditingProfile(true);
+      setIsAuthenticated(true);
+      localStorage.setItem('recap_writer_logged', 'true');
+      return;
     }
 
     if (authMode === 'login') {
@@ -404,7 +455,6 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         setWriterProfile(existing);
         localStorage.setItem('recap_writer_profile', JSON.stringify(existing));
         setSetupName(existing.name || '');
-        setIsEmailVerified(true);
         setIsAuthenticated(true);
         localStorage.setItem('recap_writer_logged', 'true');
         return;
@@ -416,6 +466,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           address: '',
           mobile: '',
           age: 0,
+          status: 'pending',
           createdAt: new Date().toISOString(),
           secretCodeUsed: 'DIRECT_LOGIN',
         };
@@ -424,18 +475,16 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       }
     }
 
-    // Check if writer profile is banned by admin
     if (writerProfile && writerProfile.isBanned) {
       setAuthError('আপনার অ্যাকাউন্টটি অ্যাডমিন প্যানেল থেকে সাময়িকভাবে বন্ধ (Banned) করা হয়েছে। যোগাযোগের জন্য সাপোর্ট টিমকে জানান।');
       return;
     }
 
-    // Success Auth
     setIsAuthenticated(true);
     localStorage.setItem('recap_writer_logged', 'true');
   };
 
-  // Profile Picture Upload and AI Human Verification
+  // Profile Picture Upload and AI Human Verification with Cloudinary Cloud Storage
   const handleProfilePictureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setProfileError('');
     const file = e.target.files?.[0];
@@ -455,8 +504,15 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         });
         const data = await res.json();
         if (data.isHuman) {
-          setSetupAvatarUrl(base64);
-          setPhotoVerified(true);
+          // Upload verified photo to Cloudinary
+          try {
+            const cloudinaryUrl = await uploadImageToCloudinary(file, 'reporter_avatars');
+            setSetupAvatarUrl(cloudinaryUrl);
+            setPhotoVerified(true);
+          } catch (cloudErr: any) {
+            setSetupAvatarUrl(base64);
+            setPhotoVerified(true);
+          }
         } else {
           setPhotoVerified(false);
           setSetupAvatarUrl('');
@@ -464,7 +520,12 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         }
       } catch (err) {
         // Fallback
-        setSetupAvatarUrl(base64);
+        try {
+          const cloudinaryUrl = await uploadImageToCloudinary(file, 'reporter_avatars');
+          setSetupAvatarUrl(cloudinaryUrl);
+        } catch {
+          setSetupAvatarUrl(base64);
+        }
         setPhotoVerified(true);
       } finally {
         setIsVerifyingPhoto(false);
@@ -968,8 +1029,8 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     setPostTags(postTags.filter(t => t !== tagToRemove));
   };
 
-  // SCREEN 1: Authentication Screen (Sign In / Sign Up with Email Verification)
-  if (!isAuthenticated && !isEmailVerified) {
+  // SCREEN 1: Authentication Screen (Sign In / Sign Up with Manager Referral Code)
+  if (!isAuthenticated) {
     return (
       <div className="max-w-md mx-auto my-12 p-8 bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 space-y-6">
         <div className="text-center space-y-2">
@@ -981,7 +1042,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           </h2>
           <p className="text-xs text-slate-500">
             {authMode === 'signup' 
-              ? 'নতুন প্রতিবেদক হিসেবে রেজিস্ট্রেশনের জন্য জিমেইল ভেরিফিকেশন সম্পন্ন করুন'
+              ? 'নতুন প্রতিবেদক হিসেবে অ্যাকাউন্টের আবেদন করতে তথ্য ও আপনার ম্যানেজারের রেফার কোড প্রদান করুন'
               : 'প্রতিবেদক প্যানেলে প্রবেশের জন্য আপনার অ্যাকাউন্ট সাইন ইন করুন'}
           </p>
         </div>
@@ -1056,126 +1117,33 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
             />
           </div>
 
+          {authMode === 'signup' && (
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                ম্যানেজারের গোপন রেফার কোড (Manager Referral Code) *
+              </label>
+              <input
+                type="text"
+                required
+                value={secretCodeInput}
+                onChange={(e) => setSecretCodeInput(e.target.value)}
+                placeholder="ম্যানেজারের নিকট থেকে সংগৃহীত গোপন রেফার কোড"
+                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-950/30 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 font-mono font-bold tracking-wider uppercase"
+              />
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                নির্দেশনা: আপনার অ্যাকাউন্টটি যে ম্যানেজারের অধীনে পরিচালনা করা হবে, তার রেফার কোড এখানে দিন।
+              </p>
+            </div>
+          )}
+
           <button
             type="submit"
-            disabled={isSendingCode}
-            className="w-full py-3.5 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white font-bold text-xs rounded-xl shadow-lg shadow-red-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-red-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
-            {isSendingCode ? (
-              <span className="flex items-center gap-2">
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                কোড পাঠানো হচ্ছে...
-              </span>
-            ) : (
-              <>
-                <ShieldCheck className="w-4 h-4" />
-                <span>{authMode === 'signup' ? 'ভেরিফিকেশন কোড পাঠান ও সাইন-আপ' : 'প্রতিবেদক প্যানেলে সাইন ইন করুন'}</span>
-              </>
-            )}
+            <ShieldCheck className="w-4 h-4" />
+            <span>{authMode === 'signup' ? 'রেজিস্ট্রেশন করুন ও প্রোফাইল সাজান' : 'প্রতিবেদক প্যানেলে সাইন ইন করুন'}</span>
           </button>
         </form>
-
-        {/* 6-Digit Email Verification Code Modal */}
-        {showVerifyModal && (
-          <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-5">
-              <div className="text-center space-y-1">
-                <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto mb-2">
-                  <Mail className="w-6 h-6" />
-                </div>
-                <h3 className="text-lg font-black text-red-600 dark:text-red-400 font-serif">
-                  The Recap Media Cast Ltd
-                </h3>
-                <p className="text-xs text-slate-500">বস্তুনিষ্ঠ ও নিরপেক্ষ সংবাদ মাধ্যম</p>
-              </div>
-
-              <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-center space-y-2">
-                <p className="text-sm font-bold text-slate-900 dark:text-white">
-                  Hey! Dear... <span className="text-red-600 dark:text-red-400">{setupName || 'প্রতিবেদক'}</span>
-                </p>
-                <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                  Your Verification Code for Sign up
-                </p>
-                <p className="text-[11px] text-slate-500">
-                  {emailInput} ঠিকানায় প্রেরিত ৬ ডিজিটের কোডটি নিচে লিখুন:
-                </p>
-
-                <form onSubmit={handleVerifyCodeSubmit} className="pt-2 space-y-4">
-                  <div>
-                    <input
-                      type="text"
-                      maxLength={6}
-                      autoFocus
-                      required
-                      value={verificationCodeInput}
-                      onChange={(e) => setVerificationCodeInput(e.target.value.replace(/\D/g, ''))}
-                      placeholder=". . . . . ."
-                      className="w-full py-3 px-4 text-center font-mono text-2xl font-black tracking-[0.5em] rounded-2xl border-2 border-red-500 bg-white dark:bg-slate-900 text-red-600 dark:text-red-400 focus:ring-4 focus:ring-red-500/20 focus:outline-none"
-                    />
-                  </div>
-
-                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                    at "The Recap Media Cast Ltd"
-                  </p>
-                  <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                    Enter your verification code and go ahead
-                  </p>
-
-                  {verificationError && (
-                    <div className="p-2.5 bg-red-50 dark:bg-red-950/70 text-red-700 dark:text-red-300 text-xs font-bold rounded-xl border border-red-200 dark:border-red-900 text-left">
-                      ⚠️ {verificationError}
-                    </div>
-                  )}
-
-                  {verificationSuccess && (
-                    <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 text-xs font-bold rounded-xl border border-emerald-200 dark:border-emerald-900 text-left">
-                      ✓ {verificationSuccess}
-                    </div>
-                  )}
-
-                  {/* SPAM FOLDER NOTICE */}
-                  <div className="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-900 text-[11px] text-amber-800 dark:text-amber-300 font-semibold text-left">
-                    ⚠️ <strong>জরুরি নির্দেশ:</strong> ইনবক্সে মেসেজ না পেলে অনুগ্রহ করে আপনার জিমেইল-এর <strong>স্প্যাম ফোল্ডার (Spam)</strong> চেক করুন।
-                  </div>
-
-                  <div className="flex gap-2 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowVerifyModal(false)}
-                      className="w-1/3 py-2.5 text-xs font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl"
-                    >
-                      বাতিল
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isVerifyingCode || verificationCodeInput.length !== 6}
-                      className="w-2/3 py-2.5 text-xs font-bold bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      {isVerifyingCode ? (
-                        <span>যাচাই হচ্ছে...</span>
-                      ) : (
-                        <span>কোড যাচাই ও প্রবেশ করুন</span>
-                      )}
-                    </button>
-                  </div>
-                </form>
-
-                <div className="pt-2 border-t border-slate-200 dark:border-slate-700/60">
-                  <button
-                    type="button"
-                    disabled={resendCooldown > 0 || isSendingCode}
-                    onClick={handleSendVerificationCode}
-                    className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50 cursor-pointer"
-                  >
-                    {resendCooldown > 0
-                      ? `পুনরায় কোড পাঠান (${resendCooldown}s অপেক্ষা করুন)`
-                      : 'কোড পাননি? পুনরায় কোড পাঠান'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
@@ -1601,9 +1569,15 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
             <span className="px-3 py-1 bg-red-600 text-white text-[10px] font-bold rounded-md uppercase tracking-widest shadow">
               REPORTERS PANEL / প্রতিবেদক প্যানেল
             </span>
-            <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1 font-mono">
-              <CheckCircle className="w-3.5 h-3.5" /> অনুমোদিত প্রতিবেদক
-            </span>
+            {writerProfile.status === 'pending' ? (
+              <span className="text-xs text-amber-400 font-semibold flex items-center gap-1 font-mono bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/30">
+                <AlertTriangle className="w-3.5 h-3.5" /> আবেদন পেন্ডিং (Pending Approval)
+              </span>
+            ) : (
+              <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1 font-mono">
+                <CheckCircle className="w-3.5 h-3.5" /> অনুমোদিত প্রতিবেদক
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-4">
@@ -1620,6 +1594,11 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                 <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-red-500" /> {writerProfile.address}</span>
                 <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-amber-400" /> {writerProfile.mobile}</span>
                 <span className="bg-white/10 px-2 py-0.5 rounded text-[10px] font-mono">বয়স: {writerProfile.age} বছর</span>
+                {writerProfile.managerName && (
+                  <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded text-[10px] font-bold border border-amber-500/30">
+                    ম্যানেজার: {writerProfile.managerName}
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -1641,6 +1620,23 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Pending Account Notice Banner */}
+      {writerProfile.status === 'pending' && (
+        <div className="p-4 sm:p-5 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/5 border-2 border-amber-500/40 rounded-3xl flex items-start gap-4 text-amber-200 text-xs shadow-lg">
+          <div className="w-10 h-10 rounded-2xl bg-amber-500/20 flex items-center justify-center shrink-0 border border-amber-500/40">
+            <AlertTriangle className="w-5 h-5 text-amber-400" />
+          </div>
+          <div className="space-y-1.5 flex-1">
+            <h3 className="font-black text-amber-300 text-sm flex items-center gap-2 font-serif">
+              ⏳ আপনার অ্যাকাউন্ট অনুমোদনের অপেক্ষায় রয়েছে (Pending Manager Approval)
+            </h3>
+            <p className="text-amber-100/90 leading-relaxed">
+              আপনার আবেদনপত্রটি আপনার দায়িত্বপ্রাপ্ত ম্যানেজার <strong>"{writerProfile.managerName || 'ব্যবস্থাপনা কর্তৃপক্ষ'}"</strong>-এর নিকট প্রেরিত হয়েছে। ম্যানেজার কর্তৃক আপনার অ্যাকাউন্টটি অনুমোদিত (Approve) না হওয়া পর্যন্ত নতুন পোস্ট লেখা, পোস্ট নিয়ন্ত্রণ ও টাকা উত্তোলন বন্ধ থাকবে। এই সময় আপনি কেবল আপনার <strong>প্রোফাইল তথ্য এডিট</strong> করতে ও <strong>নীতিমালা ও নিয়মাবলি</strong> পাঠ করতে পারবেন।
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Navigation Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none border-b border-slate-200 dark:border-white/10">
@@ -1686,6 +1682,17 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           }`}
         >
           <DollarSign className="w-4 h-4 text-emerald-400" /> টাকা উত্তোলন (Withdraw)
+        </button>
+
+        <button
+          onClick={() => setActiveTab('rules')}
+          className={`px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2 transition-all ${
+            activeTab === 'rules'
+              ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
+              : 'text-gray-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4 text-emerald-400" /> কাজ ও নিয়মাবলি (Rules)
         </button>
 
         <button
@@ -1739,8 +1746,101 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         panelLabel="লেখক প্যানেল"
       />
 
+      {/* PENDING STATUS RESTRICTION COVER FOR CREATING / MANAGING POSTS */}
+      {writerProfile.status === 'pending' && (activeTab === 'create' || activeTab === 'manage' || activeTab === 'withdraw' || activeTab === 'analytics') && (
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border-2 border-amber-300 dark:border-amber-900/60 p-8 text-center space-y-4 shadow-xl my-6">
+          <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto text-amber-500 border border-amber-500/30">
+            <Lock className="w-8 h-8" />
+          </div>
+          <div className="space-y-2 max-w-lg mx-auto">
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white font-serif">
+              ⏳ পোস্ট তৈরি ও ফিচারসমূহ স্থগিত রয়েছে
+            </h3>
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              আপনার অ্যাকাউন্টটি বর্তমানে পেন্ডিং (Pending Approval) অবস্থায় রয়েছে। আপনার ম্যানেজার <strong>"{writerProfile.managerName || 'ব্যবস্থাপনা প্যানেল'}"</strong> আপনার আবেদন অনুমোদন করলে এই ফিচারটি স্বয়ংক্রিয়ভাবে খুলে যাবে।
+            </p>
+          </div>
+          <div className="flex justify-center gap-3 pt-2">
+            <button
+              onClick={() => setActiveTab('rules')}
+              className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
+            >
+              কাজ ও নিয়মাবলি পড়ুন
+            </button>
+            <button
+              onClick={() => setIsEditingProfile(true)}
+              className="px-4 py-2.5 bg-red-600 text-white text-xs font-bold rounded-xl hover:bg-red-700 shadow-md cursor-pointer"
+            >
+              প্রোফাইল তথ্য পর্যালোচনা করুন
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* REPORTER RULES & INSTRUCTIONS TAB */}
+      {activeTab === 'rules' && (
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-6 shadow-xl">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white font-serif flex items-center gap-2">
+              <ShieldCheck className="w-7 h-7 text-red-600" /> প্রতিবেদকের নিজস্ব কাজ ও নিয়মাবলি
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">
+              The Recap Media-তে দায়িত্বশীল ও বস্তুনিষ্ঠ সংবাদ প্রকাশের নির্দেশনা ও ভিউ কাউন্ট নীতিমালা
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+              <h3 className="text-sm font-bold text-red-600 dark:text-red-400 flex items-center gap-2">
+                📌 ১. সংবাদের গুণগত মান ও প্রকাশ নীতি
+              </h3>
+              <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-2 list-disc list-inside leading-relaxed">
+                <li>সংবাদটি অবশ্যই সর্বনিম্ন <strong>৫০ শব্দের</strong> হতে হবে।</li>
+                <li>সংবাদের শিরোনাম (Title) আকর্ষণীয় কিন্তু বিভ্রান্তিকর হওয়া যাবে না।</li>
+                <li>কপিরাইটযুক্ত কোনো ভুয়া সংবাদ বা মিথ্যা তথ্য পরিবেশন সম্পূর্ণ নিষিদ্ধ।</li>
+                <li>প্রতিবেদক তার নিজ এলাকার সর্বশেষ সত্য ও বস্তুনিষ্ঠ সংবাদ পরিবেশন করবেন।</li>
+              </ul>
+            </div>
+
+            <div className="p-5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+              <h3 className="text-sm font-bold text-amber-600 dark:text-amber-400 flex items-center gap-2">
+                🛡️ ২. অ্যান্টি-ফ্রড ও রিয়েলটাইম ভিউ কাউন্ট
+              </h3>
+              <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-2 list-disc list-inside leading-relaxed">
+                <li>ভিউ গণনা হতে পাঠককে কমপক্ষে <strong>১৫ সেকেন্ড এক্টিভ স্ক্রিনে</strong> অবস্থান করতে হবে।</li>
+                <li>সংবাদের অন্তত <strong>৩০% স্ক্রোল</strong> সম্পন্ন করতে হবে।</li>
+                <li>একই আইপি/ডিভাইস থেকে ঘন ঘন ভিউ রিফ্রেশ বা বট ভিউ প্রতিরোধ ব্যবস্থা সক্রিয়।</li>
+                <li>পেইড রিয়েল ভিউ কেবল সঠিক পরিদর্শনের মাধ্যমেই আর্নিংয়ে যোগ হবে।</li>
+              </ul>
+            </div>
+
+            <div className="p-5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+              <h3 className="text-sm font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+                💼 ৩. ম্যানেজার আনুকূল্য ও জবাবদিহিতা
+              </h3>
+              <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-2 list-disc list-inside leading-relaxed">
+                <li>প্রতিটি প্রতিবেদক একজন নির্দিষ্ট ম্যানেজারের রেফার কোডের অধীনে যুক্ত থাকবেন।</li>
+                <li>ম্যানেজারের সিদ্ধান্ত অনুযায়ী অ্যাকাউন্টের অ্যাক্টিভিটি পর্যবেক্ষণ করা হবে।</li>
+                <li>ভুল বা ভুয়া তথ্য প্রদান করলে ম্যানেজার আপনার অ্যাকাউন্টে লিমিট আরোপ করতে পারবেন।</li>
+              </ul>
+            </div>
+
+            <div className="p-5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+              <h3 className="text-sm font-bold text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                💰 ৪. আয় ও বিকাশ/নগদে উইথড্রয়াল
+              </h3>
+              <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-2 list-disc list-inside leading-relaxed">
+                <li>আপনার প্রকাশকৃত সংবাদগুলোর রিয়েলটাইম অর্জিত আয় উইথড্র ট্যাবে জমা থাকবে।</li>
+                <li>বিকাশ, নগদ, রকেট, উপায় বা TAP অ্যাকাউন্ট নম্বর দিয়ে রিকোয়েস্ট পাঠাতে পারবেন।</li>
+                <li>অ্যাডমিন প্যানেল রিকোয়েস্ট যাচাই করে ট্রানজেকশন সম্পন্ন করবে।</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* TAB 1: BLOGGER-STYLE POST CREATOR (Multi-Step Window) */}
-      {activeTab === 'create' && (
+      {activeTab === 'create' && writerProfile.status !== 'pending' && (
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-lg overflow-hidden space-y-0">
           {/* Blogger Header Header Bar */}
           <div className="p-5 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-4 border-b border-slate-800">
