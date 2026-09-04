@@ -66,6 +66,8 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   officeAddress: 'রেকাপ মিডিয়া কাস্ট লিমিটেড টাওয়ার, গুলশান-২, ঢাকা-১২১২।',
   writerSecretCode: 'RECAP2026',
   adminSecretCode: 'ADMIN2026',
+  managingSecretCode: 'MANAGING2026',
+  telegramReferralUrl: 'https://t.me/TheRecapMediaCast',
   adBanners: [
     {
       id: 'ad-1',
@@ -99,6 +101,13 @@ export interface InitialCloudState {
   notifications: SystemNotification[];
 }
 
+function withCloudTimeout<T>(promise: Promise<T>, timeoutMs = 3500): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Cloud fetch timeout')), timeoutMs))
+  ]);
+}
+
 /**
  * Robust initial state fetch from Firebase Firestore.
  * Executed when component mounts to guarantee state is correctly restored
@@ -112,7 +121,7 @@ export async function fetchInitialStateFromFirestore(): Promise<InitialCloudStat
   try {
     const articlesCol = collection(db, 'articles');
     const q = query(articlesCol, orderBy('publishedAt', 'desc'));
-    const snap = await getDocs(q).catch(() => getDocs(articlesCol));
+    const snap = await withCloudTimeout(getDocs(q).catch(() => getDocs(articlesCol)));
 
     if (!snap.empty) {
       resolvedArticles = snap.docs.map((docSnap) => {
@@ -178,7 +187,7 @@ export async function fetchInitialStateFromFirestore(): Promise<InitialCloudStat
   let resolvedSettings: SiteSettings = DEFAULT_SITE_SETTINGS;
   try {
     const settingsDocRef = doc(db, 'settings', 'site_settings');
-    const settingsSnap = await getDoc(settingsDocRef);
+    const settingsSnap = await withCloudTimeout(getDoc(settingsDocRef));
     if (settingsSnap.exists()) {
       const data = settingsSnap.data();
       resolvedSettings = {
@@ -220,7 +229,7 @@ export async function fetchInitialStateFromFirestore(): Promise<InitialCloudStat
   let resolvedCategories: CategoryConfig[] = DEFAULT_CATEGORIES;
   try {
     const catDocRef = doc(db, 'settings', 'categories_list');
-    const catSnap = await getDoc(catDocRef);
+    const catSnap = await withCloudTimeout(getDoc(catDocRef));
     if (catSnap.exists() && Array.isArray(catSnap.data()?.items) && catSnap.data().items.length > 0) {
       resolvedCategories = catSnap.data().items;
     } else {
@@ -237,7 +246,7 @@ export async function fetchInitialStateFromFirestore(): Promise<InitialCloudStat
   // 4. WRITERS
   let resolvedWriters: WriterProfile[] = [];
   try {
-    const writersSnap = await getDocs(collection(db, 'writers'));
+    const writersSnap = await withCloudTimeout(getDocs(collection(db, 'writers')));
     if (!writersSnap.empty) {
       resolvedWriters = writersSnap.docs.map((d) => ({
         id: d.id,
@@ -272,7 +281,7 @@ export async function fetchInitialStateFromFirestore(): Promise<InitialCloudStat
   // 5. MANAGERS
   let resolvedManagers: ManagerProfile[] = [];
   try {
-    const managersSnap = await getDocs(collection(db, 'managers'));
+    const managersSnap = await withCloudTimeout(getDocs(collection(db, 'managers')));
     if (!managersSnap.empty) {
       resolvedManagers = managersSnap.docs.map((d) => ({
         id: d.id,
@@ -308,7 +317,7 @@ export async function fetchInitialStateFromFirestore(): Promise<InitialCloudStat
   try {
     const wdCol = collection(db, 'withdrawals');
     const wdQuery = query(wdCol, orderBy('createdAt', 'desc'));
-    const wdSnap = await getDocs(wdQuery).catch(() => getDocs(wdCol));
+    const wdSnap = await withCloudTimeout(getDocs(wdQuery).catch(() => getDocs(wdCol)));
     if (!wdSnap.empty) {
       resolvedWithdrawals = wdSnap.docs.map((d) => ({
         id: d.id,
@@ -331,7 +340,7 @@ export async function fetchInitialStateFromFirestore(): Promise<InitialCloudStat
   try {
     const notifCol = collection(db, 'notifications');
     const notifQuery = query(notifCol, orderBy('createdAt', 'desc'));
-    const notifSnap = await getDocs(notifQuery).catch(() => getDocs(notifCol));
+    const notifSnap = await withCloudTimeout(getDocs(notifQuery).catch(() => getDocs(notifCol)));
     if (!notifSnap.empty) {
       resolvedNotifications = notifSnap.docs.map((d) => ({
         id: d.id,

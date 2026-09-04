@@ -156,6 +156,7 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
   const [editWriterSecret, setEditWriterSecret] = useState(siteSettings.writerSecretCode || 'RECAP2026');
   const [editManagingSecret, setEditManagingSecret] = useState(siteSettings.managingSecretCode || 'MANAGING2026');
   const [editAdminSecret, setEditAdminSecret] = useState(siteSettings.adminSecretCode || 'ADMIN2026');
+  const [editTelegramReferralUrl, setEditTelegramReferralUrl] = useState(siteSettings.telegramReferralUrl || 'https://t.me/TheRecapMediaCast');
 
   // Category Management State
   const [newCatName, setNewCatName] = useState('');
@@ -273,7 +274,9 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
     setEditContactEmail(siteSettings.contactEmail || 'news@therecapmedia.com');
     setEditContactPhone(siteSettings.contactPhone || '+880 9612-888999');
     setEditWriterSecret(siteSettings.writerSecretCode || 'RECAP2026');
+    setEditManagingSecret(siteSettings.managingSecretCode || 'MANAGING2026');
     setEditAdminSecret(siteSettings.adminSecretCode || 'ADMIN2026');
+    setEditTelegramReferralUrl(siteSettings.telegramReferralUrl || 'https://t.me/TheRecapMediaCast');
     setAboutHtml(siteSettings.aboutUsHtml || '');
     setPrivacyHtml(siteSettings.privacyPolicyHtml || '');
     setContactHtml(siteSettings.contactUsHtml || '');
@@ -484,6 +487,7 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
       writerSecretCode: editWriterSecret,
       managingSecretCode: editManagingSecret,
       adminSecretCode: editAdminSecret,
+      telegramReferralUrl: editTelegramReferralUrl,
       aboutUsHtml: aboutHtml,
       privacyPolicyHtml: privacyHtml,
       contactUsHtml: contactHtml
@@ -1807,11 +1811,25 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                 </div>
               )}
 
-              {/* SUBTAB 2: SECRET REFERRAL CODES */}
+              {/* SUBTAB 2: SECRET REFERRAL CODES & TELEGRAM WIDGET */}
               {settingsSubTab === 'codes' && (
                 <div className="space-y-4 max-w-xl">
                   <div className="p-4 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-900 text-xs text-amber-800 dark:text-amber-300">
-                    🔐 <strong>গোপন কোড নিরাপত্তা ও নিয়ন্ত্রণ:</strong> সাইনআপ করার সময় সাধারণ পাঠকরা প্রবেশ করতে পারবে না। এডমিন এখান থেকে ব্যবস্থাপনা (Managing Panel) ও অ্যাডমিন প্যানেলের রেফার কোড পরিবর্তন এবং নিয়ন্ত্রণ করতে পারবে।
+                    🔐 <strong>গোপন কোড ও টেলিগ্রাম ইনবক্স নিয়ন্ত্রণ:</strong> সাইনআপ করার সময় সাধারণ পাঠকরা প্রবেশ করতে পারবে না। এডমিন এখান থেকে প্রতিবেদক, ম্যানেজিং প্যানেল ও অ্যাডমিন প্যানেলের রেফার কোড এবং টেলিগ্রাম ইনবক্স লিংক পরিবর্তন ও নিয়ন্ত্রণ করতে পারবেন।
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1 flex items-center gap-1.5">
+                      <Lock className="w-4 h-4 text-emerald-500" /> প্রতিবেদক গোপন রেফার কোড (Reporter Secret Referral Code) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editWriterSecret}
+                      onChange={(e) => setEditWriterSecret(e.target.value)}
+                      placeholder="RECAP2026"
+                      className="w-full px-4 py-2.5 text-xs rounded-xl border border-emerald-400 dark:border-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/30 text-slate-900 dark:text-emerald-200 font-mono font-bold tracking-wider uppercase"
+                    />
                   </div>
 
                   <div>
@@ -1842,8 +1860,18 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                     />
                   </div>
 
-                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-800 dark:text-emerald-300">
-                    ✅ <strong>প্রতিবেদক নীতি:</strong> প্রতিবেদকদের জন্য কোনো গোপন রেফার কোডের প্রয়োজন নেই। সকল নতুন প্রতিবেদক সরাসরি নিবন্ধন ফরম পূরণ করে যোগ দিতে পারবে।
+                  <div>
+                    <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1 flex items-center gap-1.5">
+                      <Globe className="w-4 h-4 text-sky-500" /> টেলিগ্রাম ইনবক্স লিংক (Telegram Referral Contact URL) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editTelegramReferralUrl}
+                      onChange={(e) => setEditTelegramReferralUrl(e.target.value)}
+                      placeholder="https://t.me/TheRecapMediaCast"
+                      className="w-full px-4 py-2.5 text-xs rounded-xl border border-sky-400 dark:border-sky-700 bg-sky-50/50 dark:bg-sky-950/30 text-slate-900 dark:text-sky-200 font-mono"
+                    />
                   </div>
                 </div>
               )}

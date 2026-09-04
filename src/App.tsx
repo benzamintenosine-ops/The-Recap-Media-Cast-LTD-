@@ -13,7 +13,8 @@ import { ManagingPanel } from './components/ManagingPanel';
 import { ArticleModal } from './components/ArticleModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { AdBlockerDetector } from './components/AdBlockerDetector';
-import { CloudflareSecurityBadge } from './components/BotProtection';
+import { CloudflareSecurityBadge, BotProtectionModal } from './components/BotProtection';
+import { FooterStats } from './components/FooterStats';
 import { NewsArticle, Category, Language, UserProfile, SiteSettings, WriterProfile, ManagerProfile, WithdrawalRequest, SystemNotification, CategoryConfig, SocialWidget, DynamicAdSettings } from './types';
 import {
   fetchInitialStateFromFirestore,
@@ -239,6 +240,16 @@ export default function App() {
   const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
   const [showOfflineOnly, setShowOfflineOnly] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Initial site load reCAPTCHA / Bot Protection state
+  const [showSiteBotProtection, setShowSiteBotProtection] = useState<boolean>(() => {
+    try {
+      const verified = sessionStorage.getItem('recap_human_verified');
+      return verified !== 'true';
+    } catch {
+      return true;
+    }
+  });
 
   // Synchronize Dark Mode Class on Document Root element
   useEffect(() => {
@@ -687,6 +698,7 @@ export default function App() {
             withdrawals={withdrawals}
             onRequestWithdrawal={handleRequestWithdrawal}
             onRegisterWriter={handleRegisterWriter}
+            writers={writers}
             siteSettings={siteSettings}
           />
         )}
@@ -698,6 +710,7 @@ export default function App() {
             onUpdateArticle={handleUpdateArticle}
             currentLang={currentLang}
             siteSettings={siteSettings}
+            onUpdateSiteSettings={handleUpdateSiteSettings}
             writers={writers}
             onUpdateWriters={handleUpdateWriters}
             notifications={notifications}
@@ -771,6 +784,9 @@ export default function App() {
         />
       )}
 
+      {/* Live Readers & Reporters Statistics Grid */}
+      <FooterStats />
+
       {/* Footer */}
       <footer className="mt-16 bg-slate-900 dark:bg-[#0a0a0a] text-slate-400 dark:text-gray-400 border-t border-slate-800 dark:border-white/10 text-xs py-12 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -839,6 +855,13 @@ export default function App() {
 
       {/* Global Cloudflare & reCAPTCHA Bot Protection Badge */}
       <CloudflareSecurityBadge />
+
+      {/* Initial Site-Load reCAPTCHA / Bot Protection Modal */}
+      <BotProtectionModal
+        isOpen={showSiteBotProtection}
+        actionTitle="ওয়েবসাইটে প্রবেশের নিরাপত্তা যাচাই (Site Entry Verification)"
+        onSuccess={() => setShowSiteBotProtection(false)}
+      />
     </div>
   );
 }

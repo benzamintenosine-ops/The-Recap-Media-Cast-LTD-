@@ -42,6 +42,7 @@ interface ManagingPanelProps {
   onUpdateArticle?: (id: string, updated: Partial<NewsArticle>) => void;
   currentLang: Language;
   siteSettings: SiteSettings;
+  onUpdateSiteSettings?: (newSettings: Partial<SiteSettings>) => void;
   writers: WriterProfile[];
   onUpdateWriters: (writers: WriterProfile[]) => void;
   notifications: SystemNotification[];
@@ -56,6 +57,7 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
   onUpdateArticle,
   currentLang,
   siteSettings,
+  onUpdateSiteSettings,
   writers,
   onUpdateWriters,
   notifications,
@@ -73,6 +75,33 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
   const [passwordInput, setPasswordInput] = useState('');
   const [secretCodeInput, setSecretCodeInput] = useState('');
   const [authError, setAuthError] = useState('');
+
+  // Reporter Secret Referral Code & Telegram Link Management
+  const [reporterSecretInput, setReporterSecretInput] = useState<string>(siteSettings?.writerSecretCode || 'RECAP2026');
+  const [telegramUrlInput, setTelegramUrlInput] = useState<string>(siteSettings?.telegramReferralUrl || 'https://t.me/TheRecapMediaCast');
+  const [codeSaveSuccess, setCodeSaveSuccess] = useState<string>('');
+
+  useEffect(() => {
+    if (siteSettings?.writerSecretCode) {
+      setReporterSecretInput(siteSettings.writerSecretCode);
+    }
+    if (siteSettings?.telegramReferralUrl) {
+      setTelegramUrlInput(siteSettings.telegramReferralUrl);
+    }
+  }, [siteSettings?.writerSecretCode, siteSettings?.telegramReferralUrl]);
+
+  const handleSaveReporterSecretSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reporterSecretInput.trim()) return;
+    if (onUpdateSiteSettings) {
+      onUpdateSiteSettings({
+        writerSecretCode: reporterSecretInput.trim().toUpperCase(),
+        telegramReferralUrl: telegramUrlInput.trim() || 'https://t.me/TheRecapMediaCast'
+      });
+      setCodeSaveSuccess('প্রতিবেদক রেফার কোড ও টেলিগ্রাম উইজেট সফলভাবে আপডেট হয়েছে!');
+      setTimeout(() => setCodeSaveSuccess(''), 4000);
+    }
+  };
 
   // Manager Profile
   const [managerProfile, setManagerProfile] = useState<ManagerProfile | null>(() => {
@@ -545,12 +574,9 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
               </div>
             ) : (
               <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    ম্যানাজিং গোপন রেফার কোড (Managing Secret Code) *
-                  </label>
-                  <span className="text-[10px] text-blue-500 font-mono">(Default: MANAGING2026)</span>
-                </div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  ম্যানাজিং গোপন রেফার কোড (Managing Secret Code) *
+                </label>
                 <input
                   type="password"
                   required
@@ -700,6 +726,70 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
       {/* TAB 1: REPORTERS CONTROL */}
       {activeTab === 'writers' && (
         <div className="space-y-6">
+          {/* REPORTER SECRET REFERRAL CODE & TELEGRAM CONTROLLER CARD */}
+          <div className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white p-6 rounded-3xl border border-indigo-800/60 shadow-xl space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-indigo-800/40 pb-3">
+              <div>
+                <h3 className="text-base font-extrabold flex items-center gap-2 text-amber-400 font-serif">
+                  <Lock className="w-5 h-5" /> প্রতিবেদক গোপন রেফার কোড ও টেলিগ্রাম ইনবক্স নিয়ন্ত্রণ
+                </h3>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  নতুন প্রতিবেদক সাইনআপের গোপন রেফার কোড পরিবর্তন এবং টেলিগ্রাম ইনবক্স লিঙ্ক সেট করুন।
+                </p>
+              </div>
+              <div className="px-3 py-1 bg-indigo-900/80 border border-indigo-600 rounded-full text-xs font-mono font-bold text-amber-300">
+                বর্তমান কোড: {siteSettings?.writerSecretCode || 'RECAP2026'}
+              </div>
+            </div>
+
+            {codeSaveSuccess && (
+              <div className="p-3 bg-emerald-950/80 border border-emerald-700 text-emerald-300 text-xs font-bold rounded-xl flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-400" />
+                <span>{codeSaveSuccess}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveReporterSecretSettings} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+              <div>
+                <label className="block text-xs font-bold text-slate-200 mb-1">
+                  গোপন রেফার কোড (Secret Referral Code) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={reporterSecretInput}
+                  onChange={(e) => setReporterSecretInput(e.target.value)}
+                  placeholder="যেমন: RECAP2026"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-indigo-700 bg-slate-900 text-amber-300 font-mono font-bold uppercase tracking-wider focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-200 mb-1">
+                  টেলিগ্রাম ইনবক্স লিংক (Telegram URL) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={telegramUrlInput}
+                  onChange={(e) => setTelegramUrlInput(e.target.value)}
+                  placeholder="https://t.me/TheRecapMediaCast"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-indigo-700 bg-slate-900 text-white focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              <div>
+                <button
+                  type="submit"
+                  className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>কোড ও লিংক সংরক্ষণ করুন</span>
+                </button>
+              </div>
+            </form>
+          </div>
+
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 font-serif">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   Bookmark, 
@@ -14,11 +14,11 @@ import {
   Facebook, 
   Twitter, 
   Send,
-  Video,
   Sparkles,
   Volume2,
   Globe,
-  Lock
+  Lock,
+  ShieldCheck
 } from 'lucide-react';
 import { NewsArticle, Language, SiteSettings, UserProfile } from '../types';
 import { getTranslation } from '../utils/i18n';
@@ -40,6 +40,7 @@ interface ArticleModalProps {
   siteSettings?: SiteSettings;
   user?: UserProfile | null;
   onRequireLogin?: () => void;
+  onValidView?: (articleId: string, stats: { durationSeconds: number; scrollDepthPercent: number; sessionId: string }) => void;
 }
 
 export const ArticleModal: React.FC<ArticleModalProps> = ({
@@ -55,13 +56,111 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
   onSelectRelated,
   siteSettings,
   user,
-  onRequireLogin
+  onRequireLogin,
+  onValidView
 }) => {
   if (!article) return null;
 
   const [commentText, setCommentText] = useState('');
   const [copied, setCopied] = useState(false);
   const [artLang, setArtLang] = useState<Language>(currentLang);
+
+  // Anti-Fraud View Tracking state (15s active visibility + 30% scroll depth)
+  const [activeSeconds, setActiveSeconds] = useState(0);
+  const [scrollDepth, setScrollDepth] = useState(0);
+  const [viewCounted, setViewCounted] = useState(false);
+
+  const activeSecondsRef = useRef(0);
+  const maxScrollDepthRef = useRef(0);
+  const hasTriggeredViewRef = useRef(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // 1. Page Visibility API & Active Time Counter (Must be on active tab for >= 15s)
+  useEffect(() => {
+    activeSecondsRef.current = 0;
+    maxScrollDepthRef.current = 0;
+    hasTriggeredViewRef.current = false;
+    setActiveSeconds(0);
+    setScrollDepth(0);
+    setViewCounted(false);
+
+    let intervalId: any = null;
+
+    const startTimer = () => {
+      if (!intervalId) {
+        intervalId = setInterval(() => {
+          if (document.visibilityState === 'visible') {
+            activeSecondsRef.current += 1;
+            setActiveSeconds(activeSecondsRef.current);
+            checkAndTriggerValidView();
+          }
+        }, 1000);
+      }
+    };
+
+    const stopTimer = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        startTimer();
+      } else {
+        stopTimer();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    startTimer();
+
+    return () => {
+      stopTimer();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [article.id]);
+
+  // 2. Scroll Depth Tracker (Must scroll >= 30% of content)
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const scrollTop = target.scrollTop;
+    const scrollHeight = target.scrollHeight - target.clientHeight;
+    if (scrollHeight > 0) {
+      const percentage = Math.min(100, Math.round((scrollTop / scrollHeight) * 100));
+      if (percentage > maxScrollDepthRef.current) {
+        maxScrollDepthRef.current = percentage;
+        setScrollDepth(percentage);
+        checkAndTriggerValidView();
+      }
+    }
+  };
+
+  // 3. Trigger Valid View Verification
+  const checkAndTriggerValidView = () => {
+    if (hasTriggeredViewRef.current) return;
+
+    if (activeSecondsRef.current >= 15 && maxScrollDepthRef.current >= 30) {
+      hasTriggeredViewRef.current = true;
+      setViewCounted(true);
+
+      // Retrieve or generate reader session ID
+      let sessionId = sessionStorage.getItem('recap_reader_session_id');
+      if (!sessionId) {
+        sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        sessionStorage.setItem('recap_reader_session_id', sessionId);
+      }
+
+      if (onValidView) {
+        onValidView(article.id, {
+          durationSeconds: activeSecondsRef.current,
+          scrollDepthPercent: maxScrollDepthRef.current,
+          sessionId
+        });
+      }
+    }
+  };
 
   const t = (key: any) => getTranslation(artLang, key);
 
@@ -182,8 +281,12 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
           </div>
         </div>
 
-        {/* Article Scroll Body */}
-        <div className="p-6 sm:p-8 space-y-6 overflow-y-auto max-h-[80vh]">
+        {/* Article Scroll Body with onScroll Anti-Fraud listener */}
+        <div 
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className="p-6 sm:p-8 space-y-6 overflow-y-auto max-h-[80vh]"
+        >
           {/* Article Title */}
           <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white leading-tight">
             {title}
@@ -196,7 +299,7 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
             </p>
           )}
 
-          {/* Metadata Bar */}
+          {/* Metadata Bar with Anti-Fraud Validation Status */}
           <div className="flex flex-wrap items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400 py-3 border-y border-slate-100 dark:border-slate-800">
             <div className="flex flex-wrap items-center gap-4">
               <span className="flex items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-200">
@@ -221,7 +324,17 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              {/* Anti-Fraud View Status */}
+              <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                viewCounted 
+                  ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800' 
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+              }`}>
+                <ShieldCheck className="w-3 h-3" />
+                {viewCounted ? 'যাচাইকৃত ভিউ' : `${activeSeconds}s • ${scrollDepth}%`}
+              </span>
+
               <span className="font-semibold text-red-600 dark:text-red-400">
                 {article.viewsCount} {t('views')}
               </span>
@@ -237,19 +350,6 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
               className="w-full max-h-[450px] object-cover"
             />
           </div>
-
-          {/* Embedded Video Player if present */}
-          {article.videoUrl && (
-            <div className="rounded-2xl overflow-hidden bg-black shadow-lg border border-slate-800">
-              <div className="p-3 bg-slate-900 text-white text-xs font-semibold flex items-center gap-2 border-b border-slate-800">
-                <Video className="w-4 h-4 text-red-500" />
-                <span>ভিডিও ক্লিপ ও সরাসরি প্রতিবেদন (Video Report)</span>
-              </div>
-              <video controls className="w-full max-h-[380px]" src={article.videoUrl}>
-                Your browser does not support video playback.
-              </video>
-            </div>
-          )}
 
           {/* In-Article Advertisement Space - Placed Above News Share Banner */}
           <AdPanel placement="in_article" siteSettings={siteSettings} />

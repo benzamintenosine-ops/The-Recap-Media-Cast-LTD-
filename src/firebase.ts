@@ -26,24 +26,22 @@ const firebaseConfig = {
 // Initialize Firebase App safely (avoid duplicate initialization)
 export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Firestore with robust connection handling, multi-tab cache, and dedicated databaseId
+// Initialize Firestore with robust connection handling, dedicated databaseId, and auto-detect long polling
 const dbId = firebaseAppletConfig.firestoreDatabaseId;
 let firestoreInstance: Firestore;
 
 try {
-  firestoreInstance = initializeFirestore(
-    app,
-    {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-      })
-    },
-    dbId
-  );
-} catch {
-  // If already initialized or multi-tab persistence is unsupported in current iframe context
+  firestoreInstance = initializeFirestore(app, {
+    experimentalAutoDetectLongPolling: true,
+    ignoreUndefinedProperties: true
+  }, dbId || undefined);
+} catch (e) {
   try {
-    firestoreInstance = getFirestore(app, dbId);
+    if (dbId) {
+      firestoreInstance = getFirestore(app, dbId);
+    } else {
+      firestoreInstance = getFirestore(app);
+    }
   } catch {
     firestoreInstance = getFirestore(app);
   }
@@ -62,18 +60,20 @@ export const analyticsPromise = typeof window !== "undefined"
 // Validate Connection to Firestore on startup (Per Firebase Integration Skill)
 export async function testFirestoreConnection(): Promise<boolean> {
   try {
-    await getDocFromServer(doc(db, 'settings', 'connection_test'));
+    const testDoc = doc(db, 'settings', 'connection_test');
+    await Promise.race([
+      getDocFromServer(testDoc),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+    ]);
     return true;
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('[Firebase] Client is offline or IndexedDB locked; persistence fallback active.');
-    }
+    // Operate seamlessly in offline/cached mode
     return false;
   }
 }
 
-// Perform initial connection test
+// Perform initial connection probe in background
 if (typeof window !== 'undefined') {
-  testFirestoreConnection();
+  testFirestoreConnection().catch(() => {});
 }
 

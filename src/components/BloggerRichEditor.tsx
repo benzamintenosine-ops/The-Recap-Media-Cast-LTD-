@@ -8,7 +8,6 @@ import {
   Palette,
   Link as LinkIcon,
   Image as ImageIcon,
-  Video as VideoIcon,
   Smile,
   AlignLeft,
   AlignCenter,
@@ -86,7 +85,6 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
   const [showAlignMenu, setShowAlignMenu] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
-  const [showVideoModal, setShowVideoModal] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Active formats state for visual tool button highlight (bright white background with black text)
@@ -106,7 +104,6 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
   const [linkUrl, setLinkUrl] = useState('');
   const [linkText, setLinkText] = useState('');
   const [imageUrl, setImageUrl] = useState('');
-  const [videoUrl, setVideoUrl] = useState('');
 
   // Update active formats on selection or cursor change
   const updateActiveFormats = () => {
@@ -231,48 +228,6 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
       reader.readAsDataURL(file);
     }
     setShowImageModal(false);
-  };
-
-  // Handle Local Video File Upload from Device (Strictly Video Only)
-  const handleVideoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith('video/')) {
-        alert('ভিডিও অপশনে শুধুমাত্র ভিডিও ফাইল (MP4, WebM, etc.) নির্বাচন করতে হবে।');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        if (result) {
-          const videoHtml = `<div style="margin: 16px 0; text-align: center;"><video controls style="max-width: 100%; max-height: 420px; border-radius: 16px; display: inline-block; box-shadow: 0 4px 16px rgba(0,0,0,0.2);" src="${result}">Your browser does not support video playback.</video></div><p><br></p>`;
-          executeCommand('insertHTML', videoHtml);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-    setShowVideoModal(false);
-  };
-
-  // Handle Video Embed Insertion (YouTube, Vimeo, MP4)
-  const handleInsertVideo = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!videoUrl.trim()) return;
-    let embedUrl = videoUrl.trim();
-
-    // YouTube regex converter
-    const ytMatch = embedUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-    if (ytMatch && ytMatch[1]) {
-      embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}`;
-    }
-
-    const videoHtml = `<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 16px; margin: 16px 0; background-color: #000;">
-      <iframe src="${embedUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" allowfullscreen></iframe>
-    </div><p><br></p>`;
-
-    executeCommand('insertHTML', videoHtml);
-    setVideoUrl('');
-    setShowVideoModal(false);
   };
 
   return (
@@ -518,7 +473,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
 
         <div className="h-5 w-[1px] bg-slate-300 dark:bg-slate-700 mx-0.5 hidden sm:block" />
 
-        {/* GROUP 4: Insert Link, Image, Video & Emojis */}
+        {/* GROUP 4: Insert Link, Image & Emojis */}
         <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
           {/* Link */}
           <button
@@ -538,16 +493,6 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
             title="ছবি যুক্ত করুন (Insert Image)"
           >
             <ImageIcon className="w-4 h-4 text-emerald-600" />
-          </button>
-
-          {/* Video */}
-          <button
-            type="button"
-            onClick={() => setShowVideoModal(true)}
-            className={getToolBtnStyle(showVideoModal)}
-            title="ভিডিও যুক্ত করুন (Video/YouTube)"
-          >
-            <VideoIcon className="w-4 h-4 text-red-600" />
           </button>
 
           {/* Emoji */}
@@ -850,80 +795,6 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
                 />
               </label>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 3: INSERT VIDEO (Device Video Upload + YouTube) */}
-      {showVideoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                <VideoIcon className="w-4 h-4 text-red-600" /> ডিভাইস থেকে ভিডিও বা ইউটিউব লিঙ্ক যুক্ত করুন
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowVideoModal(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Device Video File Upload Option */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                ১. ডিভাইস থেকে ভিডিও আপলোড (Device Video Upload)
-              </label>
-              <label className="w-full py-3.5 px-4 border-2 border-dashed border-red-300 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-red-700 dark:text-red-300 transition-colors">
-                <UploadCloud className="w-4.5 h-4.5 text-red-600" /> পিসি/ফোন থেকে ভিডিও সিলেক্ট করুন (Videos Only)
-                <input
-                  type="file"
-                  accept="video/*"
-                  onChange={handleVideoFileUpload}
-                  className="hidden"
-                />
-              </label>
-            </div>
-
-            <div className="relative flex py-1 items-center">
-              <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
-              <span className="flex-shrink mx-3 text-[10px] text-slate-400 font-bold uppercase">অথবা ইউটিউব লিঙ্ক দিন</span>
-              <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
-            </div>
-
-            {/* YouTube Link Option */}
-            <form onSubmit={handleInsertVideo} className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  ২. ইউটিউব ভিডিও লিঙ্ক (YouTube Video Link)
-                </label>
-                <input
-                  type="text"
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=..."
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowVideoModal(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 rounded-xl"
-                >
-                  বাতিল
-                </button>
-                <button
-                  type="submit"
-                  disabled={!videoUrl.trim()}
-                  className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-xl shadow-md"
-                >
-                  ইউটিউব ভিডিও যুক্ত করুন
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

@@ -188,6 +188,7 @@ export interface SiteSettings {
   writerSecretCode: string;
   adminSecretCode: string;
   managingSecretCode?: string;
+  telegramReferralUrl?: string;
   aboutUsHtml?: string;
   privacyPolicyHtml?: string;
   contactUsHtml?: string;

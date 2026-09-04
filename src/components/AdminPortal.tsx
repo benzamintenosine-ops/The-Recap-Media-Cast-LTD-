@@ -145,6 +145,11 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   const [profileError, setProfileError] = useState('');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
 
+  // Referral Code Window State (Screen 3 after profile setup)
+  const [showReferralWindow, setShowReferralWindow] = useState<boolean>(false);
+  const [referralSecretInput, setReferralSecretInput] = useState<string>('');
+  const [referralSecretError, setReferralSecretError] = useState<string>('');
+
   // Active Sub-Tab: 'analytics' | 'create' | 'manage' | 'withdraw' | 'notifications' | 'profile'
   const [activeTab, setActiveTab] = useState<'analytics' | 'create' | 'manage' | 'withdraw' | 'notifications' | 'profile'>('create');
 
@@ -173,7 +178,6 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   const [postTags, setPostTags] = useState<string[]>(['সংবাদ', 'জাতীয়', 'ব্রেকিং']);
   const [customTagInput, setCustomTagInput] = useState('');
   const [postImageUrl, setPostImageUrl] = useState('https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=1200&q=80');
-  const [postVideoUrl, setPostVideoUrl] = useState('');
   const [isBreaking, setIsBreaking] = useState(false);
   const [shareNameUnderPost, setShareNameUnderPost] = useState(true);
   const [postSuccessMessage, setPostSuccessMessage] = useState('');
@@ -182,11 +186,6 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   // Reporter Sign Up Terms Agreement State
   const [agreedToTerms, setAgreedToTerms] = useState<boolean>(false);
   const [imageSizeError, setImageSizeError] = useState('');
-
-  // Post Type Choice State: 'written' (Full Blogger editor) | 'video' (Title + Video only) | null (Selection view)
-  const [postType, setPostType] = useState<'written' | 'video' | null>(null);
-  const [videoFileBase64, setVideoFileBase64] = useState<string>('');
-  const [isUploadingVideo, setIsUploadingVideo] = useState<boolean>(false);
 
   // Cascading Location Helpers from BANGLADESH_GEO_DATA
   const selectedDivisionObj = BANGLADESH_GEO_DATA.find(
@@ -350,8 +349,6 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       if (res.ok && data.verified) {
         setIsEmailVerified(true);
         setShowVerifyModal(false);
-        setIsAuthenticated(true);
-        localStorage.setItem('recap_writer_logged', 'true');
 
         const cleanEmail = emailInput.trim().toLowerCase();
         const initialProfile: WriterProfile = {
@@ -362,13 +359,9 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           mobile: '',
           age: 0,
           createdAt: new Date().toISOString(),
-          secretCodeUsed: 'VERIFIED_GMAIL',
+          secretCodeUsed: '',
         };
         setWriterProfile(initialProfile);
-        localStorage.setItem('recap_writer_profile', JSON.stringify(initialProfile));
-        if (onRegisterWriter) {
-          onRegisterWriter(initialProfile);
-        }
       } else {
         setVerificationError(data.error || 'ভেরিফিকেশন কোডটি সঠিক নয়! পুনরায় চেষ্টা করুন।');
       }
@@ -379,7 +372,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     }
   };
 
-  // Writer Auth Handler (Login / Signup with Referral Code)
+  // Writer Auth Handler (Login / Signup)
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
@@ -411,6 +404,10 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         setWriterProfile(existing);
         localStorage.setItem('recap_writer_profile', JSON.stringify(existing));
         setSetupName(existing.name || '');
+        setIsEmailVerified(true);
+        setIsAuthenticated(true);
+        localStorage.setItem('recap_writer_logged', 'true');
+        return;
       } else if (!writerProfile || writerProfile.email.toLowerCase() !== cleanEmail) {
         const newTemp: WriterProfile = {
           id: `writer-${Date.now()}`,
@@ -540,16 +537,53 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       mobile: setupMobile.trim(),
       age: ageNum,
       avatarUrl: setupAvatarUrl,
-      secretCodeUsed: 'DIRECT_SIGNUP',
+      secretCodeUsed: writerProfile?.secretCodeUsed || '',
       createdAt: writerProfile?.createdAt || new Date().toISOString()
     };
 
     setWriterProfile(newProfile);
-    localStorage.setItem('recap_writer_profile', JSON.stringify(newProfile));
-    if (onRegisterWriter) {
-      onRegisterWriter(newProfile);
-    }
     setIsEditingProfile(false);
+
+    // If already has secret code verified (or editing existing profile), save directly
+    if (newProfile.secretCodeUsed && newProfile.secretCodeUsed.trim().length > 0 && newProfile.secretCodeUsed !== 'DIRECT_SIGNUP') {
+      localStorage.setItem('recap_writer_profile', JSON.stringify(newProfile));
+      if (onRegisterWriter) {
+        onRegisterWriter(newProfile);
+      }
+    } else {
+      // Open Screen 3: Secret Referral Code Window
+      setShowReferralWindow(true);
+    }
+  };
+
+  // Dedicated Secret Referral Code Verification Handler
+  const handleReferralCodeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setReferralSecretError('');
+
+    const targetCode = (writerSecretCode || siteSettings?.writerSecretCode || 'RECAP2026').trim().toUpperCase();
+    if (referralSecretInput.trim().toUpperCase() !== targetCode) {
+      setReferralSecretError('ভুল গোপন রেফার কোড! সঠিক রেফার কোডের জন্য নিচে ইনবক্স করুন।');
+      return;
+    }
+
+    if (writerProfile) {
+      const finalProfile: WriterProfile = {
+        ...writerProfile,
+        secretCodeUsed: referralSecretInput.trim().toUpperCase()
+      };
+      setWriterProfile(finalProfile);
+      localStorage.setItem('recap_writer_profile', JSON.stringify(finalProfile));
+      localStorage.setItem('recap_writer_logged', 'true');
+      if (onRegisterWriter) {
+        onRegisterWriter(finalProfile);
+      }
+    } else {
+      localStorage.setItem('recap_writer_logged', 'true');
+    }
+
+    setShowReferralWindow(false);
+    setIsAuthenticated(true);
   };
 
   const handleLogout = () => {
@@ -560,36 +594,20 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     setEmailInput('');
     setPasswordInput('');
     setSetupName('');
+    setSetupMobile('');
+    setSetupNidNumber('');
+    setSetupDivision('');
+    setSetupDistrict('');
+    setSetupThana('');
+    setSetupPostOffice('');
+    setSetupPostCode('');
+    setSetupAvatarUrl('');
+    setPhotoVerified(false);
     setIsEmailVerified(false);
-  };
-
-  // Video File Upload Handler
-  const handleVideoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEditorError('');
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Check size limit: max 50MB for video
-    const maxSize = 50 * 1024 * 1024;
-    if (file.size > maxSize) {
-      setEditorError('ভিডিও ফাইলের সাইজ সর্বোচ্চ 50MB হতে হবে!');
-      return;
-    }
-
-    setIsUploadingVideo(true);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setVideoFileBase64(event.target.result as string);
-        setPostVideoUrl(''); // Clear url input if file is uploaded
-      }
-      setIsUploadingVideo(false);
-    };
-    reader.onerror = () => {
-      setEditorError('ভিডিও ফাইল পড়তে সমস্যা হয়েছে।');
-      setIsUploadingVideo(false);
-    };
-    reader.readAsDataURL(file);
+    setShowReferralWindow(false);
+    setReferralSecretInput('');
+    setReferralSecretError('');
+    setAuthError('');
   };
 
   // Image Upload handler with 500KB Minimum File Size Validation
@@ -639,7 +657,6 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           content: postContent,
           category: postCategory,
           imageUrl: postImageUrl,
-          videoUrl: postVideoUrl,
           source: postSource.trim() || undefined,
           articleId: editingArticleId || undefined,
           authorName: writerProfile?.name || 'প্রতিবেদক',
@@ -736,17 +753,10 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     setPostCategory(art.category);
     setPostTags(art.tags || ['সংবাদ', 'জাতীয়']);
     setPostImageUrl(art.imageUrl);
-    setPostVideoUrl(art.videoUrl || '');
-    setVideoFileBase64('');
     setPostSource(art.source || '');
     setIsBreaking(!!art.isBreaking);
     setAuthenticityResult(null);
     setEditorError('');
-    if (art.postType === 'video' || (art.videoUrl && !art.content.includes('<p>'))) {
-      setPostType('video');
-    } else {
-      setPostType('written');
-    }
     setActiveTab('create');
     setCreateStep(1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -759,25 +769,20 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     setPostSummary('');
     setPostContent('');
     setPostSource('');
-    setPostVideoUrl('');
-    setVideoFileBase64('');
     setAuthenticityResult(null);
     setEditorError('');
     setCreateStep(1);
-    setPostType(null);
   };
 
   // Core Publishing Execution with Background AI Verification
-  const executePublishFlow = async (isForVideo: boolean = false) => {
+  const executePublishFlow = async () => {
     const currentTodayCount = getTodayPostsCount();
     if (!editingArticleId && currentTodayCount >= DAILY_POST_LIMIT) {
       setEditorError(`আপনি আজকের জন্য সর্বোচ্চ ${DAILY_POST_LIMIT}টি পোস্টের কোটা পূর্ণ করেছেন। নতুন পোস্টের জন্য অনুগ্রহ করে আগামীকাল চেষ্টা করুন।`);
       return;
     }
 
-    const effectiveVideoUrl = postVideoUrl.trim() || videoFileBase64;
-    const isVideo = isForVideo || postType === 'video';
-    const effectiveContent = isVideo ? (postContent.trim() || `<p>${postTitle}</p>`) : postContent;
+    const effectiveContent = postContent;
     const cleanReporterName = writerProfile?.name?.trim() || 'প্রতিবেদক';
     const reporterDistrict = writerProfile?.district?.trim();
     const authorName = shareNameUnderPost 
@@ -786,7 +791,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
     // Extract top-most image as cover image
     const coverImg = extractTopImageFromHtml(effectiveContent) || postImageUrl || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80';
-    const hasVideo = isVideo || checkHasVideoInHtml(effectiveContent, effectiveVideoUrl);
+    const hasVideo = false;
 
     // Silent background AI verification
     let isAiFlagged = false;
@@ -804,7 +809,6 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           content: effectiveContent,
           category: postCategory,
           imageUrl: coverImg,
-          videoUrl: effectiveVideoUrl || undefined,
           source: postSource.trim() || undefined,
           articleId: editingArticleId || undefined,
           authorName: writerProfile?.name || 'প্রতিবেদক',
@@ -845,16 +849,16 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       category: postCategory,
       tags: postTags,
       imageUrl: coverImg,
-      videoUrl: effectiveVideoUrl || undefined,
-      hasVideo,
-      postType: isVideo ? 'video' : 'written',
+      videoUrl: undefined,
+      hasVideo: false,
+      postType: 'written',
       isBreaking,
       author: authorName,
       authorDistrict: reporterDistrict || undefined,
       publishedAt: new Date().toISOString(),
       viewsCount: 0,
       comments: [],
-      readTimeMinutes: isVideo ? 2 : Math.max(2, Math.ceil(effectiveContent.length / 400)),
+      readTimeMinutes: Math.max(2, Math.ceil(effectiveContent.length / 400)),
       aiFlagged: isAiFlagged,
       aiIssues: issuesFound.length > 0 ? issuesFound : undefined,
       aiCredibilityScore: credibilityScore,
@@ -886,7 +890,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         const writerNameLower = (writerProfile?.name || 'writer').trim().toLowerCase();
         localStorage.setItem(`recap_daily_posts_${writerNameLower}_${todayStr}`, (currentTodayCount + 1).toString());
       } catch {}
-      setPostSuccessMessage(isVideo ? 'ভিডিও সংবাদ পোস্টটি সফলভাবে লাইভ প্রকাশিত হয়েছে!' : 'সংবাদ পোস্টটি সফলভাবে লাইভ প্রকাশিত হয়েছে!');
+      setPostSuccessMessage('সংবাদ পোস্টটি সফলভাবে লাইভ প্রকাশিত হয়েছে!');
     }
 
     setTimeout(() => setPostSuccessMessage(''), 4000);
@@ -897,11 +901,8 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     setPostSummary('');
     setPostContent('');
     setPostSource('');
-    setPostVideoUrl('');
-    setVideoFileBase64('');
     setAuthenticityResult(null);
     setCreateStep(1);
-    setPostType(null);
   };
 
   // Publish Written Post Handler
@@ -927,50 +928,19 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     if (!isHumanVerified) {
       setBotModalActionTitle('সংবাদ প্রকাশের জন্য Cloudflare & reCAPTCHA মানবীয় যাচাই');
       setBotSuccessCallback(() => () => {
-        executePublishFlow(false);
+        executePublishFlow();
       });
       setShowBotModal(true);
       return;
     }
 
-    executePublishFlow(false);
-  };
-
-  // Publish Video Post Handler (Title + Video only)
-  const handlePublishVideoPost = (e: React.FormEvent) => {
-    e.preventDefault();
-    setEditorError('');
-    if (!postTitle.trim()) {
-      setEditorError('ভিডিও সংবাদের শিরোনাম লেখা বাধ্যতামূলক!');
-      return;
-    }
-    if (!postVideoUrl.trim() && !videoFileBase64) {
-      setEditorError('ভিডিও লিঙ্ক প্রদান করুন অথবা ডিভাইস থেকে ভিডিও ফাইল আপলোড করুন!');
-      return;
-    }
-
-    if (!editingArticleId && getTodayPostsCount() >= DAILY_POST_LIMIT) {
-      setEditorError(`আপনি আজকের জন্য সর্বোচ্চ ${DAILY_POST_LIMIT}টি পোস্টের কোটা পূর্ণ করেছেন।`);
-      return;
-    }
-
-    const isHumanVerified = sessionStorage.getItem('recap_human_verified') === 'true';
-    if (!isHumanVerified) {
-      setBotModalActionTitle('ভিডিও সংবাদ প্রকাশের জন্য Cloudflare & reCAPTCHA মানবীয় যাচাই');
-      setBotSuccessCallback(() => () => {
-        executePublishFlow(true);
-      });
-      setShowBotModal(true);
-      return;
-    }
-
-    executePublishFlow(true);
+    executePublishFlow();
   };
 
   // Affirmation callback when writer chooses 'হ্যাঁ' (Yes) for unverified news
   const handleConfirmDoubtfulPublish = () => {
     setDoubtModalOpen(false);
-    executePublishFlow(true);
+    executePublishFlow();
   };
 
   // Affirmation callback when writer chooses 'না' (No) for unverified news
@@ -999,7 +969,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   };
 
   // SCREEN 1: Authentication Screen (Sign In / Sign Up with Email Verification)
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !isEmailVerified) {
     return (
       <div className="max-w-md mx-auto my-12 p-8 bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 space-y-6">
         <div className="text-center space-y-2">
@@ -1210,8 +1180,74 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     );
   }
 
+  // SCREEN 3: Dedicated Secret Referral Code Verification Window (After Profile Setup)
+  if (showReferralWindow || (!isAuthenticated && isEmailVerified && writerProfile && (!writerProfile.secretCodeUsed || writerProfile.secretCodeUsed === ''))) {
+    return (
+      <div className="max-w-md mx-auto my-12 p-8 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 space-y-6">
+        <div className="text-center space-y-2">
+          <div className="w-14 h-14 bg-gradient-to-br from-red-600 to-amber-600 rounded-2xl text-white flex items-center justify-center mx-auto shadow-lg shadow-red-600/20">
+            <Lock className="w-7 h-7" />
+          </div>
+          <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white font-serif">
+            গোপন রেফার কোড যাচাই
+          </h2>
+          <p className="text-xs text-slate-500">
+            আপনার প্রতিবেদক অ্যাকাউন্ট সক্রিয় করতে ম্যানেজমেন্ট কর্তৃক প্রদত্ত গোপন রেফার কোডটি লিখুন।
+          </p>
+        </div>
+
+        {referralSecretError && (
+          <div className="p-3.5 bg-red-50 dark:bg-red-950/70 text-red-700 dark:text-red-300 text-xs font-bold rounded-xl border border-red-200 dark:border-red-900 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+            <span>{referralSecretError}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleReferralCodeSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              গোপন রেফার কোড (Secret Referral Code) *
+            </label>
+            <input
+              type="text"
+              required
+              value={referralSecretInput}
+              onChange={(e) => setReferralSecretInput(e.target.value)}
+              placeholder="রেফার কোড লিখুন..."
+              className="w-full px-4 py-3 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold uppercase tracking-wider focus:ring-2 focus:ring-red-500"
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-red-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <CheckCircle className="w-4 h-4" />
+            <span>রেফার কোড যাচাই ও অ্যাকাউন্ট সক্রিয় করুন</span>
+          </button>
+
+          {/* Telegram Referral Contact Link / Widget */}
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 text-center space-y-2.5">
+            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+              রেফার কোডের জন্য ইনবক্স করুন
+            </p>
+            <a
+              href={siteSettings?.telegramReferralUrl || 'https://t.me/TheRecapMediaCast'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
+            >
+              <Globe className="w-4 h-4" />
+              <span>টেলিগ্রাম ইনবক্স: The Recap Media Cast</span>
+            </a>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
   // SCREEN 2: Mandatory Reporter Profile Setup Window (If Profile is incomplete or being edited)
-  if (!writerProfile || isEditingProfile) {
+  if (!writerProfile || !writerProfile.nidNumber || isEditingProfile) {
     return (
       <div className="max-w-xl mx-auto my-10 p-6 sm:p-8 bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 space-y-6">
         <div className="text-center space-y-2 border-b border-slate-100 dark:border-slate-800 pb-4">
@@ -1543,10 +1579,10 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
           <button
             type="submit"
-            className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-red-600/20 transition-all flex items-center justify-center gap-2"
+            className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-red-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <CheckCircle className="w-4 h-4" />
-            প্রোফাইল জমা দিন ও প্রতিবেদক প্যানেলে প্রবেশ করুন
+            প্রোফাইল সংরক্ষণ ও পরবর্তী ধাপ (গোপন কোড যাচাই) &rarr;
           </button>
         </form>
       </div>
@@ -1706,326 +1742,52 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       {/* TAB 1: BLOGGER-STYLE POST CREATOR (Multi-Step Window) */}
       {activeTab === 'create' && (
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-lg overflow-hidden space-y-0">
-          {/* Post Type Selector (Shown if no type selected yet and not currently editing) */}
-          {postType === null && !editingArticleId ? (
-            <div className="p-6 sm:p-10 space-y-6">
-              <div className="text-center max-w-xl mx-auto space-y-2">
-                <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-serif">
-                  নতুন সংবাদ বা কনটেন্টের ধরন বেছে নিন
+          {/* Blogger Header Header Bar */}
+          <div className="p-5 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-4 border-b border-slate-800">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center font-bold text-sm text-white">
+                {createStep}
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  সংবাদ ক্রিয়েটর — {createStep === 1 ? 'ধাপ ১: সংবাদ সম্পাদনা' : 'ধাপ ২: কী-ওয়ার্ড ও লেখক নাম'}
                 </h3>
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-                  আপনি কি ভিডিও নিউজ প্রকাশ করতে চান, নাকি পূর্ণাঙ্গ লিখিত সংবাদ প্রস্তুত করবেন?
+                <p className="text-[11px] text-gray-400">
+                  {createStep === 1 ? 'হেডলাইন, মুল বিবরণ, টেক্সট এডিটিং টুলস ও ছবি যুক্ত করুন' : 'কিওয়ার্ড সিলেক্ট করুন এবং পোস্টের নিচে নিজের নাম প্রচার করুন'}
                 </p>
               </div>
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto pt-4">
-                {/* Option 1: Video Post */}
+            {/* Step 1 vs Step 2 Control */}
+            <div className="flex items-center gap-2">
+              {createStep === 2 && (
                 <button
                   type="button"
-                  onClick={() => setPostType('video')}
-                  className="p-6 rounded-3xl border-2 border-red-200 dark:border-red-900/60 bg-gradient-to-br from-red-50/50 to-orange-50/50 dark:from-red-950/20 dark:to-orange-950/20 hover:border-red-500 dark:hover:border-red-500 hover:shadow-xl hover:shadow-red-600/10 transition-all text-left flex flex-col items-start justify-between gap-6 group cursor-pointer"
+                  onClick={() => setCreateStep(1)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-gray-200 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5"
                 >
-                  <div className="space-y-3">
-                    <div className="w-14 h-14 rounded-2xl bg-red-600 text-white flex items-center justify-center shadow-lg shadow-red-600/30 group-hover:scale-105 transition-transform">
-                      <Video className="w-7 h-7" />
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider block">
-                        অপশন ১ • দ্রুত প্রকাশ
-                      </span>
-                      <h4 className="text-lg font-black text-slate-900 dark:text-white group-hover:text-red-600 dark:hover:text-red-400 transition-colors">
-                        ১. ভিডিও পোস্ট (Video News)
-                      </h4>
-                    </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                      শুধু শিরোনাম ও ভিডিও ফাইল/লিঙ্ক দিয়ে তাৎক্ষণিকভাবে ভিডিও সংবাদ তৈরি করুন।
-                    </p>
-                  </div>
-
-                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-red-600 dark:text-red-400 group-hover:translate-x-1 transition-transform">
-                    ভিডিও তৈরি শুরু করুন &rarr;
-                  </span>
+                  <ArrowLeft className="w-4 h-4" /> পূর্ববর্তী ধাপ
                 </button>
+              )}
 
-                {/* Option 2: Written Post */}
+              {createStep === 1 && (
                 <button
                   type="button"
-                  onClick={() => setPostType('written')}
-                  className="p-6 rounded-3xl border-2 border-indigo-200 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/50 to-blue-50/50 dark:from-indigo-950/20 dark:to-blue-950/20 hover:border-indigo-500 dark:hover:border-indigo-500 hover:shadow-xl hover:shadow-indigo-600/10 transition-all text-left flex flex-col items-start justify-between gap-6 group cursor-pointer"
+                  onClick={handleProceedToStep2}
+                  className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-600/30 transition-all flex items-center gap-1.5"
                 >
-                  <div className="space-y-3">
-                    <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30 group-hover:scale-105 transition-transform">
-                      <FileText className="w-7 h-7" />
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block">
-                        অপশন ২ • বিস্তারিত আর্টিকেল
-                      </span>
-                      <h4 className="text-lg font-black text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                        ২. লিখিত পোস্ট (Written News)
-                      </h4>
-                    </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                      হেডলাইন, ছবি, সমৃদ্ধ টেক্সট এডিটর ও প্যারাগ্রাফ দিয়ে পূর্ণাঙ্গ প্রতিবেদন লিখুন।
-                    </p>
-                  </div>
-
-                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 group-hover:translate-x-1 transition-transform">
-                    লেখা শুরু করুন &rarr;
-                  </span>
+                  পরবর্তী ধাপ (Next) <ArrowRight className="w-4 h-4" />
                 </button>
-              </div>
-            </div>
-          ) : postType === 'video' ? (
-            /* VIDEO POST FORM (Title + Video Only) */
-            <div className="space-y-0">
-              {/* Header Bar */}
-              <div className="p-5 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-4 border-b border-slate-800">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-red-600 flex items-center justify-center font-bold text-sm text-white shadow-md shadow-red-600/30">
-                    <Video className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-white flex items-center gap-2">
-                      ভিডিও পোস্ট ক্রিয়েটর (Video News Portal)
-                    </h3>
-                    <p className="text-[11px] text-gray-400">
-                      সংবাদের শিরোনাম ও ভিডিও ফাইল/লিঙ্ক দিন — সিস্টেম স্বয়ংক্রিয়ভাবে ভিডিও প্লেয়ার তৈরি করবে
-                    </p>
-                  </div>
-                </div>
-
-                {!editingArticleId && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPostType(null);
-                      setPostTitle('');
-                      setPostVideoUrl('');
-                      setVideoFileBase64('');
-                    }}
-                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-gray-200 text-xs font-bold rounded-xl transition-all flex items-center gap-1 cursor-pointer"
-                  >
-                    <ArrowLeft className="w-3.5 h-3.5" /> পোস্টের ধরন পরিবর্তন করুন
-                  </button>
-                )}
-              </div>
-
-              {editorError && (
-                <div className="mx-6 mt-4 p-3.5 bg-red-50 dark:bg-red-950/70 text-red-700 dark:text-red-300 text-xs font-bold rounded-xl border border-red-200 dark:border-red-900 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
-                  <span>{editorError}</span>
-                </div>
               )}
-
-              <form onSubmit={handlePublishVideoPost} className="p-6 sm:p-8 space-y-6">
-                {/* Headline Input */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                    <span>সংবাদের শিরোনাম (Video Headline) <strong className="text-red-600">*</strong></span>
-                    <span className="text-[11px] text-slate-400 font-normal">{postTitle.length}/180 অক্ষর</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={postTitle}
-                    onChange={(e) => setPostTitle(e.target.value)}
-                    placeholder="ভিডিও সংবাদের স্পষ্ট ও আকর্ষণীয় শিরোনাম লিখুন..."
-                    maxLength={180}
-                    required
-                    className="w-full p-4 rounded-2xl border-2 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-bold text-sm sm:text-base focus:border-red-500 focus:outline-none transition-all shadow-sm"
-                  />
-                </div>
-
-                {/* Video Selection: URL or Upload */}
-                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-4">
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                    <Video className="w-4 h-4 text-red-500" /> ভিডিও যোগ করুন (Video Source) <strong className="text-red-600">*</strong>
-                  </span>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Video URL */}
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
-                        ভিডিও লিঙ্ক (YouTube, Facebook, MP4 ইত্যাদি)
-                      </label>
-                      <input
-                        type="url"
-                        value={postVideoUrl}
-                        onChange={(e) => {
-                          setPostVideoUrl(e.target.value);
-                          if (e.target.value) setVideoFileBase64('');
-                        }}
-                        placeholder="https://www.youtube.com/watch?v=... বা ভিডিও URL"
-                        className="w-full p-3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
-                      />
-                    </div>
-
-                    {/* File Upload */}
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
-                        অথবা ডিভাইস থেকে সরাসরি ভিডিও ফাইল আপলোড করুন
-                      </label>
-                      <label className="flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 border-dashed border-red-300 dark:border-red-800 bg-white dark:bg-slate-900 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all cursor-pointer text-xs font-bold text-red-600 dark:text-red-400">
-                        <Upload className="w-4 h-4" />
-                        {isUploadingVideo ? 'ভিডিও আপলোড হচ্ছে...' : videoFileBase64 ? 'ভিডিও আপলোড সম্পন্ন ✓' : 'ভিডিও ফাইল সিলেক্ট করুন (সর্বোচ্চ 50MB)'}
-                        <input
-                          type="file"
-                          accept="video/*"
-                          onChange={handleVideoFileUpload}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Video Live Preview */}
-                  {(postVideoUrl || videoFileBase64) && (
-                    <div className="p-3 bg-slate-900 rounded-xl space-y-2 border border-slate-800">
-                      <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">ভিডিও প্রিভিউ</span>
-                      {videoFileBase64 ? (
-                        <video
-                          src={videoFileBase64}
-                          controls
-                          className="w-full max-h-72 rounded-lg bg-black object-contain"
-                        />
-                      ) : (
-                        <div className="text-xs text-emerald-400 font-mono break-all">
-                          ✓ লিঙ্ক সংযুক্ত: {postVideoUrl}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Category Selection */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                      ভিডিও ক্যাটাগরি (Category)
-                    </label>
-                    <select
-                      value={postCategory}
-                      onChange={(e) => setPostCategory(e.target.value)}
-                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold focus:ring-2 focus:ring-red-500"
-                    >
-                      {['ভিডিও', 'জাতীয়', 'আন্তর্জাতিক', 'রাজনীতি', 'খেলাধুলা', 'বিনোদন', 'বাণিজ্য', 'বিজ্ঞান ও তথ্যপ্রযুক্তি', 'সারাদেশ'].map((cat) => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                      সংবাদের তথ্যসূত্র / সূত্র (ঐচ্ছিক)
-                    </label>
-                    <input
-                      type="text"
-                      value={postSource}
-                      onChange={(e) => setPostSource(e.target.value)}
-                      placeholder="যেমন: নিজস্ব প্রতিবেদক, রয়টার্স বা সোর্স নাম"
-                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs"
-                    />
-                  </div>
-                </div>
-
-                {/* Options Checkboxes */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="videoShareNameCheck"
-                      checked={shareNameUnderPost}
-                      onChange={(e) => setShareNameUnderPost(e.target.checked)}
-                      className="w-4 h-4 rounded text-red-600"
-                    />
-                    <label htmlFor="videoShareNameCheck" className="text-xs font-bold text-slate-900 dark:text-white cursor-pointer">
-                      ওয়েবসাইটে ভিডিওর নিচে প্রতিবেদক হিসেবে আমার নাম দেখান ({formatReporterName(writerProfile?.name || 'প্রতিবেদক', writerProfile?.district)})
-                    </label>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="videoBreakingCheck"
-                      checked={isBreaking}
-                      onChange={(e) => setIsBreaking(e.target.checked)}
-                      className="w-4 h-4 rounded text-red-600"
-                    />
-                    <label htmlFor="videoBreakingCheck" className="text-xs font-bold text-red-600 dark:text-red-400 cursor-pointer">
-                      ব্রেকিং নিউজ হিসেবে সাইটের টপ মার্কিতে দেখান
-                    </label>
-                  </div>
-                </div>
-
-                {/* Publish Video Button */}
-                <button
-                  type="submit"
-                  className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-red-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Video className="w-4 h-4" />
-                  {editingArticleId ? 'ভিডিও সংবাদটি আপডেট করুন' : 'ভিডিও সংবাদ লাইভ প্রকাশ করুন (Publish Video Live)'}
-                </button>
-              </form>
             </div>
-          ) : (
-            /* WRITTEN POST CREATOR */
-            <div className="space-y-0">
-              {/* Blogger Header Header Bar */}
-              <div className="p-5 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-4 border-b border-slate-800">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center font-bold text-sm text-white">
-                    {createStep}
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-white flex items-center gap-2">
-                      লিখিত সংবাদ ক্রিয়েটর — {createStep === 1 ? 'ধাপ ১: সংবাদ সম্পাদনা' : 'ধাপ ২: কী-ওয়ার্ড ও লেখক নাম'}
-                    </h3>
-                    <p className="text-[11px] text-gray-400">
-                      {createStep === 1 ? 'হেডলাইন, মুল বিবরণ, টেক্সট এডিটিং টুলস ও ছবি যুক্ত করুন' : 'কিওয়ার্ড সিলেক্ট করুন এবং পোস্টের নিচে নিজের নাম প্রচার করুন'}
-                    </p>
-                  </div>
-                </div>
+          </div>
 
-                {/* Step 1 vs Step 2 Control */}
-                <div className="flex items-center gap-2">
-                  {!editingArticleId && createStep === 1 && (
-                    <button
-                      type="button"
-                      onClick={() => setPostType(null)}
-                      className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-gray-200 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" /> ধরন পরিবর্তন
-                    </button>
-                  )}
-
-                  {createStep === 2 && (
-                    <button
-                      type="button"
-                      onClick={() => setCreateStep(1)}
-                      className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-gray-200 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5"
-                    >
-                      <ArrowLeft className="w-4 h-4" /> পূর্ববর্তী ধাপ
-                    </button>
-                  )}
-
-                  {createStep === 1 && (
-                    <button
-                      type="button"
-                      onClick={handleProceedToStep2}
-                      className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-600/30 transition-all flex items-center gap-1.5"
-                    >
-                      পরবর্তী ধাপ (Next) <ArrowRight className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {editorError && (
-                <div className="mx-6 mt-4 p-3.5 bg-red-50 dark:bg-red-950/70 text-red-700 dark:text-red-300 text-xs font-bold rounded-xl border border-red-200 dark:border-red-900 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
-                  <span>{editorError}</span>
-                </div>
-              )}
+          {editorError && (
+            <div className="mx-6 mt-4 p-3.5 bg-red-50 dark:bg-red-950/70 text-red-700 dark:text-red-300 text-xs font-bold rounded-xl border border-red-200 dark:border-red-900 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+              <span>{editorError}</span>
+            </div>
+          )}
 
           {/* STEP 1: Main Content Editor Canvas */}
           {createStep === 1 && (
@@ -2502,8 +2264,6 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           )}
         </div>
       )}
-    </div>
-  )}
 
       {/* TAB 2: Real-Time Writer-Specific Analytics */}
       {activeTab === 'analytics' && (() => {
@@ -2519,8 +2279,11 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         const myEstimatedReach = Math.round(myTotalViews * 1.42) + (myArticles.length * 85);
         const myActiveLiveVisitors = myArticles.length > 0 ? Math.max(3, Math.floor(analytics.activeVisitors * 0.35)) : 0;
         
-        // Earning calculation: 1 Taka per 130 views
-        const myTotalEarnings = Math.floor(myTotalViews / 130);
+        // Reporter Widget View Calculation: 30% fewer views shown if views >= 50
+        const myReportedWidgetViews = myTotalViews >= 50 ? Math.round(myTotalViews * 0.7) : myTotalViews;
+
+        // Earning calculation: 1 Taka per 257 views (257 views = 1 BDT)
+        const myTotalEarnings = Math.floor(myReportedWidgetViews / 257);
 
         return (
           <div className="space-y-6">
@@ -2558,14 +2321,14 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                   ৳ {myTotalEarnings.toLocaleString()}
                 </div>
                 <span className="text-[10px] text-emerald-200 font-bold block">
-                  অর্জিত মোট আয়
+                  প্রতি ২৫৭ ভিউ = ১ টাকা
                 </span>
               </div>
 
               <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
                 <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">আমার সংবাদের মোট ভিউ</span>
                 <div className="text-2xl sm:text-3xl font-mono font-bold text-slate-900 dark:text-white">
-                  {myTotalViews.toLocaleString()}
+                  {myReportedWidgetViews.toLocaleString()}
                 </div>
                 <span className="text-[10px] text-emerald-500 font-semibold flex items-center gap-1 font-mono">
                   <TrendingUp className="w-3 h-3" /> রিয়েল-টাইম লাইভ ভিউ
@@ -2943,7 +2706,8 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           return (art.author || '').toLowerCase().includes(writerProfile.name.toLowerCase());
         });
         const myTotalViews = myArticles.reduce((acc, a) => acc + (a.viewsCount || 0), 0);
-        const myTotalEarnings = Math.floor(myTotalViews / 130);
+        const myReportedWidgetViews = myTotalViews >= 50 ? Math.round(myTotalViews * 0.7) : myTotalViews;
+        const myTotalEarnings = Math.floor(myReportedWidgetViews / 257);
         const myWriterWithdrawals = withdrawals.filter(w => w.writerId === writerProfile?.id);
         const totalWithdrawn = myWriterWithdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
         const currentBalance = Math.max(0, myTotalEarnings - totalWithdrawn);
