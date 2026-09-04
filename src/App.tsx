@@ -241,15 +241,8 @@ export default function App() {
   const [showOfflineOnly, setShowOfflineOnly] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Initial site load reCAPTCHA / Bot Protection state
-  const [showSiteBotProtection, setShowSiteBotProtection] = useState<boolean>(() => {
-    try {
-      const verified = sessionStorage.getItem('recap_human_verified');
-      return verified !== 'true';
-    } catch {
-      return true;
-    }
-  });
+  // Initial site load reCAPTCHA / Bot Protection state (site loads immediately without blocking visitors)
+  const [showSiteBotProtection, setShowSiteBotProtection] = useState<boolean>(false);
 
   // Synchronize Dark Mode Class on Document Root element
   useEffect(() => {

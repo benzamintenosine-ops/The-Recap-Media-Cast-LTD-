@@ -7,37 +7,43 @@ interface AdBlockerDetectorProps {
 
 export const AdBlockerDetector: React.FC<AdBlockerDetectorProps> = ({ onStatusChange }) => {
   const [isAdBlockerDetected, setIsAdBlockerDetected] = useState<boolean>(false);
-  const [isChecking, setIsChecking] = useState<boolean>(true);
+  const [isChecking, setIsChecking] = useState<boolean>(false);
   const [testMode, setTestMode] = useState<boolean>(false);
 
+  const isDismissed = () => {
+    try {
+      return sessionStorage.getItem('recap_adblock_dismissed') === 'true';
+    } catch {
+      return false;
+    }
+  };
+
   const runAdBlockCheck = useCallback(async () => {
+    if (isDismissed()) return;
+
     setIsChecking(true);
     let detected = false;
 
     try {
-      // Method 1: Bait DOM Element check
+      // Create a test ad element with realistic dimensions
       const bait = document.createElement('div');
-      bait.setAttribute('class', 'adsbox ad-placement pub_300x250 pub_728x90 text-ad textAd text_ad ad-banner google-ad ad-container');
+      bait.setAttribute('class', 'adsbox ad-placement pub_300x250 pub_728x90 text-ad textAd text_ad ad-banner google-ad');
       bait.setAttribute('id', 'ad-detector-probe');
       bait.style.position = 'absolute';
       bait.style.top = '-9999px';
       bait.style.left = '-9999px';
-      bait.style.width = '1px';
-      bait.style.height = '1px';
+      bait.style.width = '100px';
+      bait.style.height = '100px';
+      bait.style.display = 'block';
       bait.innerHTML = '&nbsp;';
       document.body.appendChild(bait);
 
-      // Fast check
-      await new Promise(r => setTimeout(r, 60));
+      // Brief delay for DOM & ad blocker CSS injection
+      await new Promise(r => setTimeout(r, 120));
 
       const styles = window.getComputedStyle(bait);
-      if (
-        bait.offsetParent === null ||
-        bait.offsetHeight === 0 ||
-        bait.offsetWidth === 0 ||
-        styles.display === 'none' ||
-        styles.visibility === 'hidden'
-      ) {
+      // Ad blockers like uBlock/Adblock inject display: none !important or visibility: hidden
+      if (styles.display === 'none' || styles.visibility === 'hidden') {
         detected = true;
       }
 
@@ -45,32 +51,35 @@ export const AdBlockerDetector: React.FC<AdBlockerDetectorProps> = ({ onStatusCh
         bait.parentNode.removeChild(bait);
       }
     } catch {
-      // Ignore
+      detected = false;
     }
 
     setIsChecking(false);
-    setIsAdBlockerDetected(detected || testMode);
-    if (onStatusChange) {
-      onStatusChange(detected || testMode);
+    if (!isDismissed()) {
+      setIsAdBlockerDetected(detected || testMode);
+      if (onStatusChange) {
+        onStatusChange(detected || testMode);
+      }
     }
   }, [testMode, onStatusChange]);
 
   useEffect(() => {
-    // Initial check with brief delay for DOM readiness
+    if (isDismissed()) return;
+
     const timer = setTimeout(() => {
       runAdBlockCheck();
-    }, 800);
+    }, 1500);
 
-    // Periodic check in background
-    const interval = setInterval(() => {
-      runAdBlockCheck();
-    }, 45000);
-
-    return () => {
-      clearTimeout(timer);
-      clearInterval(interval);
-    };
+    return () => clearTimeout(timer);
   }, [runAdBlockCheck]);
+
+  const handleDismiss = () => {
+    try {
+      sessionStorage.setItem('recap_adblock_dismissed', 'true');
+    } catch {}
+    setIsAdBlockerDetected(false);
+    if (onStatusChange) onStatusChange(false);
+  };
 
   // Handle manual retry
   const handleRecheck = () => {
@@ -86,7 +95,7 @@ export const AdBlockerDetector: React.FC<AdBlockerDetectorProps> = ({ onStatusCh
     };
   }, []);
 
-  if (!isAdBlockerDetected && !testMode) {
+  if ((!isAdBlockerDetected && !testMode) || isDismissed()) {
     return null;
   }
 
@@ -160,8 +169,8 @@ export const AdBlockerDetector: React.FC<AdBlockerDetectorProps> = ({ onStatusCh
               <span>পেজ রিলোড</span>
             </button>
             <button
-              onClick={() => setIsAdBlockerDetected(false)}
-              className="flex-1 py-2.5 px-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
+              onClick={handleDismiss}
+              className="flex-1 py-2.5 px-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <span>চালিয়ে যান (Continue)</span>
             </button>

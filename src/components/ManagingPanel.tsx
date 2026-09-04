@@ -22,7 +22,8 @@ import {
   Calendar,
   Layers,
   ChevronRight,
-  AlertTriangle
+  AlertTriangle,
+  Key
 } from 'lucide-react';
 import { 
   NewsArticle, 
@@ -35,6 +36,8 @@ import {
 import { NativeBannerAd } from './DynamicAdServices';
 import { renderFormattedContent } from '../utils/formatContent';
 import { formatReporterName } from '../utils/authorHelper';
+import { uploadImageToCloudinary } from '../services/cloudinaryService';
+import { saveManagerToFirebase } from '../services/firebaseDataService';
 
 interface ManagingPanelProps {
   articles: NewsArticle[];
@@ -115,6 +118,8 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
 
   // Manager Profile Edit Modal State
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [profileSuccessMsg, setProfileSuccessMsg] = useState('');
   const [editManagerName, setEditManagerName] = useState(managerProfile?.name || '');
   const [editManagerMobile, setEditManagerMobile] = useState(managerProfile?.mobile || '');
   const [editManagerDesignation, setEditManagerDesignation] = useState(managerProfile?.designation || 'ব্যবস্থাপনা পরিচালক');
@@ -123,11 +128,24 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
   const [editManagerBio, setEditManagerBio] = useState(managerProfile?.bio || '');
   const [editManagerAvatar, setEditManagerAvatar] = useState(managerProfile?.avatarUrl || '');
 
+  const handleOpenEditProfile = () => {
+    if (managerProfile) {
+      setEditManagerName(managerProfile.name || '');
+      setEditManagerMobile(managerProfile.mobile || '');
+      setEditManagerDesignation(managerProfile.designation || 'ব্যবস্থাপনা পরিচালক');
+      setEditManagerAddress(managerProfile.address || '');
+      setEditManagerAge(managerProfile.age || '');
+      setEditManagerBio(managerProfile.bio || '');
+      setEditManagerAvatar(managerProfile.avatarUrl || '');
+    }
+    setShowEditProfileModal(true);
+  };
+
   // Article Filter State
   const [articleFilter, setArticleFilter] = useState<'all' | 'flagged' | 'safe' | 'unpublished'>('all');
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'pending' | 'writers' | 'referral' | 'articles' | 'notifications' | 'analytics' | 'rules'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'writers' | 'referral' | 'articles' | 'notifications' | 'analytics' | 'rules' | 'profile'>('pending');
 
   // Manager Referral Code State
   const [myRefCodeInput, setMyRefCodeInput] = useState<string>(() => managerProfile?.referralCode || 'MGR-ALPHA');
@@ -402,6 +420,9 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
       updatedList.push(updated);
     }
     onUpdateManagers(updatedList);
+    saveManagerToFirebase(updated).catch((err) => console.warn('Firebase save manager error:', err));
+    setProfileSuccessMsg('আপনার ম্যানেজার প্রোফাইল সফলভাবে আপডেট ও ক্লাউডে সংরক্ষিত হয়েছে!');
+    setTimeout(() => setProfileSuccessMsg(''), 5000);
     setShowEditProfileModal(false);
   };
 
@@ -764,9 +785,9 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
           </div>
           <div className="flex items-center gap-1.5 ml-auto">
             <button
-              onClick={() => setShowEditProfileModal(true)}
-              title="প্রোফাইল সেটআপ ও এডিট"
-              className="px-3 py-1.5 bg-blue-600/30 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 border border-blue-500/40"
+              onClick={handleOpenEditProfile}
+              title="ম্যানেজার প্রোফাইল সেটআপ ও এডিট"
+              className="px-3 py-1.5 bg-blue-600/30 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 border border-blue-500/40 cursor-pointer shadow-sm"
             >
               <UserCheck className="w-3.5 h-3.5" />
               <span>প্রোফাইল এডিট</span>
@@ -881,7 +902,26 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
           <ShieldCheck className="w-4 h-4 text-emerald-300" />
           <span>প্যানেল নিয়মাবলি</span>
         </button>
+
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'profile'
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <UserCheck className="w-4 h-4 text-blue-400" />
+          <span>ম্যানেজার প্রোফাইল</span>
+        </button>
       </div>
+
+      {profileSuccessMsg && (
+        <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-2xl flex items-center gap-2.5 shadow-sm">
+          <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+          <span>{profileSuccessMsg}</span>
+        </div>
+      )}
 
       {/* Native Banner Ad for Managing Panel */}
       <NativeBannerAd
@@ -1704,7 +1744,164 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
         </div>
       )}
 
-      {/* VIEW WRITER PROFILE MODAL */}
+      {/* TAB 5: PANEL RULES & GUIDELINES */}
+      {activeTab === 'rules' && (
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-md space-y-6">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 font-serif">
+              <ShieldCheck className="w-6 h-6 text-emerald-500" />
+              ব্যবস্থাপনা প্যানেল নীতিমালা ও নির্দেশিকা
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">
+              সংবাদ কন্টেন্ট পর্যবেক্ষণ, অনুমোদন, রিপোর্টার নিয়ন্ত্রণ ও নৈতিক সাংবাদিকতার মানদণ্ড।
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-2xl border border-emerald-200/60 dark:border-emerald-800/40 space-y-2">
+              <h3 className="font-bold text-emerald-800 dark:text-emerald-300 text-sm flex items-center gap-1.5">
+                <CheckCircle className="w-4 h-4 text-emerald-600" /> ১. কন্টেন্ট অনুমোদন ও যাচাই
+              </h3>
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                কোনো প্রতিবেদকের সংবাদ প্রকাশের আগে তথ্যের সত্যতা, প্রমাণক ও বস্তুনিষ্ঠতা নিশ্চিত করুন। বিভ্রান্তিকর বা গুজব জাতীয় সংবাদ তাৎক্ষণিক আনপাবলিশ বা রিভিউতে পাঠান।
+              </p>
+            </div>
+
+            <div className="p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded-2xl border border-blue-200/60 dark:border-blue-800/40 space-y-2">
+              <h3 className="font-bold text-blue-800 dark:text-blue-300 text-sm flex items-center gap-1.5">
+                <UserCheck className="w-4 h-4 text-blue-600" /> ২. প্রতিবেদক ভেরিফিকেশন ও NID
+              </h3>
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                প্রতিবেদকের জাতীয় পরিচয়পত্র (NID) নম্বর ও মোবাইল নম্বর সঠিকভাবে মিলিয়ে নিন। অসম্পূর্ণ বা ভুয়া তথ্যের ক্ষেত্রে রেজিস্ট্রেশন সাময়িক স্থগিত বা বাতিল করুন।
+              </p>
+            </div>
+
+            <div className="p-4 bg-amber-50/50 dark:bg-amber-950/20 rounded-2xl border border-amber-200/60 dark:border-amber-800/40 space-y-2">
+              <h3 className="font-bold text-amber-800 dark:text-amber-300 text-sm flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-amber-600" /> ৩. বিজ্ঞাপন ও নীতিমালার সুরক্ষা
+              </h3>
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                বিজ্ঞাপন ব্লক বা স্প্যামিং রুখতে সাইটের স্বয়ংক্রিয় নিরাপত্তা ও অ্যাড ডাইনামিক ফিল্টার সক্রিয় রাখুন। বিভ্রান্তিকর প্রচারণামূলক সংবাদ অনুমোদিত নয়।
+              </p>
+            </div>
+
+            <div className="p-4 bg-purple-50/50 dark:bg-purple-950/20 rounded-2xl border border-purple-200/60 dark:border-purple-800/40 space-y-2">
+              <h3 className="font-bold text-purple-800 dark:text-purple-300 text-sm flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-purple-600" /> ৪. গোপনীয়তা ও তথ্য সংরক্ষণ
+              </h3>
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                সকল অভ্যন্তরীণ লিখিত তথ্য ও ইউজার রেকর্ড নিরাপদ ক্লাউড ফায়ারবেস (Firestore)-এ সংরক্ষিত থাকে এবং ছবিগুলো ক্লাউডিনারি (Cloudinary)-তে সুরক্ষিত থাকে।
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 6: MANAGER PROFILE SETUP & OVERVIEW */}
+      {activeTab === 'profile' && (
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-md">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 pb-6 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-4">
+                <div className="w-20 h-20 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border-2 border-blue-500 shadow-md shrink-0 flex items-center justify-center">
+                  {managerProfile?.avatarUrl ? (
+                    <img src={managerProfile.avatarUrl} alt={managerProfile.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <UserCheck className="w-10 h-10 text-blue-500" />
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-serif">
+                      {managerProfile?.name || 'ব্যবস্থাপক'}
+                    </h2>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                      ভেরিফাইড ম্যানেজার
+                    </span>
+                  </div>
+                  <p className="text-xs font-bold text-blue-600 dark:text-blue-400 mt-0.5">
+                    {managerProfile?.designation || 'ব্যবস্থাপনা পরিচালক'}
+                  </p>
+                  <p className="text-xs text-slate-500 font-mono mt-0.5">
+                    {managerProfile?.email}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <button
+                  onClick={handleOpenEditProfile}
+                  className="flex-1 sm:flex-none px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 cursor-pointer"
+                >
+                  <UserCheck className="w-4 h-4" />
+                  <span>প্রোফাইল তথ্য ও ছবি এডিট</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('referral')}
+                  className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Key className="w-4 h-4 text-amber-500" />
+                  <span>রেফারেল কোড</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Profile Information Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-6 text-xs">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <span className="text-[11px] font-bold text-slate-400 block mb-1">📱 মোবাইল নম্বর</span>
+                <p className="font-bold text-slate-800 dark:text-white font-mono text-sm">
+                  {managerProfile?.mobile || 'সেট করা হয়নি'}
+                </p>
+              </div>
+
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <span className="text-[11px] font-bold text-slate-400 block mb-1">📍 ঠিকানা / অফিস অবস্থান</span>
+                <p className="font-bold text-slate-800 dark:text-white text-sm">
+                  {managerProfile?.address || 'সেট করা হয়নি'}
+                </p>
+              </div>
+
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <span className="text-[11px] font-bold text-slate-400 block mb-1">🎂 বয়স</span>
+                <p className="font-bold text-slate-800 dark:text-white text-sm">
+                  {managerProfile?.age ? `${managerProfile.age} বছর` : 'সেট করা হয়নি'}
+                </p>
+              </div>
+
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <span className="text-[11px] font-bold text-slate-400 block mb-1">🔑 ম্যানেজার রেফারেল কোড</span>
+                <p className="font-bold text-amber-600 dark:text-amber-400 font-mono text-sm tracking-wider">
+                  {managerProfile?.referralCode || 'MGR-ALPHA'}
+                </p>
+              </div>
+
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <span className="text-[11px] font-bold text-slate-400 block mb-1">👥 নিবন্ধিত প্রতিবেদক সীমা</span>
+                <p className="font-bold text-indigo-600 dark:text-indigo-400 font-mono text-sm">
+                  সর্বোচ্চ {managerProfile?.maxReportersLimit || 10} জন (বর্তমানে {writers.filter(w => (w.managerId === managerProfile?.id || (managerProfile?.referralCode && w.referralCodeUsed === managerProfile.referralCode)) && w.status === 'approved').length} জন সক্রিয়)
+                </p>
+              </div>
+
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <span className="text-[11px] font-bold text-slate-400 block mb-1">☁️ ক্লাউড ডেটাবেস স্ট্যাটাস</span>
+                <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-sm">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Firebase ও Cloudinary সংযুক্ত</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bio Section */}
+            <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-800">
+              <span className="text-[11px] font-bold text-slate-400 block mb-1">📝 জীবনবৃত্তান্ত / বায়ো (Bio)</span>
+              <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                {managerProfile?.bio || 'এখনও কোনো পরিচিতিমূলক বায়ো যোগ করা হয়নি। প্রোফাইল এডিট করে বিস্তারিত লিখুন।'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       {selectedWriter && (
         <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
@@ -1896,25 +2093,40 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
                 </div>
                 <div className="space-y-1.5 flex-1">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    প্রোফাইল ছবি (Avatar)
+                    প্রোফাইল ছবি (Cloudinary Avatar)
                   </label>
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => {
+                    disabled={isUploadingAvatar}
+                    onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                          if (reader.result) {
-                            setEditManagerAvatar(reader.result as string);
-                          }
-                        };
-                        reader.readAsDataURL(file);
+                        try {
+                          setIsUploadingAvatar(true);
+                          const cloudUrl = await uploadImageToCloudinary(file, 'manager_avatars');
+                          setEditManagerAvatar(cloudUrl);
+                        } catch (err: any) {
+                          console.warn('Cloudinary upload error:', err);
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            if (reader.result) {
+                              setEditManagerAvatar(reader.result as string);
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        } finally {
+                          setIsUploadingAvatar(false);
+                        }
                       }
                     }}
-                    className="block w-full text-[11px] text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                    className="block w-full text-[11px] text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer disabled:opacity-50"
                   />
+                  {isUploadingAvatar && (
+                    <p className="text-[10px] text-blue-500 font-bold flex items-center gap-1.5 animate-pulse">
+                      <RefreshCw className="w-3 h-3 animate-spin" /> Cloudinary-তে ছবি আপলোড হচ্ছে...
+                    </p>
+                  )}
                   <input
                     type="url"
                     value={editManagerAvatar}
