@@ -33,6 +33,7 @@ import {
 import { Language, NewsArticle, Category, UserProfile, CategoryConfig, SiteSettings } from '../types';
 import { getTranslation } from '../utils/i18n';
 import { InfoModals } from './InfoModals';
+import { SearchModal } from './SearchModal';
 
 interface HeaderProps {
   currentLang: Language;
@@ -42,6 +43,7 @@ interface HeaderProps {
   currentMode: 'viewer' | 'writer' | 'managing' | 'systemAdmin';
   onModeSwitch: (mode: 'viewer' | 'writer' | 'managing' | 'systemAdmin') => void;
   breakingArticles: NewsArticle[];
+  articles?: NewsArticle[];
   onSelectArticle: (article: NewsArticle) => void;
   selectedCategory: Category | 'ALL';
   onCategorySelect: (cat: Category | 'ALL') => void;
@@ -78,6 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
   currentMode,
   onModeSwitch,
   breakingArticles,
+  articles,
   onSelectArticle,
   selectedCategory,
   onCategorySelect,
@@ -277,20 +280,41 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {/* Search Trigger Pill */}
           <div className="relative hidden sm:block w-48 md:w-64">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <button
+              type="button"
+              onClick={() => setShowSearchModal(true)}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer transition-colors"
+              title="বিস্তারিত অনুসন্ধান করুন"
+            >
+              <Search className="w-4 h-4" />
+            </button>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setShowSearchModal(true);
+                }
+              }}
               placeholder={t('searchPlaceholder')}
-              className="w-full pl-9 pr-3 py-1.5 text-xs rounded-full border border-slate-300 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-slate-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all"
+              className="w-full pl-9 pr-8 py-1.5 text-xs rounded-full border border-slate-300 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-slate-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all cursor-text"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => onSearchChange('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           <button
             onClick={() => setShowSearchModal(true)}
-            className="sm:hidden p-2 rounded-xl bg-slate-100 dark:bg-white/5 border border-white/10 text-slate-700 dark:text-gray-200"
-            title="অনুসন্ধান"
+            className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 border border-white/10 text-slate-700 dark:text-gray-200 hover:bg-red-50 hover:text-red-600 dark:hover:bg-white/10 cursor-pointer transition-colors"
+            title="সংবাদ অনুসন্ধান (Search)"
           >
             <Search className="w-4 h-4" />
           </button>
@@ -323,17 +347,18 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </button>
 
-          {/* Profile / Auth Button */}
+          {/* Regular Reader Profile / Auth Button */}
           <button
             onClick={onOpenProfile}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-gray-200 hover:bg-slate-200 dark:hover:bg-white/10 text-xs font-semibold border border-slate-200 dark:border-white/10 transition-all"
+            title={user ? `নিয়মিত পাঠক: ${user.name}` : 'নিয়মিত পাঠক একাউন্ট (সাইন-ইন / সাইন-আপ)'}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-gray-200 hover:bg-slate-200 dark:hover:bg-white/10 text-xs font-semibold border border-slate-200 dark:border-white/10 transition-all cursor-pointer"
           >
             {user?.avatar ? (
               <img src={user.avatar} alt={user.name} className="w-5 h-5 rounded-full object-cover shrink-0" />
             ) : (
               <User className="w-4 h-4 text-slate-600 dark:text-gray-300 shrink-0" />
             )}
-            <span className="hidden md:inline">{user ? user.name : t('signUpLogin')}</span>
+            <span className="hidden md:inline">{user ? user.name : 'নিয়মিত পাঠক'}</span>
           </button>
         </div>
       </div>
@@ -726,6 +751,17 @@ export const Header: React.FC<HeaderProps> = ({
       <InfoModals
         activeModal={activeInfoModal}
         onClose={() => setActiveInfoModal(null)}
+        currentLang={currentLang}
+      />
+
+      {/* Global Interactive Search Modal */}
+      <SearchModal
+        isOpen={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+        articles={articles && articles.length > 0 ? articles : (breakingArticles || [])}
+        onSelectArticle={onSelectArticle}
+        initialQuery={searchQuery}
+        onCategorySelect={onCategorySelect}
         currentLang={currentLang}
       />
     </header>

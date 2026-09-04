@@ -45,6 +45,7 @@ export interface NewsArticle {
   videoUrl?: string;
   hasVideo?: boolean;
   author: string;
+  authorDistrict?: string;
   source?: string; // তথ্যসূত্র / Reference source
   publishedAt: string;
   isBreaking?: boolean;
@@ -133,6 +134,10 @@ export interface ManagerProfile {
   email: string;
   mobile: string;
   avatarUrl?: string;
+  address?: string;
+  designation?: string;
+  age?: number;
+  bio?: string;
   secretCodeUsed: string;
   createdAt: string;
 }

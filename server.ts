@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
+import nodemailer from "nodemailer";
 import { INITIAL_NEWS, INITIAL_ADS } from "./src/data/initialNews";
 import { NewsArticle, AdBanner, AgentLog } from "./src/types";
 
@@ -9,6 +10,28 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json({ limit: "10mb" }));
+
+// In-Memory store for Email Verification Codes
+interface VerificationEntry {
+  code: string;
+  expiresAt: number;
+  name: string;
+}
+const emailVerificationStore = new Map<string, VerificationEntry>();
+
+// Sender Credentials for Gmail SMTP
+const GMAIL_SENDER = process.env.GMAIL_USER || "therecapmediacastltd@gmail.com";
+const GMAIL_PASSWORD = process.env.GMAIL_APP_PASSWORD || "cmth jdyv ilbd wsrx";
+
+const getMailTransporter = () => {
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: GMAIL_SENDER,
+      pass: GMAIL_PASSWORD,
+    },
+  });
+};
 
 // Initialize Gemini SDK with telemetry header
 const getGeminiClient = () => {
@@ -40,6 +63,136 @@ let analyticsData = {
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", appName: "THE RECAP MEDIA CAST LTD" });
+});
+
+// POST send email verification code for Reporter Sign-Up
+app.post("/api/send-email-verification", async (req, res) => {
+  try {
+    const { email, name = "প্রতিবেদক" } = req.body;
+
+    if (!email || !email.includes("@")) {
+      return res.status(400).json({ error: "সঠিক ইমেইল বা জিমেইল ঠিকানা প্রদান করুন!" });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    // Generate secure random 6-digit verification code
+    const randomCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes validity
+
+    // Store in-memory
+    emailVerificationStore.set(cleanEmail, {
+      code: randomCode,
+      expiresAt,
+      name: name.trim(),
+    });
+
+    // Formulate message according to exact specifications:
+    // "Hey! Dear... (প্রতিবেদকের নাম)
+    // Your Verification Code for Sign up 
+    // . . . . . . (৬ ডিজিটের কোড, একটু বড় অক্ষরে যেন সহজে চোখে পড়ে)
+    //  at "The Recap Media Cast Ltd"
+    // Enter your verification code and go ahead"
+    const textMessage = `Hey! Dear... ${name}\nYour Verification Code for Sign up \n${randomCode}\n at "The Recap Media Cast Ltd"\nEnter your verification code and go ahead\n\n(Note: If you do not find this message in your Inbox, please check your Spam folder.)`;
+
+    const htmlMessage = `
+      <div style="font-family: Arial, 'Segoe UI', Tahoma, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; color: #1e293b;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h2 style="color: #dc2626; margin: 0; font-size: 22px; font-weight: 900; letter-spacing: 0.5px;">The Recap Media Cast Ltd</h2>
+          <p style="color: #64748b; font-size: 13px; margin: 4px 0 0;">বস্তুনিষ্ঠ ও নিরপেক্ষ সংবাদ মাধ্যম</p>
+        </div>
+        <div style="padding: 24px 20px; background-color: #f8fafc; border-radius: 14px; border: 1px solid #e2e8f0; text-align: center;">
+          <p style="font-size: 16px; color: #0f172a; margin-top: 0; font-weight: bold;">
+            Hey! Dear... <span style="color: #dc2626;">${name}</span>
+          </p>
+          <p style="font-size: 15px; color: #475569; margin: 10px 0 6px;">
+            Your Verification Code for Sign up 
+          </p>
+          
+          <div style="margin: 20px auto; padding: 14px 24px; background: #ffffff; border: 2px dashed #dc2626; border-radius: 12px; display: inline-block;">
+            <span style="font-size: 34px; font-weight: 900; letter-spacing: 8px; color: #dc2626; font-family: 'Courier New', Courier, monospace;">${randomCode}</span>
+          </div>
+          
+          <p style="font-size: 15px; color: #334155; margin: 10px 0 6px; font-weight: bold;">
+            at "The Recap Media Cast Ltd"
+          </p>
+          <p style="font-size: 14px; color: #16a34a; font-weight: 600; margin-top: 8px;">
+            Enter your verification code and go ahead
+          </p>
+        </div>
+
+        <div style="margin-top: 20px; padding: 12px; background-color: #fef2f2; border-radius: 10px; border: 1px solid #fee2e2; text-align: center;">
+          <p style="font-size: 12px; color: #dc2626; font-weight: bold; margin: 0;">
+            ⚠️ ইনবক্সে Message না পেলে অনুগ্রহ করে আপনার জিমেইল-এর স্প্যাম ফোল্ডার (Spam) চেক করুন।
+          </p>
+        </div>
+      </div>
+    `;
+
+    // Attempt sending via nodemailer
+    const transporter = getMailTransporter();
+    await transporter.sendMail({
+      from: `"The Recap Media Cast Ltd" <${GMAIL_SENDER}>`,
+      to: cleanEmail,
+      subject: `Your Verification Code for Sign up - The Recap Media Cast Ltd`,
+      text: textMessage,
+      html: htmlMessage,
+    });
+
+    console.log(`Verification code ${randomCode} sent to ${cleanEmail}`);
+    return res.json({
+      success: true,
+      message: `আপনার জিমেইল (${cleanEmail})-এ ৬ ডিজিটের ভেরিফিকেশন কোড পাঠানো হয়েছে!`,
+    });
+  } catch (err: any) {
+    console.error("Email send error:", err);
+    // If SMTP has network issue or authentication glitch, still allow user to proceed or give clear error
+    return res.status(500).json({
+      error: `ইমেইল পাঠাতে সমস্যা হয়েছে: ${err.message || 'অনুগ্রহ করে জিমেইল ঠিকানা সঠিক কি না তা পরীক্ষা করুন'}`,
+      details: err?.message,
+    });
+  }
+});
+
+// POST verify 6-digit code
+app.post("/api/verify-email-code", (req, res) => {
+  const { email, code } = req.body;
+  if (!email || !code) {
+    return res.status(400).json({ error: "ইমেইল এবং ভেরিফিকেশন কোড প্রদান করুন।" });
+  }
+
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanCode = code.toString().trim();
+  const entry = emailVerificationStore.get(cleanEmail);
+
+  if (!entry) {
+    return res.status(400).json({
+      success: false,
+      error: "এই ইমেইলের জন্য কোনো সক্রিয় ভেরিফিকেশন কোড পাওয়া যায়নি! অনুগ্রহ করে 'পুনরায় কোড পাঠান' বাটনে ক্লিক করুন।",
+    });
+  }
+
+  if (Date.now() > entry.expiresAt) {
+    emailVerificationStore.delete(cleanEmail);
+    return res.status(400).json({
+      success: false,
+      error: "ভেরিফিকেশন কোডের মেয়াদ (১৫ মিনিট) শেষ হয়ে গেছে। দয়া করে নতুন কোড গ্রহণ করুন।",
+    });
+  }
+
+  if (entry.code !== cleanCode) {
+    return res.status(400).json({
+      success: false,
+      error: "ভেরিফিকেশন কোডটি সঠিক নয়! দয়া করে আপনার জিমেইল বা স্প্যাম ফোল্ডার দেখে সঠিক ৬ ডিজিট টাইপ করুন।",
+    });
+  }
+
+  // Verified successfully!
+  emailVerificationStore.delete(cleanEmail);
+  return res.json({
+    success: true,
+    verified: true,
+    message: "ইমেইল সফলভাবে ভেরিফাইড হয়েছে!",
+  });
 });
 
 // GET all news articles

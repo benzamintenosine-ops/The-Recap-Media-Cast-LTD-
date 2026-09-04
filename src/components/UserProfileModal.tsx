@@ -38,16 +38,21 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     if (!email) return;
 
     const loggedUser: UserProfile = {
-      id: `user-${Date.now()}`,
+      id: `reader-${Date.now()}`,
       name: name.trim() || email.split('@')[0],
       email: email.trim(),
       role: 'viewer',
       avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(email)}`,
-      bio: 'THE RECAP MEDIA CAST সংবাদ পাঠক ও নিয়মিত শুভাকাঙ্ক্ষী।',
+      bio: 'THE RECAP MEDIA CAST সংবাদ পাঠক ও নিয়মিত পাঠক।',
       bookmarks: [],
       offlineSaved: [],
       joinedAt: new Date().toISOString()
     };
+    try {
+      localStorage.setItem('the_recap_media_reader_user', JSON.stringify(loggedUser));
+    } catch (e) {
+      console.warn(e);
+    }
     onLogin(loggedUser);
   };
 
@@ -57,15 +62,20 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         
         {/* Modal Top Bar */}
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center font-bold text-sm">
-              <User className="w-4 h-4" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-red-600 to-amber-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+              <User className="w-5 h-5" />
             </div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">
-              {user ? t('profile') : t('signUpLogin')}
-            </h3>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">
+                {user ? 'নিয়মিত পাঠক প্রোফাইল' : 'নিয়মিত পাঠক সাইন-ইন / রেজিস্ট্রেশন'}
+              </h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                The Recap Media Cast পাঠক ফোরাম
+              </p>
+            </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -77,15 +87,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <img
                 src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`}
                 alt={user.name}
-                className="w-16 h-16 rounded-full border-2 border-red-500 object-cover"
+                className="w-16 h-16 rounded-full border-2 border-red-500 object-cover shadow-sm"
               />
               <div>
                 <h4 className="font-bold text-slate-900 dark:text-white text-lg">{user.name}</h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
                   <Mail className="w-3 h-3 text-red-500" /> {user.email}
                 </p>
-                <span className="inline-block mt-1 px-2 py-0.5 rounded bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 text-[10px] font-bold">
-                  {user.role === 'admin' ? 'অ্যাডমিন অ্যাকাউন্ট' : 'নিবন্ধিত সাধারণ পাঠক'}
+                <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 text-[10px] font-extrabold border border-emerald-300 dark:border-emerald-800">
+                  ✓ নিবন্ধিত নিয়মিত পাঠক
                 </span>
               </div>
             </div>
@@ -112,8 +122,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </div>
 
             <button
-              onClick={onLogout}
-              className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-red-600 dark:text-red-400 font-bold text-xs hover:bg-red-50 dark:hover:bg-red-950 transition-colors flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700"
+              onClick={() => {
+                try {
+                  localStorage.removeItem('the_recap_media_reader_user');
+                } catch (e) {
+                  console.warn(e);
+                }
+                onLogout();
+              }}
+              className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-red-600 dark:text-red-400 font-bold text-xs hover:bg-red-50 dark:hover:bg-red-950 transition-colors flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 cursor-pointer"
             >
               <LogOut className="w-4 h-4" /> লগআউট করুন
             </button>
@@ -121,18 +138,29 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         ) : (
           /* Sign Up / Login Form */
           <div className="space-y-4">
+            {/* Explanatory Info Card */}
+            <div className="p-3 bg-red-50/70 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-2xl text-[11px] text-slate-700 dark:text-slate-300 space-y-1">
+              <p className="font-bold text-red-700 dark:text-red-400 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                নিয়মিত পাঠক পোর্টাল
+              </p>
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                এখানে শুধুমাত্র <strong>নিয়মিত পাঠক</strong> হিসেবে সাইন-আপ বা সাইন-ইন করা যাবে। সংবাদে মন্তব্য প্রকাশ করতে নিয়মিত পাঠক হওয়া আবশ্যক।
+              </p>
+            </div>
+
             <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-bold">
               <button
                 onClick={() => setIsSignUp(false)}
-                className={`flex-1 py-1.5 rounded-lg transition-all ${!isSignUp ? 'bg-white dark:bg-slate-900 text-red-600 shadow' : 'text-slate-500'}`}
+                className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${!isSignUp ? 'bg-white dark:bg-slate-900 text-red-600 shadow' : 'text-slate-500'}`}
               >
-                লগইন (Sign In)
+                নিয়মিত পাঠক লগইন (Sign In)
               </button>
               <button
                 onClick={() => setIsSignUp(true)}
-                className={`flex-1 py-1.5 rounded-lg transition-all ${isSignUp ? 'bg-white dark:bg-slate-900 text-red-600 shadow' : 'text-slate-500'}`}
+                className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${isSignUp ? 'bg-white dark:bg-slate-900 text-red-600 shadow' : 'text-slate-500'}`}
               >
-                নতুন রেজিস্টার (Sign Up)
+                নতুন পাঠক সাইন-আপ (Sign Up)
               </button>
             </div>
 

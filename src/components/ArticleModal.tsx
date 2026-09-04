@@ -17,11 +17,13 @@ import {
   Video,
   Sparkles,
   Volume2,
-  Globe
+  Globe,
+  Lock
 } from 'lucide-react';
-import { NewsArticle, Language, SiteSettings } from '../types';
+import { NewsArticle, Language, SiteSettings, UserProfile } from '../types';
 import { getTranslation } from '../utils/i18n';
 import { renderFormattedContent } from '../utils/formatContent';
+import { formatReporterName } from '../utils/authorHelper';
 import { AdPanel } from './AdPanel';
 
 interface ArticleModalProps {
@@ -36,6 +38,8 @@ interface ArticleModalProps {
   relatedArticles: NewsArticle[];
   onSelectRelated: (article: NewsArticle) => void;
   siteSettings?: SiteSettings;
+  user?: UserProfile | null;
+  onRequireLogin?: () => void;
 }
 
 export const ArticleModal: React.FC<ArticleModalProps> = ({
@@ -49,12 +53,13 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
   onAddComment,
   relatedArticles,
   onSelectRelated,
-  siteSettings
+  siteSettings,
+  user,
+  onRequireLogin
 }) => {
   if (!article) return null;
 
   const [commentText, setCommentText] = useState('');
-  const [commentAuthor, setCommentAuthor] = useState('');
   const [copied, setCopied] = useState(false);
   const [artLang, setArtLang] = useState<Language>(currentLang);
 
@@ -63,6 +68,8 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
   const title = artLang === 'en' && article.titleEn ? article.titleEn : article.title;
   const summary = artLang === 'en' && article.summaryEn ? article.summaryEn : article.summary;
   const content = artLang === 'en' && article.contentEn ? article.contentEn : article.content;
+
+  const formattedAuthor = formatReporterName(article.author, article.authorDistrict);
 
   const shareUrl = window.location.href;
 
@@ -96,8 +103,12 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
 
   const handleSubmitComment = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      onRequireLogin?.();
+      return;
+    }
     if (!commentText.trim()) return;
-    onAddComment(article.id, commentAuthor.trim() || 'অনামী পাঠক (Anonymous)', commentText.trim());
+    onAddComment(article.id, user.name || 'নিয়মিত পাঠক', commentText.trim());
     setCommentText('');
   };
 
@@ -190,7 +201,7 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
             <div className="flex flex-wrap items-center gap-4">
               <span className="flex items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-200">
                 <User className="w-4 h-4 text-red-600" />
-                {article.author}
+                {formattedAuthor}
               </span>
               {article.source && (
                 <span className="flex items-center gap-1 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 rounded-lg text-xs font-medium border border-blue-200 dark:border-blue-800/60 shadow-xs">
@@ -240,6 +251,9 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
             </div>
           )}
 
+          {/* In-Article Advertisement Space - Placed Above News Share Banner */}
+          <AdPanel placement="in_article" siteSettings={siteSettings} />
+
           {/* Social Share Bar */}
           <div className="bg-slate-50 dark:bg-slate-800/70 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3 border border-slate-200 dark:border-slate-700">
             <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
@@ -280,6 +294,31 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
             {renderFormattedContent(content)}
           </div>
 
+          {/* Reporter Byline Box Above Tag List */}
+          <div className="pt-5 mt-4 border-t border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between flex-wrap gap-3 p-4 bg-slate-50 dark:bg-[#121212] rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 to-amber-600 text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
+                  <User className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider">
+                    প্রতিবেদক
+                  </span>
+                  <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-1.5 font-serif">
+                    {formattedAuthor}
+                  </h4>
+                </div>
+              </div>
+
+              {article.source && (
+                <span className="text-xs text-slate-600 dark:text-slate-400 bg-white dark:bg-white/5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 shadow-xs">
+                  তথ্যসূত্র: <strong className="text-slate-800 dark:text-slate-200">{article.source}</strong>
+                </span>
+              )}
+            </div>
+          </div>
+
           {/* Tags List */}
           {article.tags && article.tags.length > 0 && (
             <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-2">
@@ -295,9 +334,6 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
             </div>
           )}
 
-          {/* In-Article Advertisement Space */}
-          <AdPanel placement="in_article" siteSettings={siteSettings} />
-
           {/* Comments Section */}
           <div className="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-6">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -305,30 +341,66 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
               {t('comments')} ({article.comments.length})
             </h3>
 
-            {/* Write Comment Form */}
-            <form onSubmit={handleSubmitComment} className="space-y-3 bg-slate-50 dark:bg-slate-850 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
-              <input
-                type="text"
-                value={commentAuthor}
-                onChange={(e) => setCommentAuthor(e.target.value)}
-                placeholder="আপনার নাম (Name)"
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
-              />
-              <textarea
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder={t('leaveComment')}
-                rows={3}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
-              />
-              <button
-                type="submit"
-                className="px-4 py-2 bg-red-600 text-white font-semibold text-xs rounded-xl hover:bg-red-700 transition-colors flex items-center gap-1.5 ml-auto shadow"
-              >
-                <Send className="w-3.5 h-3.5" />
-                {t('submitComment')}
-              </button>
-            </form>
+            {/* Write Comment Form (Restricted to Regular Readers) */}
+            {user ? (
+              <form onSubmit={handleSubmitComment} className="space-y-3 bg-slate-50 dark:bg-slate-850 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center justify-between gap-2 pb-1 border-b border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    {user.avatar ? (
+                      <img src={user.avatar} alt={user.name} className="w-6 h-6 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-[10px] font-bold">
+                        {user.name.charAt(0)}
+                      </div>
+                    )}
+                    <span className="text-xs font-bold text-slate-900 dark:text-white">
+                      {user.name}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold">
+                      নিয়মিত পাঠক
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-400">আপনার মতামত লিখুন</span>
+                </div>
+
+                <textarea
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder={t('leaveComment')}
+                  rows={3}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                />
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-red-600 text-white font-semibold text-xs rounded-xl hover:bg-red-700 transition-colors flex items-center gap-1.5 ml-auto shadow cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  {t('submitComment')}
+                </button>
+              </form>
+            ) : (
+              <div className="p-5 bg-gradient-to-r from-red-50 via-slate-50 to-amber-50 dark:from-red-950/30 dark:via-slate-900/50 dark:to-amber-950/20 rounded-2xl border border-red-200 dark:border-red-900/50 text-center space-y-3 shadow-xs">
+                <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-300 flex items-center justify-center mx-auto shadow-xs">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                    সংবাদে মন্তব্য করতে নিয়মিত পাঠক হওয়া আবশ্যক
+                  </h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 max-w-md mx-auto mt-1 leading-relaxed">
+                    নিয়মিত পাঠক ছাড়া কেউ মন্তব্য করতে পারবেন না। আপনার মূল্যবান মতামত জানাতে নিয়মিত পাঠক হিসেবে সাইন-ইন বা নতুন অ্যাকাউন্ট তৈরি করুন।
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onRequireLogin}
+                  className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-md shadow-red-600/20 transition-all inline-flex items-center gap-2 cursor-pointer hover:scale-105 active:scale-95"
+                >
+                  <User className="w-4 h-4" />
+                  <span>নিয়মিত পাঠক হিসেবে Sign Up / Sign In করুন</span>
+                </button>
+              </div>
+            )}
 
             {/* Comments List */}
             <div className="space-y-3">

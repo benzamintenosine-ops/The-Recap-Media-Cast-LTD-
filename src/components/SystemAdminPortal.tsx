@@ -231,6 +231,7 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
 
   // Ad Banner Modal State
   const [showAddAdModal, setShowAddAdModal] = useState(false);
+  const [editingAdBanner, setEditingAdBanner] = useState<AdBanner | null>(null);
   const [adTitle, setAdTitle] = useState('');
   const [adSponsor, setAdSponsor] = useState('');
   const [adImageUrl, setAdImageUrl] = useState('');
@@ -491,26 +492,67 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
     setTimeout(() => setSettingsSuccess(''), 4000);
   };
 
-  // Add Ad Banner Submit
+  // Open Add Ad Banner Modal
+  const handleOpenAddAdModal = () => {
+    setEditingAdBanner(null);
+    setAdTitle('');
+    setAdSponsor('');
+    setAdImageUrl('');
+    setAdTargetUrl('');
+    setAdPlacement('header_top');
+    setShowAddAdModal(true);
+  };
+
+  // Open Edit Ad Banner Modal
+  const handleOpenEditAdBanner = (ad: AdBanner) => {
+    setEditingAdBanner(ad);
+    setAdTitle(ad.title);
+    setAdSponsor(ad.sponsorName);
+    setAdImageUrl(ad.imageUrl);
+    setAdTargetUrl(ad.targetUrl);
+    setAdPlacement(ad.placement);
+    setShowAddAdModal(true);
+  };
+
+  // Add / Edit Ad Banner Submit
   const handleAddAdBanner = (e: React.FormEvent) => {
     e.preventDefault();
     if (!adTitle.trim() || !adImageUrl.trim() || !adTargetUrl.trim()) return;
 
-    const newAd: AdBanner = {
-      id: `ad-${Date.now()}`,
-      title: adTitle,
-      sponsorName: adSponsor || 'Sponsor Ad',
-      imageUrl: adImageUrl,
-      targetUrl: adTargetUrl,
-      placement: adPlacement,
-      active: true
-    };
+    if (editingAdBanner) {
+      // Update existing Ad Banner
+      const updated = (siteSettings.adBanners || []).map((a) =>
+        a.id === editingAdBanner.id
+          ? {
+              ...a,
+              title: adTitle.trim(),
+              sponsorName: adSponsor.trim() || 'Sponsor Ad',
+              imageUrl: adImageUrl.trim(),
+              targetUrl: adTargetUrl.trim(),
+              placement: adPlacement
+            }
+          : a
+      );
+      onUpdateSiteSettings({ adBanners: updated });
+    } else {
+      // Create new Ad Banner
+      const newAd: AdBanner = {
+        id: `ad-${Date.now()}`,
+        title: adTitle.trim(),
+        sponsorName: adSponsor.trim() || 'Sponsor Ad',
+        imageUrl: adImageUrl.trim(),
+        targetUrl: adTargetUrl.trim(),
+        placement: adPlacement,
+        active: true
+      };
 
-    onUpdateSiteSettings({
-      adBanners: [...(siteSettings.adBanners || []), newAd]
-    });
+      onUpdateSiteSettings({
+        adBanners: [...(siteSettings.adBanners || []), newAd]
+      });
+    }
 
     setShowAddAdModal(false);
+    setEditingAdBanner(null);
     setAdTitle('');
     setAdSponsor('');
     setAdImageUrl('');
@@ -2514,29 +2556,29 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
               </div>
             </div>
 
-            {/* DIRECT IMAGE BANNER WIDGETS (Header Top & Sidebar) */}
+            {/* DIRECT IMAGE BANNER WIDGETS (Header Top, Sidebar, In-Article) */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-md space-y-8">
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 font-serif">
                     <ImageIcon className="w-6 h-6 text-amber-500" />
-                    ডিজিটাল ব্যানার উইজেটস (Widget 1 & Widget 2 Banners)
+                    ডিজিটাল বিজ্ঞাপন ব্যানার উইজেটস (Ad Banner Widgets & Edit)
                   </h2>
                   <p className="text-xs text-slate-500">
-                    ওয়েবসাইটের ২টি বিজ্ঞাপন উইজেটে (Header Top Banner slider & Sidebar Banner slider) নিজস্ব ব্যানার আপলোড ও কন্ট্রোল করুন।
+                    ওয়েবসাইটের ৩টি মূল বিজ্ঞাপন উইজেটে (হেডার টপ, সাইডবার এবং পোস্টের ভেতরে শেয়ার ব্যানারের উপরে) বিজ্ঞাপন আপলোড ও এডিট করুন।
                   </p>
                 </div>
 
                 <button
-                  onClick={() => setShowAddAdModal(true)}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow flex items-center gap-2 transition-all"
+                  onClick={handleOpenAddAdModal}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow flex items-center gap-2 transition-all cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>নতুন ব্যানার যুক্ত করুন</span>
                 </button>
               </div>
 
-            {/* WIDGET 1 SECTION */}
+            {/* WIDGET 1 SECTION: HEADER TOP */}
             <div className="space-y-4">
               <div className="flex items-center justify-between bg-amber-50 dark:bg-amber-950/40 p-3.5 rounded-2xl border border-amber-200 dark:border-amber-900">
                 <div className="flex items-center gap-2">
@@ -2559,22 +2601,28 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                     <img
                       src={ad.imageUrl}
                       alt={ad.title}
-                      className="w-full h-36 object-cover rounded-xl border border-slate-300 dark:border-slate-700"
+                      className="w-full h-32 object-cover rounded-xl border border-slate-300 dark:border-slate-700"
                     />
 
-                    <div className="flex items-center justify-between text-xs">
-                      <div>
-                        <h4 className="font-bold text-slate-900 dark:text-white">{ad.title}</h4>
-                        <p className="text-slate-500 text-[11px]">স্পন্সর: {ad.sponsorName}</p>
+                    <div className="flex items-center justify-between text-xs gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-slate-900 dark:text-white truncate">{ad.title}</h4>
+                        <p className="text-slate-500 text-[11px] truncate">স্পন্সর: {ad.sponsorName}</p>
                         <span className="text-[10px] bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 px-2 py-0.5 rounded uppercase font-bold mt-1 inline-block">
                           WIDGET 1 (HEADER TOP)
                         </span>
                       </div>
 
-                      <div className="flex flex-col gap-1 items-end">
+                      <div className="flex flex-col gap-1.5 items-end shrink-0">
+                        <button
+                          onClick={() => handleOpenEditAdBanner(ad)}
+                          className="px-2.5 py-1 bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <Edit3 className="w-3 h-3" /> এডিট (Edit)
+                        </button>
                         <button
                           onClick={() => handleToggleAdBanner(ad.id)}
-                          className={`px-3 py-1 rounded-lg text-[11px] font-bold ${
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer ${
                             ad.active ? 'bg-emerald-600 text-white' : 'bg-slate-300 text-slate-800'
                           }`}
                         >
@@ -2582,7 +2630,7 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                         </button>
                         <button
                           onClick={() => handleDeleteAdBanner(ad.id)}
-                          className="px-3 py-1 bg-red-600/10 text-red-600 hover:bg-red-600 hover:text-white rounded-lg text-[11px] font-bold transition-colors"
+                          className="px-2.5 py-1 bg-red-600/10 text-red-600 hover:bg-red-600 hover:text-white rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
                         >
                           সড়ান (Delete)
                         </button>
@@ -2592,14 +2640,14 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                 ))}
 
                 {(siteSettings.adBanners || []).filter(a => a.placement === 'header_top').length === 0 && (
-                  <div className="col-span-full p-8 text-center text-xs text-slate-400 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
+                  <div className="col-span-full p-6 text-center text-xs text-slate-400 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
                     Widget 1 এ এখনও কোনো বিজ্ঞাপন ব্যানার নেই। "+ নতুন ব্যানার যুক্ত করুন" এ ক্লিক করে যুক্ত করুন।
                   </div>
                 )}
               </div>
             </div>
 
-            {/* WIDGET 2 SECTION */}
+            {/* WIDGET 2 SECTION: SIDEBAR */}
             <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
               <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-950/40 p-3.5 rounded-2xl border border-blue-200 dark:border-blue-900">
                 <div className="flex items-center gap-2">
@@ -2609,12 +2657,12 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                   </h3>
                 </div>
                 <span className="text-xs font-bold text-blue-700 dark:text-blue-400">
-                  ব্যানার সংখ্যা: {(siteSettings.adBanners || []).filter(a => a.placement === 'sidebar' || a.placement === 'in_article').length} টি
+                  ব্যানার সংখ্যা: {(siteSettings.adBanners || []).filter(a => a.placement === 'sidebar').length} টি
                 </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {(siteSettings.adBanners || []).filter(a => a.placement === 'sidebar' || a.placement === 'in_article').map((ad) => (
+                {(siteSettings.adBanners || []).filter(a => a.placement === 'sidebar').map((ad) => (
                   <div
                     key={ad.id}
                     className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3"
@@ -2622,22 +2670,28 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                     <img
                       src={ad.imageUrl}
                       alt={ad.title}
-                      className="w-full h-36 object-cover rounded-xl border border-slate-300 dark:border-slate-700"
+                      className="w-full h-32 object-cover rounded-xl border border-slate-300 dark:border-slate-700"
                     />
 
-                    <div className="flex items-center justify-between text-xs">
-                      <div>
-                        <h4 className="font-bold text-slate-900 dark:text-white">{ad.title}</h4>
-                        <p className="text-slate-500 text-[11px]">স্পন্সর: {ad.sponsorName}</p>
+                    <div className="flex items-center justify-between text-xs gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-slate-900 dark:text-white truncate">{ad.title}</h4>
+                        <p className="text-slate-500 text-[11px] truncate">স্পন্সর: {ad.sponsorName}</p>
                         <span className="text-[10px] bg-blue-200 dark:bg-blue-900 text-blue-900 dark:text-blue-100 px-2 py-0.5 rounded uppercase font-bold mt-1 inline-block">
                           WIDGET 2 (SIDEBAR)
                         </span>
                       </div>
 
-                      <div className="flex flex-col gap-1 items-end">
+                      <div className="flex flex-col gap-1.5 items-end shrink-0">
+                        <button
+                          onClick={() => handleOpenEditAdBanner(ad)}
+                          className="px-2.5 py-1 bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <Edit3 className="w-3 h-3" /> এডিট (Edit)
+                        </button>
                         <button
                           onClick={() => handleToggleAdBanner(ad.id)}
-                          className={`px-3 py-1 rounded-lg text-[11px] font-bold ${
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer ${
                             ad.active ? 'bg-emerald-600 text-white' : 'bg-slate-300 text-slate-800'
                           }`}
                         >
@@ -2645,7 +2699,7 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                         </button>
                         <button
                           onClick={() => handleDeleteAdBanner(ad.id)}
-                          className="px-3 py-1 bg-red-600/10 text-red-600 hover:bg-red-600 hover:text-white rounded-lg text-[11px] font-bold transition-colors"
+                          className="px-2.5 py-1 bg-red-600/10 text-red-600 hover:bg-red-600 hover:text-white rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
                         >
                           সড়ান (Delete)
                         </button>
@@ -2654,9 +2708,78 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                   </div>
                 ))}
 
-                {(siteSettings.adBanners || []).filter(a => a.placement === 'sidebar' || a.placement === 'in_article').length === 0 && (
-                  <div className="col-span-full p-8 text-center text-xs text-slate-400 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
+                {(siteSettings.adBanners || []).filter(a => a.placement === 'sidebar').length === 0 && (
+                  <div className="col-span-full p-6 text-center text-xs text-slate-400 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
                     Widget 2 এ এখনও কোনো বিজ্ঞাপন ব্যানার নেই। "+ নতুন ব্যানার যুক্ত করুন" এ ক্লিক করে যুক্ত করুন।
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* WIDGET 3 SECTION: IN-ARTICLE / ABOVE SHARE BANNER */}
+            <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+              <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/40 p-3.5 rounded-2xl border border-emerald-200 dark:border-emerald-900">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <h3 className="font-bold text-sm text-emerald-900 dark:text-emerald-200 font-serif">
+                    🎯 Widget 3: পোস্টের ভেতরে শেয়ার ব্যানারের উপরের বিজ্ঞাপন (In-Article Widget)
+                  </h3>
+                </div>
+                <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                  ব্যানার সংখ্যা: {(siteSettings.adBanners || []).filter(a => a.placement === 'in_article').length} টি
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {(siteSettings.adBanners || []).filter(a => a.placement === 'in_article').map((ad) => (
+                  <div
+                    key={ad.id}
+                    className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3"
+                  >
+                    <img
+                      src={ad.imageUrl}
+                      alt={ad.title}
+                      className="w-full h-32 object-cover rounded-xl border border-slate-300 dark:border-slate-700"
+                    />
+
+                    <div className="flex items-center justify-between text-xs gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-slate-900 dark:text-white truncate">{ad.title}</h4>
+                        <p className="text-slate-500 text-[11px] truncate">স্পন্সর: {ad.sponsorName}</p>
+                        <span className="text-[10px] bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-100 px-2 py-0.5 rounded uppercase font-bold mt-1 inline-block">
+                          WIDGET 3 (IN-ARTICLE)
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5 items-end shrink-0">
+                        <button
+                          onClick={() => handleOpenEditAdBanner(ad)}
+                          className="px-2.5 py-1 bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <Edit3 className="w-3 h-3" /> এডিট (Edit)
+                        </button>
+                        <button
+                          onClick={() => handleToggleAdBanner(ad.id)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer ${
+                            ad.active ? 'bg-emerald-600 text-white' : 'bg-slate-300 text-slate-800'
+                          }`}
+                        >
+                          {ad.active ? 'সক্রিয় (Active)' : 'নিষ্ক্রিয়'}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAdBanner(ad.id)}
+                          className="px-2.5 py-1 bg-red-600/10 text-red-600 hover:bg-red-600 hover:text-white rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
+                        >
+                          সড়ান (Delete)
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {(siteSettings.adBanners || []).filter(a => a.placement === 'in_article').length === 0 && (
+                  <div className="col-span-full p-6 text-center text-xs text-slate-400 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
+                    Widget 3 এ এখনও কোনো বিজ্ঞাপন ব্যানার নেই। "+ নতুন ব্যানার যুক্ত করুন" এ ক্লিক করে যুক্ত করুন।
                   </div>
                 )}
               </div>
@@ -2665,42 +2788,42 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
         </div>
       )}
 
-      {/* ADD AD BANNER MODAL */}
+      {/* ADD / EDIT AD BANNER MODAL */}
         {showAddAdModal && (
           <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 my-8">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-xl w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 my-8">
               <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
                 <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
                   <ImageIcon className="w-5 h-5 text-red-600" />
-                  নতুন বিজ্ঞাপন ব্যানার যোগ করুন
+                  {editingAdBanner ? 'বিজ্ঞাপন ব্যানার সম্পাদনা (Edit Ad Banner)' : 'নতুন বিজ্ঞাপন ব্যানার যোগ করুন'}
                 </h3>
                 <button
                   onClick={() => setShowAddAdModal(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <form onSubmit={handleAddAdBanner} className="space-y-4">
-                {/* 1. SELECTION BOXES (Placed ABOVE Image Upload as requested) */}
+                {/* 1. SELECTION BOXES (3 Options for Placements) */}
                 <div>
                   <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
                     ১. বিজ্ঞাপন উইজেট ও সাইজ নির্বাচন করুন (Placement Selection Box) *
                   </label>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                     {/* Widget 1 Box Option */}
                     <div 
                       onClick={() => setAdPlacement('header_top')}
-                      className={`cursor-pointer p-3.5 rounded-2xl border-2 transition-all flex flex-col justify-between ${
+                      className={`cursor-pointer p-3 rounded-2xl border-2 transition-all flex flex-col justify-between ${
                         adPlacement === 'header_top'
-                          ? 'bg-red-50/80 dark:bg-red-950/40 border-red-500 shadow-md ring-2 ring-red-500/20'
+                          ? 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-500 shadow-md ring-2 ring-amber-500/20'
                           : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-black text-slate-900 dark:text-white">
                           📌 Widget 1
                         </span>
                         <input
@@ -2708,72 +2831,91 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                           name="adPlacementRadio"
                           checked={adPlacement === 'header_top'}
                           onChange={() => setAdPlacement('header_top')}
-                          className="accent-red-600 w-4 h-4 cursor-pointer"
+                          className="accent-amber-600 w-4 h-4 cursor-pointer"
                         />
                       </div>
-                      <h5 className="text-xs font-extrabold text-red-600 dark:text-red-400">
-                        হেডার টপ স্লাইডার (Header Top)
+                      <h5 className="text-[11px] font-extrabold text-amber-600 dark:text-amber-400">
+                        হেডার টপ স্লাইডার
                       </h5>
-                      <div className="mt-2 p-2 bg-white/80 dark:bg-black/40 rounded-xl border border-red-200 dark:border-red-900/50">
-                        <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block">
-                          📐 প্রস্তাবিত ছবির সাইজ:
-                        </span>
-                        <span className="text-[11px] font-black text-red-600 dark:text-red-400 font-mono block">
-                          970 × 90 px <span className="font-sans font-normal text-[10px] text-slate-500">বা</span> 728 × 90 px
+                      <div className="mt-1.5 p-1.5 bg-white/80 dark:bg-black/40 rounded-xl border border-amber-200 dark:border-amber-900/50">
+                        <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 font-mono block">
+                          970 × 90 px
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2">
-                        ওয়েবসাইটের একদম শীর্ষে সব পেজের উপরে স্লাইডার আকারে শো হবে।
-                      </p>
                     </div>
 
                     {/* Widget 2 Box Option */}
                     <div 
                       onClick={() => setAdPlacement('sidebar')}
-                      className={`cursor-pointer p-3.5 rounded-2xl border-2 transition-all flex flex-col justify-between ${
-                        adPlacement === 'sidebar' || adPlacement === 'in_article'
-                          ? 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-500 shadow-md ring-2 ring-amber-500/20'
+                      className={`cursor-pointer p-3 rounded-2xl border-2 transition-all flex flex-col justify-between ${
+                        adPlacement === 'sidebar'
+                          ? 'bg-blue-50/80 dark:bg-blue-950/40 border-blue-500 shadow-md ring-2 ring-blue-500/20'
                           : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-black text-slate-900 dark:text-white">
                           📌 Widget 2
                         </span>
                         <input
                           type="radio"
                           name="adPlacementRadio"
-                          checked={adPlacement === 'sidebar' || adPlacement === 'in_article'}
+                          checked={adPlacement === 'sidebar'}
                           onChange={() => setAdPlacement('sidebar')}
-                          className="accent-amber-600 w-4 h-4 cursor-pointer"
+                          className="accent-blue-600 w-4 h-4 cursor-pointer"
                         />
                       </div>
-                      <h5 className="text-xs font-extrabold text-amber-600 dark:text-amber-400">
-                        সাইডবার ও ইন-আর্টিকেল (Sidebar)
+                      <h5 className="text-[11px] font-extrabold text-blue-600 dark:text-blue-400">
+                        সাইডবার ব্যানার
                       </h5>
-                      <div className="mt-2 p-2 bg-white/80 dark:bg-black/40 rounded-xl border border-amber-200 dark:border-amber-900/50">
-                        <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block">
-                          📐 প্রস্তাবিত ছবির সাইজ:
-                        </span>
-                        <span className="text-[11px] font-black text-amber-600 dark:text-amber-400 font-mono block">
-                          300 × 250 px <span className="font-sans font-normal text-[10px] text-slate-500">বা</span> 300 × 600 px
+                      <div className="mt-1.5 p-1.5 bg-white/80 dark:bg-black/40 rounded-xl border border-blue-200 dark:border-blue-900/50">
+                        <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 font-mono block">
+                          300 × 250 px
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2">
-                        সাইডবার এবং খবরের বিস্তারিত অংশে স্লাইডার আকারে শো হবে।
-                      </p>
+                    </div>
+
+                    {/* Widget 3 Box Option: In-Article */}
+                    <div 
+                      onClick={() => setAdPlacement('in_article')}
+                      className={`cursor-pointer p-3 rounded-2xl border-2 transition-all flex flex-col justify-between ${
+                        adPlacement === 'in_article'
+                          ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-500 shadow-md ring-2 ring-emerald-500/20'
+                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-black text-slate-900 dark:text-white">
+                          📌 Widget 3
+                        </span>
+                        <input
+                          type="radio"
+                          name="adPlacementRadio"
+                          checked={adPlacement === 'in_article'}
+                          onChange={() => setAdPlacement('in_article')}
+                          className="accent-emerald-600 w-4 h-4 cursor-pointer"
+                        />
+                      </div>
+                      <h5 className="text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400">
+                        পোস্টের শেয়ার ব্যানারের উপরে
+                      </h5>
+                      <div className="mt-1.5 p-1.5 bg-white/80 dark:bg-black/40 rounded-xl border border-emerald-200 dark:border-emerald-900/50">
+                        <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 font-mono block">
+                          728 × 90 px
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* 2. IMAGE UPLOAD OPTION (Directly Below Selection Boxes) */}
+                {/* 2. IMAGE UPLOAD OPTION */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-slate-800 dark:text-slate-200">
                       ২. ব্যানার ছবি আপলোড করুন বা লিংক দিন *
                     </label>
                     <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-                      {adPlacement === 'header_top' ? 'চাহিদা: 970x90 px ওয়াইড ব্যানার' : 'চাহিদা: 300x250 px বক্স ব্যানার'}
+                      {adPlacement === 'header_top' ? 'চাহিদা: 970x90 px' : adPlacement === 'sidebar' ? 'চাহিদা: 300x250 px' : 'চাহিদা: 728x90 px'}
                     </span>
                   </div>
 
@@ -2801,7 +2943,7 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                   {adImageUrl && (
                     <div className="mt-2 p-2 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
                       <p className="text-[10px] font-bold text-slate-500 mb-1">ইমেজ প্রিভিউ:</p>
-                      <div className={`overflow-hidden rounded-lg bg-slate-200 dark:bg-slate-950 flex items-center justify-center ${adPlacement === 'header_top' ? 'h-16' : 'h-28'}`}>
+                      <div className={`overflow-hidden rounded-lg bg-slate-200 dark:bg-slate-950 flex items-center justify-center ${adPlacement === 'header_top' || adPlacement === 'in_article' ? 'h-20' : 'h-28'}`}>
                         <img 
                           src={adImageUrl} 
                           alt="Banner Preview" 
@@ -2860,16 +3002,19 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                 <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                   <button
                     type="button"
-                    onClick={() => setShowAddAdModal(false)}
-                    className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
+                    onClick={() => {
+                      setShowAddAdModal(false);
+                      setEditingAdBanner(null);
+                    }}
+                    className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                   >
                     বাতিল
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow transition-colors flex items-center gap-1.5"
+                    className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
-                    <Check className="w-4 h-4" /> ব্যানার যুক্ত করুন
+                    <Check className="w-4 h-4" /> {editingAdBanner ? 'পরিবর্তন সংরক্ষণ করুন' : 'ব্যানার যুক্ত করুন'}
                   </button>
                 </div>
               </form>

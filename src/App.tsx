@@ -15,18 +15,12 @@ import { UserProfileModal } from './components/UserProfileModal';
 import { AdBlockerDetector } from './components/AdBlockerDetector';
 import { CloudflareSecurityBadge } from './components/BotProtection';
 import { NewsArticle, Category, Language, UserProfile, SiteSettings, WriterProfile, ManagerProfile, WithdrawalRequest, SystemNotification, CategoryConfig, SocialWidget, DynamicAdSettings } from './types';
-
-const DEFAULT_CATEGORIES: CategoryConfig[] = [
-  { id: 'cat-1', name: 'জাতীয়', showIcon: true, isHidden: false },
-  { id: 'cat-2', name: 'রাজনীতি', showIcon: true, isHidden: false },
-  { id: 'cat-3', name: 'অর্থনীতি', showIcon: true, isHidden: false },
-  { id: 'cat-4', name: 'আন্তর্জাতিক', showIcon: true, isHidden: false },
-  { id: 'cat-5', name: 'খেলাধুলো', showIcon: true, isHidden: false },
-  { id: 'cat-6', name: 'বিনোদন', showIcon: true, isHidden: false },
-  { id: 'cat-7', name: 'প্রযুক্তি', showIcon: true, isHidden: false },
-  { id: 'cat-8', name: 'লাইফস্টাইল', showIcon: true, isHidden: false },
-  { id: 'cat-9', name: 'মতামত', showIcon: true, isHidden: false },
-];
+import {
+  fetchInitialStateFromFirestore,
+  DEFAULT_CATEGORIES,
+  DEFAULT_SITE_SETTINGS,
+  DEFAULT_DYNAMIC_ADS
+} from './services/firebaseInitialSync';
 import { INITIAL_NEWS } from './data/initialNews';
 import { getTranslation } from './utils/i18n';
 import {
@@ -41,6 +35,23 @@ import {
   subscribeToSiteSettings,
   saveSiteSettingsToFirebase
 } from './services/firebaseSettingsService';
+import {
+  subscribeToWriters,
+  saveWriterToFirebase,
+  deleteWriterFromFirebase,
+  updateWriterInFirebase,
+  subscribeToManagers,
+  saveManagerToFirebase,
+  deleteManagerFromFirebase,
+  updateManagerInFirebase,
+  subscribeToCategories,
+  saveCategoriesToFirebase,
+  subscribeToWithdrawals,
+  saveWithdrawalToFirebase,
+  updateWithdrawalInFirebase,
+  subscribeToNotifications,
+  saveNotificationToFirebase
+} from './services/firebaseDataService';
 import { triggerPopunder } from './components/DynamicAdServices';
 
 const DEFAULT_SOCIAL_WIDGETS: SocialWidget[] = [
@@ -49,60 +60,8 @@ const DEFAULT_SOCIAL_WIDGETS: SocialWidget[] = [
   { id: 'soc-ig', platform: 'instagram', name: 'Instagram Profile', url: 'https://instagram.com/therecapmediacast', badge: 'ফলো', isActive: true }
 ];
 
-const DEFAULT_DYNAMIC_ADS: DynamicAdSettings = {
-  popunder: {
-    enabled: true,
-    scriptUrl: 'https://pl31159237.profitableratecpmnetwork.com/29/a8/67/29a8676045a7e37ef249372b2fa46d3c.js',
-    onlyOnHeadlineOrCoverClick: true
-  },
-  socialBar: {
-    enabled: true,
-    scriptUrl: 'https://pl31159238.profitableratecpmnetwork.com/27/65/fa/2765fa033dbdb8258da4afcb4fde947e.js',
-    intervalSeconds: 45,
-    position: 'bottom',
-    height: 'auto'
-  },
-  nativeBanner: {
-    enabled: true,
-    scriptUrl: 'https://pl31159239.profitableratecpmnetwork.com/521fd3d07f58a510c8b2fa24d6fac606/invoke.js',
-    containerId: 'container-521fd3d07f58a510c8b2fa24d6fac606',
-    width: '100%',
-    minHeight: '90px',
-    showInWriterPanel: true,
-    showInManagingPanel: true,
-    hideDuringPostCreation: true
-  }
-};
-
-const DEFAULT_SITE_SETTINGS: SiteSettings = {
-  siteName: 'The Recap Media Cast LTD',
-  siteTagline: 'বস্তুনিষ্ঠ ও নিরপেক্ষ সংবাদ মাধ্যম',
-  logoUrl: '',
-  contactEmail: 'news@therecapmedia.com',
-  contactPhone: '+880 9612-888999',
-  officeAddress: 'রেকাপ মিডিয়া কাস্ট লিমিটেড টাওয়ার, গুলশান-২, ঢাকা-১২১২।',
-  writerSecretCode: 'RECAP2026',
-  adminSecretCode: 'ADMIN2026',
-  adBanners: [
-    {
-      id: 'ad-1',
-      title: 'হেডার ব্যানার অ্যাড',
-      imageUrl: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=1200&q=80',
-      targetUrl: 'https://therecapmedia.com',
-      position: 'header',
-      isActive: true
-    }
-  ],
-  dynamicAds: DEFAULT_DYNAMIC_ADS,
-  socialWidgets: DEFAULT_SOCIAL_WIDGETS,
-  staticPages: {
-    aboutUs: '<h2>আমাদের সম্পর্কে (About Us)</h2><p>The Recap Media Cast LTD একটি আধুনিক বাংলা অনলাইন সংবাদ মাধ্যম...</p>',
-    privacyPolicy: '<h2>গোপনীয়তা নীতি (Privacy Policy)</h2><p>আপনার ব্যক্তিগত তথ্যের গোপনীয়তা রক্ষা করা আমাদের অঙ্গীকার...</p>',
-    termsConditions: '<h2>ব্যবহারের শর্তাবলী (Terms & Conditions)</h2><p>এই ওয়েবসাইট ব্যবহারের ক্ষেত্রে নিয়মাবলি প্রযোজ্য...</p>'
-  }
-};
-
 export default function App() {
+  const [isCloudLoaded, setIsCloudLoaded] = useState(false);
   const [currentMode, setCurrentMode] = useState<'viewer' | 'writer' | 'managing' | 'systemAdmin'>('viewer');
   const [currentLang, setCurrentLang] = useState<Language>('bn');
   const [darkMode, setDarkMode] = useState<boolean>(() => {
@@ -148,6 +107,9 @@ export default function App() {
     }
     setCategories(deduplicated);
     localStorage.setItem('recap_categories', JSON.stringify(deduplicated));
+    saveCategoriesToFirebase(deduplicated).catch((err) =>
+      console.warn('Failed to save categories to Firestore:', err)
+    );
   };
 
   // Site Settings
@@ -200,6 +162,7 @@ export default function App() {
   const handleUpdateManagers = (newManagers: ManagerProfile[]) => {
     setManagers(newManagers);
     localStorage.setItem('recap_managers', JSON.stringify(newManagers));
+    newManagers.forEach((m) => saveManagerToFirebase(m).catch(() => {}));
   };
 
   // Withdrawal Requests list
@@ -240,11 +203,26 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
 
-  // User state
+  // User state (Regular Reader)
   const [user, setUser] = useState<UserProfile | null>(() => {
-    const saved = localStorage.getItem('recap_user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('the_recap_media_reader_user') || localStorage.getItem('recap_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
   });
+
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('the_recap_media_reader_user', JSON.stringify(user));
+      localStorage.setItem('recap_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('the_recap_media_reader_user');
+      localStorage.removeItem('recap_user');
+    }
+  }, [user]);
+
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   // Bookmarks & Offline saved IDs
@@ -285,7 +263,42 @@ export default function App() {
     };
   }, []);
 
-  // Subscribe to real-time Firebase Firestore news updates & Site Settings
+  // Fetch initial state from Firestore on mount if LocalStorage is empty or stale
+  useEffect(() => {
+    fetchInitialStateFromFirestore()
+      .then((cloudState) => {
+        if (cloudState) {
+          if (cloudState.articles && cloudState.articles.length > 0) {
+            setArticles(cloudState.articles);
+          }
+          if (cloudState.siteSettings) {
+            setSiteSettings(cloudState.siteSettings);
+          }
+          if (cloudState.categories && cloudState.categories.length > 0) {
+            setCategories(cloudState.categories);
+          }
+          if (cloudState.writers && cloudState.writers.length > 0) {
+            setWriters(cloudState.writers);
+          }
+          if (cloudState.managers && cloudState.managers.length > 0) {
+            setManagers(cloudState.managers);
+          }
+          if (cloudState.withdrawals && cloudState.withdrawals.length > 0) {
+            setWithdrawals(cloudState.withdrawals);
+          }
+          if (cloudState.notifications && cloudState.notifications.length > 0) {
+            setNotifications(cloudState.notifications);
+          }
+          setIsCloudLoaded(true);
+        }
+      })
+      .catch((err) => {
+        console.warn('Initial cloud sync error:', err);
+        setIsCloudLoaded(true);
+      });
+  }, []);
+
+  // Subscribe to real-time Firebase Firestore news updates, Site Settings, Writers, Managers, Categories, Withdrawals, Notifications
   useEffect(() => {
     const unsubscribeArticles = subscribeToArticles((liveArticles) => {
       setArticles(liveArticles || []);
@@ -300,28 +313,44 @@ export default function App() {
       }
     });
 
-    // Also fetch server fallback if available
-    fetch('/api/news')
-      .then((res) => {
-        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
-          return res.json();
-        }
-        return null;
-      })
-      .then((data) => {
-        if (Array.isArray(data)) {
-          const mockIds = ['news-1', 'news-2', 'news-3', 'news-4', 'news-5'];
-          const filtered = data.filter((a: any) => a && a.id && !mockIds.includes(a.id));
-          if (filtered.length > 0) {
-            setArticles(filtered);
-          }
-        }
-      })
-      .catch((err) => console.log('API fallback notice:', err));
+    const unsubscribeWriters = subscribeToWriters((liveWriters) => {
+      if (Array.isArray(liveWriters)) {
+        setWriters(liveWriters);
+      }
+    });
+
+    const unsubscribeManagers = subscribeToManagers((liveManagers) => {
+      if (Array.isArray(liveManagers)) {
+        setManagers(liveManagers);
+      }
+    });
+
+    const unsubscribeCategories = subscribeToCategories((liveCategories) => {
+      if (Array.isArray(liveCategories) && liveCategories.length > 0) {
+        setCategories(liveCategories);
+      }
+    });
+
+    const unsubscribeWithdrawals = subscribeToWithdrawals((liveWithdrawals) => {
+      if (Array.isArray(liveWithdrawals)) {
+        setWithdrawals(liveWithdrawals);
+      }
+    });
+
+    const unsubscribeNotifications = subscribeToNotifications((liveNotifications) => {
+      if (Array.isArray(liveNotifications)) {
+        setNotifications(liveNotifications);
+      }
+    });
 
     return () => {
       unsubscribeArticles();
       unsubscribeSettings();
+      unsubscribeWriters();
+      unsubscribeManagers();
+      unsubscribeCategories();
+      unsubscribeWithdrawals();
+      unsubscribeNotifications();
     };
   }, []);
 
@@ -480,22 +509,30 @@ export default function App() {
     }
   };
 
-  // Persistence effects
+  // Persistence effects - Protected against empty cache overwrites on initial boot
   useEffect(() => {
-    localStorage.setItem('recap_site_settings', JSON.stringify(siteSettings));
-  }, [siteSettings]);
+    if (isCloudLoaded || siteSettings !== DEFAULT_SITE_SETTINGS) {
+      localStorage.setItem('recap_site_settings', JSON.stringify(siteSettings));
+    }
+  }, [siteSettings, isCloudLoaded]);
 
   useEffect(() => {
-    localStorage.setItem('recap_writers', JSON.stringify(writers));
-  }, [writers]);
+    if (isCloudLoaded || writers.length > 0) {
+      localStorage.setItem('recap_writers', JSON.stringify(writers));
+    }
+  }, [writers, isCloudLoaded]);
 
   useEffect(() => {
-    localStorage.setItem('recap_withdrawals', JSON.stringify(withdrawals));
-  }, [withdrawals]);
+    if (isCloudLoaded || withdrawals.length > 0) {
+      localStorage.setItem('recap_withdrawals', JSON.stringify(withdrawals));
+    }
+  }, [withdrawals, isCloudLoaded]);
 
   useEffect(() => {
-    localStorage.setItem('recap_notifications', JSON.stringify(notifications));
-  }, [notifications]);
+    if (isCloudLoaded || notifications.length > 0) {
+      localStorage.setItem('recap_notifications', JSON.stringify(notifications));
+    }
+  }, [notifications, isCloudLoaded]);
 
   // Admin state management handlers
   const handleUpdateSiteSettings = (newSettings: Partial<SiteSettings>) => {
@@ -513,6 +550,7 @@ export default function App() {
 
   const handleUpdateWriters = (newWriters: WriterProfile[]) => {
     setWriters(newWriters);
+    newWriters.forEach((w) => saveWriterToFirebase(w).catch(() => {}));
   };
 
   const handleUpdateWithdrawalStatus = (
@@ -521,15 +559,19 @@ export default function App() {
     senderAccount?: string, 
     transactionId?: string
   ) => {
+    const updates = {
+      status,
+      completedAt: new Date().toISOString(),
+      ...(senderAccount ? { senderAccount } : {}),
+      ...(transactionId ? { transactionId } : {}),
+    };
+    updateWithdrawalInFirebase(id, updates).catch(() => {});
     setWithdrawals((prev) =>
       prev.map((w) =>
         w.id === id
           ? {
               ...w,
-              status,
-              completedAt: new Date().toISOString(),
-              ...(senderAccount ? { senderAccount } : {}),
-              ...(transactionId ? { transactionId } : {}),
+              ...updates,
             }
           : w
       )
@@ -543,6 +585,7 @@ export default function App() {
       createdAt: new Date().toISOString(),
       read: false
     };
+    saveNotificationToFirebase(newNotif).catch(() => {});
     setNotifications((prev) => [newNotif, ...prev]);
   };
 
@@ -553,10 +596,12 @@ export default function App() {
       createdAt: new Date().toISOString(),
       status: 'pending'
     };
+    saveWithdrawalToFirebase(newReq).catch(() => {});
     setWithdrawals((prev) => [newReq, ...prev]);
   };
 
   const handleRegisterWriter = (writer: WriterProfile) => {
+    saveWriterToFirebase(writer).catch(() => {});
     setWriters((prev) => {
       if (prev.some((w) => w.id === writer.id || w.email === writer.email)) {
         return prev.map((w) => (w.id === writer.id || w.email === writer.email ? writer : w));
@@ -579,6 +624,7 @@ export default function App() {
         currentMode={currentMode}
         onModeSwitch={setCurrentMode}
         breakingArticles={breakingArticles}
+        articles={articles}
         onSelectArticle={handleSelectArticle}
         selectedCategory={selectedCategory}
         onCategorySelect={(cat) => {
@@ -697,6 +743,8 @@ export default function App() {
           )}
           onSelectRelated={handleSelectArticle}
           siteSettings={siteSettings}
+          user={user}
+          onRequireLogin={() => setShowProfileModal(true)}
         />
       )}
 

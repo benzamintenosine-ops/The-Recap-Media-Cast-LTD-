@@ -33,6 +33,8 @@ import {
   ManagerProfile 
 } from '../types';
 import { NativeBannerAd } from './DynamicAdServices';
+import { renderFormattedContent } from '../utils/formatContent';
+import { formatReporterName } from '../utils/authorHelper';
 
 interface ManagingPanelProps {
   articles: NewsArticle[];
@@ -82,6 +84,19 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
   const [setupName, setSetupName] = useState('');
   const [setupMobile, setSetupMobile] = useState('');
 
+  // Manager Profile Edit Modal State
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [editManagerName, setEditManagerName] = useState(managerProfile?.name || '');
+  const [editManagerMobile, setEditManagerMobile] = useState(managerProfile?.mobile || '');
+  const [editManagerDesignation, setEditManagerDesignation] = useState(managerProfile?.designation || 'ব্যবস্থাপনা পরিচালক');
+  const [editManagerAddress, setEditManagerAddress] = useState(managerProfile?.address || '');
+  const [editManagerAge, setEditManagerAge] = useState<number | ''>(managerProfile?.age || '');
+  const [editManagerBio, setEditManagerBio] = useState(managerProfile?.bio || '');
+  const [editManagerAvatar, setEditManagerAvatar] = useState(managerProfile?.avatarUrl || '');
+
+  // Article Filter State
+  const [articleFilter, setArticleFilter] = useState<'all' | 'flagged' | 'safe' | 'unpublished'>('all');
+
   // Active Tab
   const [activeTab, setActiveTab] = useState<'writers' | 'articles' | 'notifications' | 'analytics'>('writers');
 
@@ -98,6 +113,9 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
   const [unpublishModalArticle, setUnpublishModalArticle] = useState<NewsArticle | null>(null);
   const [unpublishReasonText, setUnpublishReasonText] = useState('');
 
+  // Article Full Preview Modal
+  const [viewingArticle, setViewingArticle] = useState<NewsArticle | null>(null);
+
   // Notification State
   const [notifTargetWriterId, setNotifTargetWriterId] = useState<string>('ALL');
   const [notifWriterSearch, setNotifWriterSearch] = useState('');
@@ -106,10 +124,17 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
   const [notifMessage, setNotifMessage] = useState('');
   const [notifSuccessMessage, setNotifSuccessMessage] = useState('');
 
-  // Sync Manager Profile to LocalStorage
+  // Sync Manager Profile to LocalStorage and edit state
   useEffect(() => {
     if (managerProfile) {
       localStorage.setItem('recap_manager_profile', JSON.stringify(managerProfile));
+      setEditManagerName(managerProfile.name || '');
+      setEditManagerMobile(managerProfile.mobile || '');
+      setEditManagerDesignation(managerProfile.designation || 'ব্যবস্থাপনা পরিচালক');
+      setEditManagerAddress(managerProfile.address || '');
+      setEditManagerAge(managerProfile.age || '');
+      setEditManagerBio(managerProfile.bio || '');
+      setEditManagerAvatar(managerProfile.avatarUrl || '');
     }
   }, [managerProfile]);
 
@@ -137,19 +162,22 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
         return;
       }
 
+      const cleanEmail = emailInput.trim().toLowerCase();
       const newProfile: ManagerProfile = {
         id: `manager-${Date.now()}`,
         name: setupName.trim(),
-        email: emailInput.trim(),
+        email: cleanEmail,
         mobile: setupMobile.trim(),
+        designation: 'ব্যবস্থাপনা পরিচালক',
         secretCodeUsed: secretCodeInput.trim(),
         createdAt: new Date().toISOString()
       };
 
       setManagerProfile(newProfile);
-      const updatedManagers = [...managers.filter(m => m.email !== newProfile.email), newProfile];
+      const updatedManagers = [...managers.filter(m => m.email.toLowerCase() !== cleanEmail), newProfile];
       onUpdateManagers(updatedManagers);
 
+      localStorage.setItem('recap_manager_profile', JSON.stringify(newProfile));
       localStorage.setItem('recap_manager_logged', 'true');
       setIsAuthenticated(true);
     } else {
@@ -158,20 +186,22 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
         return;
       }
 
-      let activeProfile = managerProfile;
-      if (!activeProfile) {
-        activeProfile = {
-          id: `manager-${Date.now()}`,
-          name: emailInput.split('@')[0] || 'ব্যবস্থাপনা পরিচালক',
-          email: emailInput.trim(),
-          mobile: '+8801700000000',
-          secretCodeUsed: targetSecret,
-          createdAt: new Date().toISOString()
-        };
-        setManagerProfile(activeProfile);
-      }
+      const cleanEmail = emailInput.trim().toLowerCase();
+      const matched = managers.find(m => m.email.trim().toLowerCase() === cleanEmail);
+      const activeProfile: ManagerProfile = matched || {
+        id: `manager-${Date.now()}`,
+        name: cleanEmail.split('@')[0] || 'ব্যবস্থাপনা পরিচালক',
+        email: cleanEmail,
+        mobile: '+8801700000000',
+        designation: 'ব্যবস্থাপনা পরিচালক',
+        secretCodeUsed: targetSecret,
+        createdAt: new Date().toISOString()
+      };
 
-      if (activeProfile && !managers.some(m => m.id === activeProfile?.id || m.email === activeProfile?.email)) {
+      setManagerProfile(activeProfile);
+      localStorage.setItem('recap_manager_profile', JSON.stringify(activeProfile));
+
+      if (!managers.some(m => m.id === activeProfile.id || m.email.toLowerCase() === activeProfile.email.toLowerCase())) {
         onUpdateManagers([...managers, activeProfile]);
       }
 
@@ -182,7 +212,42 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
 
   const handleLogout = () => {
     localStorage.removeItem('recap_manager_logged');
+    localStorage.removeItem('recap_manager_profile');
+    setManagerProfile(null);
+    setEmailInput('');
+    setPasswordInput('');
+    setSetupName('');
+    setSetupMobile('');
+    setSecretCodeInput('');
+    setAuthError('');
     setIsAuthenticated(false);
+  };
+
+  // Save Manager Profile Changes
+  const handleSaveManagerProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!managerProfile) return;
+
+    const ageNum = typeof editManagerAge === 'number' ? editManagerAge : Number(editManagerAge) || undefined;
+    const updated: ManagerProfile = {
+      ...managerProfile,
+      name: editManagerName.trim() || managerProfile.name,
+      mobile: editManagerMobile.trim() || managerProfile.mobile,
+      designation: editManagerDesignation.trim() || 'ব্যবস্থাপনা পরিচালক',
+      address: editManagerAddress.trim(),
+      age: ageNum,
+      bio: editManagerBio.trim(),
+      avatarUrl: editManagerAvatar
+    };
+
+    setManagerProfile(updated);
+    localStorage.setItem('recap_manager_profile', JSON.stringify(updated));
+    const updatedList = managers.map(m => m.id === updated.id ? updated : m);
+    if (!updatedList.some(m => m.id === updated.id)) {
+      updatedList.push(updated);
+    }
+    onUpdateManagers(updatedList);
+    setShowEditProfileModal(false);
   };
 
   // Reporter Ban / Unban
@@ -211,11 +276,23 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
   const confirmDeleteArticle = () => {
     if (!deleteModalArticle) return;
     if (!deleteReason.trim()) {
-      alert('সংবাদ মুছে ফেলার নির্দিষ্ট কারণ উল্লেখ করুন!');
+      alert('সংবাদ মুছে ফেলার নির্দিষ্ট কারণ উল্লেখ করা বাধ্যতামূলক!');
       return;
     }
 
-    onDeleteArticle(deleteModalArticle.id, deleteReason);
+    const reason = deleteReason.trim();
+    onDeleteArticle(deleteModalArticle.id, reason);
+
+    // Send notification to the author about the deleted post
+    onSendNotification({
+      recipientWriterId: deleteModalArticle.authorId || 'ALL',
+      senderName: managerProfile?.name || 'ব্যবস্থাপনা প্যানেল (Managing Panel)',
+      title: 'সংবাদ মুছে ফেলার নোটিফিকেশন',
+      message: `আপনার "${deleteModalArticle.title}" সংবাদটি ব্যবস্থাপনা প্যানেল কর্তৃক মুছে ফেলা হয়েছে। কারণ: ${reason}`,
+      type: 'post_deleted',
+      reason: reason
+    });
+
     setDeleteModalArticle(null);
     setDeleteReason('');
   };
@@ -330,14 +407,32 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
     );
   });
 
+  // AI Stats Counts
+  const flaggedArticlesCount = articles.filter(a => a.aiFlagged || (a.aiIssues && a.aiIssues.length > 0) || a.aiOffensiveReason || (a.aiCredibilityScore !== undefined && a.aiCredibilityScore < 70)).length;
+  const safeArticlesCount = articles.filter(a => !a.aiFlagged && (!a.aiIssues || a.aiIssues.length === 0) && !a.aiOffensiveReason && (a.aiCredibilityScore === undefined || a.aiCredibilityScore >= 70)).length;
+  const unpublishedArticlesCount = articles.filter(a => a.isUnpublished).length;
+
   // Filtered Articles List
   const filteredArticles = articles.filter((a) => {
     const q = articleSearchQuery.toLowerCase();
-    return (
+    const matchesSearch = (
       a.title.toLowerCase().includes(q) ||
       a.author.toLowerCase().includes(q) ||
       a.category.toLowerCase().includes(q)
     );
+    if (!matchesSearch) return false;
+
+    const isProblematic = Boolean(
+      a.aiFlagged ||
+      (a.aiIssues && a.aiIssues.length > 0) ||
+      a.aiOffensiveReason ||
+      (a.aiCredibilityScore !== undefined && a.aiCredibilityScore < 70)
+    );
+
+    if (articleFilter === 'flagged') return isProblematic;
+    if (articleFilter === 'safe') return !isProblematic && !a.isUnpublished;
+    if (articleFilter === 'unpublished') return Boolean(a.isUnpublished);
+    return true;
   });
 
   // Render Login/Signup Screen if not authenticated
@@ -502,22 +597,36 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
         </div>
 
         {/* Managing Profile Pill */}
-        <div className="z-10 bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 flex items-center gap-4 shrink-0 shadow-lg">
-          <div className="w-12 h-12 rounded-xl bg-blue-600/30 border border-blue-500/40 flex items-center justify-center font-bold text-blue-400">
-            <UserCheck className="w-6 h-6" />
+        <div className="z-10 bg-slate-800/90 border border-slate-700/80 rounded-2xl p-4 flex flex-wrap items-center gap-4 shrink-0 shadow-lg">
+          <div className="w-12 h-12 rounded-xl bg-blue-600/30 border border-blue-500/40 flex items-center justify-center font-bold text-blue-400 overflow-hidden shrink-0">
+            {managerProfile?.avatarUrl ? (
+              <img src={managerProfile.avatarUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <UserCheck className="w-6 h-6" />
+            )}
           </div>
           <div>
             <h4 className="text-xs font-bold text-white">{managerProfile?.name || 'ব্যবস্থাপক'}</h4>
-            <p className="text-[10px] text-blue-400 font-semibold">{managerProfile?.email}</p>
-            <p className="text-[10px] text-slate-400 font-mono mt-0.5">{managerProfile?.mobile}</p>
+            <p className="text-[10px] text-blue-400 font-semibold">{managerProfile?.designation || 'ব্যবস্থাপনা পরিচালক'}</p>
+            <p className="text-[10px] text-slate-400 font-mono mt-0.5">{managerProfile?.email}</p>
           </div>
-          <button
-            onClick={handleLogout}
-            title="লগআউট"
-            className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700/50 rounded-xl transition-colors ml-2"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1.5 ml-auto">
+            <button
+              onClick={() => setShowEditProfileModal(true)}
+              title="প্রোফাইল সেটআপ ও এডিট"
+              className="px-3 py-1.5 bg-blue-600/30 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 border border-blue-500/40"
+            >
+              <UserCheck className="w-3.5 h-3.5" />
+              <span>প্রোফাইল এডিট</span>
+            </button>
+            <button
+              onClick={handleLogout}
+              title="লগআউট"
+              className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700/50 rounded-xl transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -716,17 +825,17 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
       {/* TAB 2: NEWS CONTENT CONTROL & MODERATION */}
       {activeTab === 'articles' && (
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 font-serif">
-                <FileText className="w-5 h-5 text-blue-500" /> প্রকাশিত সংবাদ মডারেশন
+                <FileText className="w-5 h-5 text-blue-500" /> প্রকাশিত সংবাদ মডারেশন ও এআই যাচাই
               </h2>
-              <p className="text-xs text-slate-500">
-                সকল প্রতিবেদকের প্রকাশিত সংবাদ যাচাই ও যেকোনো ভিত্তিহীন পোস্ট ডিলিট করুন।
+              <p className="text-xs text-slate-500 mt-0.5">
+                এআই স্বয়ংক্রিয়ভাবে যাচাই করার পর সকল পোস্ট প্রদর্শিত হচ্ছে। যেসব পোস্টে সমস্যা চিহ্নিত হয়েছে সেগুলো লাল রঙে নির্দেশিত।
               </p>
             </div>
 
-            <div className="relative w-full sm:w-72">
+            <div className="relative w-full md:w-72">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -738,12 +847,74 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
             </div>
           </div>
 
+          {/* AI Verification & Moderation Status Tabs */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setArticleFilter('all')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                articleFilter === 'all'
+                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow'
+                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-50'
+              }`}
+            >
+              <span>সকল সংবাদ</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white">
+                {articles.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setArticleFilter('flagged')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                articleFilter === 'flagged'
+                  ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
+                  : 'bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900/60 hover:bg-red-100'
+              }`}
+            >
+              <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+              <span>এআই সমস্যাযুক্ত (লাল)</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-red-200 dark:bg-red-900 text-red-900 dark:text-red-100 font-mono">
+                {flaggedArticlesCount}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setArticleFilter('safe')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                articleFilter === 'safe'
+                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                  : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60 hover:bg-emerald-100'
+              }`}
+            >
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+              <span>এআই যাচাইকৃত নিরাপদ</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-100 font-mono">
+                {safeArticlesCount}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setArticleFilter('unpublished')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                articleFilter === 'unpublished'
+                  ? 'bg-amber-600 text-white shadow'
+                  : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60 hover:bg-amber-100'
+              }`}
+            >
+              <Ban className="w-3.5 h-3.5 text-amber-500" />
+              <span>আনপাবলিশ্ড</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 font-mono">
+                {unpublishedArticlesCount}
+              </span>
+            </button>
+          </div>
+
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
                   <tr>
-                    <th className="p-4">সংবাদ শিরোনাম</th>
+                    <th className="p-4">সংবাদ ও এআই স্ট্যাটাস</th>
                     <th className="p-4">বিভাগ</th>
                     <th className="p-4">প্রতিবেদক</th>
                     <th className="p-4">ভিউ</th>
@@ -752,107 +923,154 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {filteredArticles.map((article) => (
-                    <tr key={article.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="p-4 font-bold text-slate-900 dark:text-white max-w-xs">
-                        <div className="flex items-start gap-3">
-                          {article.imageUrl && (
-                            <img
-                              src={article.imageUrl}
-                              alt=""
-                              className="w-12 h-12 rounded-lg object-cover shrink-0 mt-0.5"
-                            />
-                          )}
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="line-clamp-2">{article.title}</span>
-                              {article.postType === 'video' && (
-                                <span className="px-2 py-0.5 bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 rounded text-[10px] font-bold shrink-0 flex items-center gap-1">
-                                  📹 ভিডিও
-                                </span>
+                  {filteredArticles.map((article) => {
+                    const isProblematic = Boolean(
+                      article.aiFlagged ||
+                      (article.aiIssues && article.aiIssues.length > 0) ||
+                      article.aiOffensiveReason ||
+                      (article.aiCredibilityScore !== undefined && article.aiCredibilityScore < 70) ||
+                      article.isUnpublished
+                    );
+
+                    return (
+                      <tr 
+                        key={article.id} 
+                        className={`transition-colors ${
+                          isProblematic 
+                            ? 'bg-red-50/90 dark:bg-red-950/50 hover:bg-red-100/90 dark:hover:bg-red-900/40 border-l-4 border-red-600' 
+                            : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                        }`}
+                      >
+                        <td className="p-4 font-bold text-slate-900 dark:text-white max-w-sm">
+                          <div className="flex items-start gap-3">
+                            {article.imageUrl && (
+                              <img
+                                src={article.imageUrl}
+                                alt=""
+                                className="w-14 h-14 rounded-xl object-cover shrink-0 mt-0.5 border border-slate-200 dark:border-slate-700"
+                              />
+                            )}
+                            <div className="space-y-1.5 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <button
+                                  type="button"
+                                  onClick={() => setViewingArticle(article)}
+                                  className={`text-left line-clamp-2 hover:underline cursor-pointer ${isProblematic ? 'text-red-950 dark:text-red-100 font-black' : 'text-slate-900 dark:text-white'}`}
+                                  title="পোস্টটি সম্পূর্ণ পড়তে ক্লিক করুন"
+                                >
+                                  {article.title}
+                                </button>
+                                {article.postType === 'video' && (
+                                  <span className="px-2 py-0.5 bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 rounded text-[10px] font-bold shrink-0 flex items-center gap-1">
+                                    📹 ভিডিও
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                {article.isUnpublished ? (
+                                  <span className="px-2 py-0.5 bg-red-600 text-white rounded text-[10px] font-bold">
+                                    🚫 আনপাবলিশ্ড (পাঠকদের জন্য লুকানো)
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 rounded text-[10px] font-bold">
+                                    ✓ লাইভ প্রকাশিত
+                                  </span>
+                                )}
+
+                                {isProblematic ? (
+                                  <span 
+                                    className="px-2 py-0.5 bg-red-600 text-white rounded text-[10px] font-extrabold flex items-center gap-1 shadow-sm"
+                                    title={article.aiOffensiveReason || 'AI বিশ্লেষণে তথ্য যাচাই প্রয়োজন'}
+                                  >
+                                    🚨 এআই সমস্যা চিহ্নিত ({article.aiCredibilityScore !== undefined ? `${article.aiCredibilityScore}%` : 'ঝুঁকিপূর্ণ'})
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 bg-emerald-600 text-white rounded text-[10px] font-extrabold flex items-center gap-1 shadow-sm">
+                                    ✅ এআই যাচাইকৃত নিরাপদ ({article.aiCredibilityScore || 95}%)
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Prominent Red Box for AI Issues */}
+                              {isProblematic && (article.aiOffensiveReason || (article.aiIssues && article.aiIssues.length > 0)) && (
+                                <div className="p-2 bg-red-100 dark:bg-red-900/60 border border-red-300 dark:border-red-800 rounded-xl text-[11px] font-semibold text-red-900 dark:text-red-100 space-y-0.5">
+                                  <p className="flex items-center gap-1 font-bold">
+                                    <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-600 dark:text-red-400" />
+                                    <span>এআই রিপোর্ট: {article.aiOffensiveReason || article.aiIssues?.join(', ')}</span>
+                                  </p>
+                                </div>
+                              )}
+
+                              {article.unpublishReason && (
+                                <p className="text-[10px] text-red-700 dark:text-red-300 font-semibold bg-red-100/80 dark:bg-red-900/40 px-2 py-0.5 rounded border border-red-300 dark:border-red-800">
+                                  🚫 আনপাবলিশ কারণ: {article.unpublishReason}
+                                </p>
                               )}
                             </div>
-                            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                              {article.isUnpublished ? (
-                                <span className="px-2 py-0.5 bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 rounded text-[10px] font-bold">
-                                  🚫 আনপাবলিশ্ড (পাঠকদের জন্য লুকানো)
-                                </span>
-                              ) : (
-                                <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 rounded text-[10px] font-bold">
-                                  ✓ লাইভ প্রকাশিত
-                                </span>
-                              )}
-
-                              {article.aiFlagged && (
-                                <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 rounded text-[10px] font-bold flex items-center gap-1" title={article.aiOffensiveReason || 'AI বিশ্লেষণে তথ্য যাচাই প্রয়োজন'}>
-                                  ⚠️ AI ফ্ল্যাগড ({article.aiCredibilityScore || 50}%)
-                                </span>
-                              )}
-                            </div>
-
-                            {article.unpublishReason && (
-                              <p className="text-[10px] text-red-600 dark:text-red-400 font-semibold line-clamp-1 bg-red-50 dark:bg-red-950/40 px-2 py-0.5 rounded border border-red-200 dark:border-red-900">
-                                🚫 আনপাবলিশ কারণ: {article.unpublishReason}
-                              </p>
-                            )}
-
-                            {article.aiOffensiveReason && (
-                              <p className="text-[10px] text-amber-600 dark:text-amber-400 font-normal line-clamp-1">
-                                💡 AI রিপোর্ট: {article.aiOffensiveReason}
-                              </p>
-                            )}
                           </div>
-                        </div>
-                      </td>
-                      <td className="p-4 font-semibold text-slate-600 dark:text-slate-400">
-                        <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-full">
-                          {article.category}
-                        </span>
-                      </td>
-                      <td className="p-4 font-bold text-blue-600 dark:text-blue-400">
-                        {article.author}
-                      </td>
-                      <td className="p-4 font-mono font-bold text-slate-900 dark:text-white">
-                        👁️ {article.views || 0}
-                      </td>
-                      <td className="p-4 text-slate-500">
-                        {new Date(article.publishedAt).toLocaleDateString('bn-BD')}
-                      </td>
-                      <td className="p-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {onUpdateArticle && (
-                            article.isUnpublished ? (
-                              <button
-                                onClick={() => handleDirectPublish(article)}
-                                className="px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white cursor-pointer"
-                                title="পুনরায় লাইভ পাবলিশ করুন"
-                              >
-                                <span>পাবলিশ করুন</span>
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => {
-                                  setUnpublishModalArticle(article);
-                                  setUnpublishReasonText(article.aiOffensiveReason || '');
-                                }}
-                                className="px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 hover:bg-amber-600 hover:text-white cursor-pointer"
-                                title="কারণ উল্লেখ করে আনপাবলিশ করুন"
-                              >
-                                <span>আনপাবলিশ</span>
-                              </button>
-                            )
-                          )}
-                          <button
-                            onClick={() => setDeleteModalArticle(article)}
-                            className="px-2.5 py-1.5 bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 hover:bg-red-600 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span>ডিলিট</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="p-4 font-semibold text-slate-600 dark:text-slate-400">
+                          <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-full">
+                            {article.category}
+                          </span>
+                        </td>
+                        <td className="p-4 font-bold text-blue-600 dark:text-blue-400">
+                          {article.author}
+                        </td>
+                        <td className="p-4 font-mono font-bold text-slate-900 dark:text-white">
+                          👁️ {article.views || 0}
+                        </td>
+                        <td className="p-4 text-slate-500">
+                          {new Date(article.publishedAt).toLocaleDateString('bn-BD')}
+                        </td>
+                        <td className="p-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            {/* View Full Post */}
+                            <button
+                              onClick={() => setViewingArticle(article)}
+                              className="px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white cursor-pointer shadow-xs"
+                              title="সম্পূর্ণ পোস্ট ও কনটেন্ট দেখুন"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>দেখুন</span>
+                            </button>
+
+                            {onUpdateArticle && (
+                              article.isUnpublished ? (
+                                <button
+                                  onClick={() => handleDirectPublish(article)}
+                                  className="px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white cursor-pointer"
+                                  title="পুনরায় লাইভ পাবলিশ করুন"
+                                >
+                                  <span>পাবলিশ করুন</span>
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setUnpublishModalArticle(article);
+                                    setUnpublishReasonText(article.aiOffensiveReason || '');
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 hover:bg-amber-600 hover:text-white cursor-pointer"
+                                  title="কারণ উল্লেখ করে আনপাবলিশ করুন"
+                                >
+                                  <span>আনপাবলিশ</span>
+                                </button>
+                              )
+                            )}
+                            <button
+                              onClick={() => setDeleteModalArticle(article)}
+                              className="px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-sm shadow-red-600/20"
+                              title="কারণ উল্লেখ করে ডিলিট করুন"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>ডিলিট</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1187,6 +1405,356 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
           </div>
         </div>
       )}
+
+      {/* MANAGER PROFILE SETUP & EDIT MODAL */}
+      {showEditProfileModal && managerProfile && (
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white font-serif">
+                    ম্যানেজার প্রোফাইল সেটআপ ও এডিট
+                  </h3>
+                  <p className="text-xs text-slate-500">আপনার ব্যক্তিগত ও দাপ্তরিক তথ্য আপডেট করুন</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowEditProfileModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-xl"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveManagerProfile} className="space-y-4 text-xs">
+              {/* Avatar Upload */}
+              <div className="flex items-center gap-4 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
+                <div className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 shrink-0 flex items-center justify-center">
+                  {editManagerAvatar ? (
+                    <img src={editManagerAvatar} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <UserCheck className="w-8 h-8 text-slate-400" />
+                  )}
+                </div>
+                <div className="space-y-1.5 flex-1">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    প্রোফাইল ছবি (Avatar)
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          if (reader.result) {
+                            setEditManagerAvatar(reader.result as string);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="block w-full text-[11px] text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                  />
+                  <input
+                    type="url"
+                    value={editManagerAvatar}
+                    onChange={(e) => setEditManagerAvatar(e.target.value)}
+                    placeholder="অথবা ছবির অনলাইন লিংক (URL) লিখুন..."
+                    className="w-full px-2.5 py-1 text-[11px] rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  নাম (Full Name) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editManagerName}
+                  onChange={(e) => setEditManagerName(e.target.value)}
+                  placeholder="আপনার নাম..."
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    পদবি / ডেজিগনেশন (Designation)
+                  </label>
+                  <input
+                    type="text"
+                    value={editManagerDesignation}
+                    onChange={(e) => setEditManagerDesignation(e.target.value)}
+                    placeholder="যেমন: ব্যবস্থাপনা পরিচালক / সহ-সম্পাদক"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    মোবাইল নম্বর (১১ ডিজিট) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editManagerMobile}
+                    onChange={(e) => setEditManagerMobile(e.target.value)}
+                    placeholder="01712345678"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    ঠিকানা (Address)
+                  </label>
+                  <input
+                    type="text"
+                    value={editManagerAddress}
+                    onChange={(e) => setEditManagerAddress(e.target.value)}
+                    placeholder="যেমন: ধানমন্ডি, ঢাকা"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    বয়স (Age)
+                  </label>
+                  <input
+                    type="number"
+                    value={editManagerAge}
+                    onChange={(e) => setEditManagerAge(e.target.value ? Number(e.target.value) : '')}
+                    placeholder="যেমন: 32"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  সংক্ষিপ্ত বায়ো / পরিচিতি (Bio)
+                </label>
+                <textarea
+                  rows={2}
+                  value={editManagerBio}
+                  onChange={(e) => setEditManagerBio(e.target.value)}
+                  placeholder="নিজের অভিজ্ঞতা বা পরিচয় সংক্ষেপে লিখুন..."
+                  className="w-full p-3 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                ></textarea>
+              </div>
+
+              <div className="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowEditProfileModal(false)}
+                  className="flex-1 py-2.5 text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md flex items-center justify-center gap-1.5"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>তথ্য সংরক্ষণ করুন</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Full Article Preview / Inspection Modal for Managing Panel */}
+      {viewingArticle && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-sm p-4 flex justify-center items-center">
+          <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-6">
+            {/* Top Bar */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-3 py-1 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold rounded-xl text-xs">
+                  {viewingArticle.category}
+                </span>
+                {viewingArticle.postType === 'video' && (
+                  <span className="px-2.5 py-1 bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 font-bold rounded-xl text-xs">
+                    📹 ভিডিও সংবাদ
+                  </span>
+                )}
+                {viewingArticle.isUnpublished ? (
+                  <span className="px-2.5 py-1 bg-red-600 text-white font-bold rounded-xl text-xs">
+                    🚫 আনপাবলিশ্ড
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-1 bg-emerald-600 text-white font-bold rounded-xl text-xs">
+                    ✓ লাইভ প্রকাশিত
+                  </span>
+                )}
+              </div>
+
+              <button
+                onClick={() => setViewingArticle(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Article Header & Reporter Info */}
+            <div className="space-y-3">
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-snug font-serif">
+                {viewingArticle.title}
+              </h2>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700/60">
+                <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white">
+                  <span>প্রতিবেদক:</span>
+                  <span className="text-red-600 dark:text-red-400 font-serif">
+                    {formatReporterName(viewingArticle.author, viewingArticle.authorDistrict)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span>তারিখ: {new Date(viewingArticle.publishedAt).toLocaleString('bn-BD')}</span>
+                  <span>ভিউ: {viewingArticle.views || 0}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Media Content (Video or Image) */}
+            {viewingArticle.postType === 'video' && viewingArticle.videoUrl ? (
+              <div className="rounded-2xl overflow-hidden aspect-video bg-black shadow-lg">
+                <iframe
+                  src={viewingArticle.videoUrl}
+                  title={viewingArticle.title}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            ) : viewingArticle.imageUrl ? (
+              <div className="rounded-2xl overflow-hidden max-h-96 shadow-sm border border-slate-200 dark:border-slate-800">
+                <img
+                  src={viewingArticle.imageUrl}
+                  alt={viewingArticle.title}
+                  className="w-full h-full object-cover max-h-96"
+                />
+              </div>
+            ) : null}
+
+            {/* Formatted Content */}
+            <div className="prose dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 leading-relaxed font-sans text-base">
+              {renderFormattedContent(viewingArticle.content || viewingArticle.summary || '')}
+            </div>
+
+            {/* Tags */}
+            {viewingArticle.tags && viewingArticle.tags.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <span className="text-xs font-bold text-slate-500">ট্যাগ:</span>
+                {viewingArticle.tags.map((tag, idx) => (
+                  <span
+                    key={`view-tag-${tag}-${idx}`}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium"
+                  >
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* AI Analysis Report Card */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/70 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2">
+              <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-blue-500" /> এআই নিরাপত্তা ও সত্যতা মূল্যায়ন রিপোর্ট
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <p>
+                  <strong>নির্ভরযোগ্যতা স্কোর:</strong>{' '}
+                  <span className="font-mono font-bold text-slate-900 dark:text-white">
+                    {viewingArticle.aiCredibilityScore || 95}%
+                  </span>
+                </p>
+                <p>
+                  <strong>স্ট্যাটাস:</strong>{' '}
+                  <span className={viewingArticle.aiFlagged ? 'text-red-600 font-bold' : 'text-emerald-600 font-bold'}>
+                    {viewingArticle.aiFlagged ? '⚠️ সমস্যা চিহ্নিত' : '✓ নিরাপদ'}
+                  </span>
+                </p>
+              </div>
+              {viewingArticle.aiOffensiveReason && (
+                <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 p-2.5 rounded-xl border border-red-200 dark:border-red-900 font-semibold">
+                  কারণ: {viewingArticle.aiOffensiveReason}
+                </p>
+              )}
+            </div>
+
+            {/* Action Buttons in Modal */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                {onUpdateArticle && (
+                  viewingArticle.isUnpublished ? (
+                    <button
+                      onClick={() => {
+                        handleDirectPublish(viewingArticle);
+                        setViewingArticle(null);
+                      }}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      <span>লাইভ পাবলিশ করুন</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        const art = viewingArticle;
+                        setViewingArticle(null);
+                        setUnpublishModalArticle(art);
+                        setUnpublishReasonText(art.aiOffensiveReason || '');
+                      }}
+                      className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
+                    >
+                      <Ban className="w-4 h-4" />
+                      <span>আনপাবলিশ করুন</span>
+                    </button>
+                  )
+                )}
+
+                <button
+                  onClick={() => {
+                    const art = viewingArticle;
+                    setViewingArticle(null);
+                    setDeleteModalArticle(art);
+                  }}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>ডিলিট করুন</span>
+                </button>
+              </div>
+
+              <button
+                onClick={() => setViewingArticle(null)}
+                className="px-5 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              >
+                বন্ধ করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Native Banner Ad 2 for Managing Panel (Bottom) */}
+      <NativeBannerAd
+        settings={siteSettings?.dynamicAds?.nativeBanner}
+        isPostWriting={false}
+        panelLabel="ম্যানেজিং প্যানেল (ব্যানার ২)"
+      />
     </div>
   );
 };

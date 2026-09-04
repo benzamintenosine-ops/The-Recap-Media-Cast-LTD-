@@ -97,6 +97,14 @@ export function subscribeToArticles(onUpdate: (articles: NewsArticle[]) => void)
             readTimeMinutes: typeof data.readTimeMinutes === 'number' ? data.readTimeMinutes : 3,
             comments: Array.isArray(data.comments) ? data.comments : [],
             isAiGenerated: !!data.isAiGenerated,
+            postType: data.postType || 'written',
+            hasVideo: !!data.hasVideo,
+            aiFlagged: !!data.aiFlagged,
+            aiIssues: Array.isArray(data.aiIssues) ? data.aiIssues : [],
+            aiCredibilityScore: typeof data.aiCredibilityScore === 'number' ? data.aiCredibilityScore : undefined,
+            aiOffensiveReason: data.aiOffensiveReason || '',
+            isUnpublished: !!data.isUnpublished,
+            unpublishReason: data.unpublishReason || '',
             seoMeta: data.seoMeta || undefined,
           } as NewsArticle;
         });
@@ -156,6 +164,14 @@ export async function addArticleToFirebase(newArt: Partial<NewsArticle>): Promis
     readTimeMinutes: newArt.readTimeMinutes || 3,
     comments: newArt.comments || [],
     isAiGenerated: !!newArt.isAiGenerated,
+    postType: newArt.postType || 'written',
+    hasVideo: !!newArt.hasVideo,
+    aiFlagged: !!newArt.aiFlagged,
+    aiIssues: newArt.aiIssues || [],
+    aiCredibilityScore: newArt.aiCredibilityScore,
+    aiOffensiveReason: newArt.aiOffensiveReason || '',
+    isUnpublished: !!newArt.isUnpublished,
+    unpublishReason: newArt.unpublishReason || '',
     seoMeta: newArt.seoMeta || undefined,
   };
 

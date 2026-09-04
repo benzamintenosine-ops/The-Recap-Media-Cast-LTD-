@@ -47,7 +47,8 @@ import {
   Wallet,
   AlertTriangle,
   Globe,
-  Upload
+  Upload,
+  Mail
 } from 'lucide-react';
 import { NewsArticle, Category, Language, AnalyticsOverview, WriterProfile, SystemNotification, WithdrawalRequest, ArticleAuthenticityResult, SiteSettings } from '../types';
 import { getTranslation } from '../utils/i18n';
@@ -56,6 +57,7 @@ import { RichContentEditor } from './BloggerRichEditor';
 import { BotProtectionModal } from './BotProtection';
 import { BANGLADESH_GEO_DATA } from '../data/bangladeshGeoData';
 import { NativeBannerAd } from './DynamicAdServices';
+import { formatReporterName } from '../utils/authorHelper';
 
 interface WritersPortalProps {
   articles: NewsArticle[];
@@ -69,6 +71,7 @@ interface WritersPortalProps {
   withdrawals?: WithdrawalRequest[];
   onRequestWithdrawal?: (req: Omit<WithdrawalRequest, 'id' | 'createdAt' | 'status'>) => void;
   onRegisterWriter?: (writer: WriterProfile) => void;
+  writers?: WriterProfile[];
   siteSettings?: SiteSettings;
 }
 
@@ -96,6 +99,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   withdrawals = [],
   onRequestWithdrawal,
   onRegisterWriter,
+  writers = [],
   siteSettings
 }) => {
   // Auth state for Writer
@@ -113,6 +117,16 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     const saved = localStorage.getItem('recap_writer_profile');
     return saved ? JSON.parse(saved) : null;
   });
+
+  // Email Verification Flow State
+  const [isEmailVerified, setIsEmailVerified] = useState<boolean>(false);
+  const [showVerifyModal, setShowVerifyModal] = useState<boolean>(false);
+  const [verificationCodeInput, setVerificationCodeInput] = useState<string>('');
+  const [verificationError, setVerificationError] = useState<string>('');
+  const [verificationSuccess, setVerificationSuccess] = useState<string>('');
+  const [isSendingCode, setIsSendingCode] = useState<boolean>(false);
+  const [isVerifyingCode, setIsVerifyingCode] = useState<boolean>(false);
+  const [resendCooldown, setResendCooldown] = useState<number>(0);
 
   // Writer / Reporter Profile Setup Form State
   const [setupName, setSetupName] = useState(writerProfile?.name || '');
@@ -268,16 +282,149 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     return () => clearInterval(timer);
   }, []);
 
+  // Cooldown countdown for resending verification code
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
   const t = (key: any) => getTranslation(currentLang, key);
 
+  // Send 6-digit Email Verification Code
+  const handleSendVerificationCode = async () => {
+    if (!emailInput.trim() || !emailInput.includes('@')) {
+      setAuthError('সঠিক জিমেইল / ইমেইল এড্রেস লিখুন!');
+      return;
+    }
+    setIsSendingCode(true);
+    setAuthError('');
+    setVerificationError('');
+    setVerificationSuccess('');
+    try {
+      const res = await fetch('/api/send-email-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: emailInput.trim(),
+          name: setupName.trim() || 'প্রতিবেদক',
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setShowVerifyModal(true);
+        setVerificationSuccess(data.message || 'আপনার জিমেইলে ৬ ডিজিটের ভেরিফিকেশন কোড পাঠানো হয়েছে!');
+        setResendCooldown(60);
+      } else {
+        setAuthError(data.error || 'কোড পাঠাতে সমস্যা হয়েছে। পুনরায় চেষ্টা করুন।');
+      }
+    } catch (err: any) {
+      setAuthError('সার্ভারের সাথে সংযোগ করা যায়নি। পুনরায় চেষ্টা করুন।');
+    } finally {
+      setIsSendingCode(false);
+    }
+  };
+
+  // Verify 6-digit Code Submission
+  const handleVerifyCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (verificationCodeInput.trim().length !== 6) {
+      setVerificationError('দয়া করে আপনার জিমেইলে প্রেরিত ৬ ডিজিটের কোডটি লিখুন!');
+      return;
+    }
+
+    setIsVerifyingCode(true);
+    setVerificationError('');
+    try {
+      const res = await fetch('/api/verify-email-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: emailInput.trim(),
+          code: verificationCodeInput.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.verified) {
+        setIsEmailVerified(true);
+        setShowVerifyModal(false);
+        setIsAuthenticated(true);
+        localStorage.setItem('recap_writer_logged', 'true');
+
+        const cleanEmail = emailInput.trim().toLowerCase();
+        const initialProfile: WriterProfile = {
+          id: `writer-${Date.now()}`,
+          name: setupName.trim() || 'প্রতিবেদক',
+          email: cleanEmail,
+          address: '',
+          mobile: '',
+          age: 0,
+          createdAt: new Date().toISOString(),
+          secretCodeUsed: 'VERIFIED_GMAIL',
+        };
+        setWriterProfile(initialProfile);
+        localStorage.setItem('recap_writer_profile', JSON.stringify(initialProfile));
+        if (onRegisterWriter) {
+          onRegisterWriter(initialProfile);
+        }
+      } else {
+        setVerificationError(data.error || 'ভেরিফিকেশন কোডটি সঠিক নয়! পুনরায় চেষ্টা করুন।');
+      }
+    } catch (err) {
+      setVerificationError('কোড যাচাইয়ে সমস্যা হয়েছে। পুনরায় চেষ্টা করুন।');
+    } finally {
+      setIsVerifyingCode(false);
+    }
+  };
+
   // Writer Auth Handler (Login / Signup with Referral Code)
-  const handleAuthSubmit = (e: React.FormEvent) => {
+  const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
 
     if (!emailInput.trim() || !passwordInput.trim()) {
-      setAuthError('ইমেইল এবং পাসওয়ার্ড বাধ্যতামূলক!');
+      setAuthError('ইমেইল এবং পাসওয়ার্ড প্রদান করা বাধ্যতামূলক!');
       return;
+    }
+
+    if (authMode === 'signup') {
+      if (!setupName.trim()) {
+        setAuthError('আপনার পূর্ণ নাম প্রদান করুন!');
+        return;
+      }
+      if (!isEmailVerified) {
+        await handleSendVerificationCode();
+        return;
+      }
+    }
+
+    if (authMode === 'login') {
+      const cleanEmail = emailInput.trim().toLowerCase();
+      const existing = writers?.find((w) => w.email.trim().toLowerCase() === cleanEmail);
+      if (existing) {
+        if (existing.isBanned) {
+          setAuthError('আপনার অ্যাকাউন্টটি অ্যাডমিন প্যানেল থেকে সাময়িকভাবে বন্ধ (Banned) করা হয়েছে।');
+          return;
+        }
+        setWriterProfile(existing);
+        localStorage.setItem('recap_writer_profile', JSON.stringify(existing));
+        setSetupName(existing.name || '');
+      } else if (!writerProfile || writerProfile.email.toLowerCase() !== cleanEmail) {
+        const newTemp: WriterProfile = {
+          id: `writer-${Date.now()}`,
+          name: cleanEmail.split('@')[0] || 'প্রতিবেদক',
+          email: cleanEmail,
+          address: '',
+          mobile: '',
+          age: 0,
+          createdAt: new Date().toISOString(),
+          secretCodeUsed: 'DIRECT_LOGIN',
+        };
+        setWriterProfile(newTemp);
+        localStorage.setItem('recap_writer_profile', JSON.stringify(newTemp));
+      }
     }
 
     // Check if writer profile is banned by admin
@@ -399,12 +546,21 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
     setWriterProfile(newProfile);
     localStorage.setItem('recap_writer_profile', JSON.stringify(newProfile));
+    if (onRegisterWriter) {
+      onRegisterWriter(newProfile);
+    }
     setIsEditingProfile(false);
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
     localStorage.removeItem('recap_writer_logged');
+    localStorage.removeItem('recap_writer_profile');
+    setWriterProfile(null);
+    setEmailInput('');
+    setPasswordInput('');
+    setSetupName('');
+    setIsEmailVerified(false);
   };
 
   // Video File Upload Handler
@@ -622,7 +778,11 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     const effectiveVideoUrl = postVideoUrl.trim() || videoFileBase64;
     const isVideo = isForVideo || postType === 'video';
     const effectiveContent = isVideo ? (postContent.trim() || `<p>${postTitle}</p>`) : postContent;
-    const authorName = `${writerProfile?.name || 'লেখক'}${shareNameUnderPost ? ' (প্রতিবেদক)' : ''}`;
+    const cleanReporterName = writerProfile?.name?.trim() || 'প্রতিবেদক';
+    const reporterDistrict = writerProfile?.district?.trim();
+    const authorName = shareNameUnderPost 
+      ? formatReporterName(cleanReporterName, reporterDistrict)
+      : 'প্রতিবেদক';
 
     // Extract top-most image as cover image
     const coverImg = extractTopImageFromHtml(effectiveContent) || postImageUrl || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80';
@@ -690,6 +850,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       postType: isVideo ? 'video' : 'written',
       isBreaking,
       author: authorName,
+      authorDistrict: reporterDistrict || undefined,
       publishedAt: new Date().toISOString(),
       viewsCount: 0,
       comments: [],
@@ -837,7 +998,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     setPostTags(postTags.filter(t => t !== tagToRemove));
   };
 
-  // SCREEN 1: Authentication Screen (Sign In / Sign Up with Secret Referral Code)
+  // SCREEN 1: Authentication Screen (Sign In / Sign Up with Email Verification)
   if (!isAuthenticated) {
     return (
       <div className="max-w-md mx-auto my-12 p-8 bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 space-y-6">
@@ -850,7 +1011,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           </h2>
           <p className="text-xs text-slate-500">
             {authMode === 'signup' 
-              ? 'নতুন প্রতিবেদক হিসেবে সাইন-আপ করতে গোপন রেফার কোড লিখুন'
+              ? 'নতুন প্রতিবেদক হিসেবে রেজিস্ট্রেশনের জন্য জিমেইল ভেরিফিকেশন সম্পন্ন করুন'
               : 'প্রতিবেদক প্যানেলে প্রবেশের জন্য আপনার অ্যাকাউন্ট সাইন ইন করুন'}
           </p>
         </div>
@@ -859,7 +1020,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl text-xs font-bold">
           <button
             type="button"
-            onClick={() => { setAuthMode('signup'); setSecretCodeInput(''); setAuthError(''); }}
+            onClick={() => { setAuthMode('signup'); setAuthError(''); }}
             className={`flex-1 py-2 rounded-xl transition-all ${authMode === 'signup' ? 'bg-red-600 text-white shadow' : 'text-slate-600 dark:text-slate-400'}`}
           >
             প্রতিবেদক সাইন-আপ (Sign Up)
@@ -881,16 +1042,32 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         )}
 
         <form onSubmit={handleAuthSubmit} className="space-y-4">
+          {authMode === 'signup' && (
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                আপনার পূর্ণ নাম (Full Name) *
+              </label>
+              <input
+                type="text"
+                required
+                value={setupName}
+                onChange={(e) => setSetupName(e.target.value)}
+                placeholder="যেমন: তানভীর আহমেদ"
+                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 font-bold"
+              />
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              ইমেইল এড্রেস (Email Address) *
+              জিমেইল / ইমেইল এড্রেস (Gmail Address) *
             </label>
             <input
               type="email"
               required
               value={emailInput}
               onChange={(e) => setEmailInput(e.target.value)}
-              placeholder="reporter@therecapmedia.com"
+              placeholder="example@gmail.com"
               className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
             />
           </div>
@@ -911,12 +1088,124 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
           <button
             type="submit"
-            className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-red-600/20 transition-all flex items-center justify-center gap-2"
+            disabled={isSendingCode}
+            className="w-full py-3.5 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white font-bold text-xs rounded-xl shadow-lg shadow-red-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
-            <ShieldCheck className="w-4 h-4" />
-            {authMode === 'signup' ? 'রেজিস্ট্রেশন করুন ও পরবর্তী ধাপ' : 'প্রতিবেদক প্যানেলে সাইন ইন করুন'}
+            {isSendingCode ? (
+              <span className="flex items-center gap-2">
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                কোড পাঠানো হচ্ছে...
+              </span>
+            ) : (
+              <>
+                <ShieldCheck className="w-4 h-4" />
+                <span>{authMode === 'signup' ? 'ভেরিফিকেশন কোড পাঠান ও সাইন-আপ' : 'প্রতিবেদক প্যানেলে সাইন ইন করুন'}</span>
+              </>
+            )}
           </button>
         </form>
+
+        {/* 6-Digit Email Verification Code Modal */}
+        {showVerifyModal && (
+          <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-5">
+              <div className="text-center space-y-1">
+                <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto mb-2">
+                  <Mail className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-black text-red-600 dark:text-red-400 font-serif">
+                  The Recap Media Cast Ltd
+                </h3>
+                <p className="text-xs text-slate-500">বস্তুনিষ্ঠ ও নিরপেক্ষ সংবাদ মাধ্যম</p>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-center space-y-2">
+                <p className="text-sm font-bold text-slate-900 dark:text-white">
+                  Hey! Dear... <span className="text-red-600 dark:text-red-400">{setupName || 'প্রতিবেদক'}</span>
+                </p>
+                <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  Your Verification Code for Sign up
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  {emailInput} ঠিকানায় প্রেরিত ৬ ডিজিটের কোডটি নিচে লিখুন:
+                </p>
+
+                <form onSubmit={handleVerifyCodeSubmit} className="pt-2 space-y-4">
+                  <div>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      autoFocus
+                      required
+                      value={verificationCodeInput}
+                      onChange={(e) => setVerificationCodeInput(e.target.value.replace(/\D/g, ''))}
+                      placeholder=". . . . . ."
+                      className="w-full py-3 px-4 text-center font-mono text-2xl font-black tracking-[0.5em] rounded-2xl border-2 border-red-500 bg-white dark:bg-slate-900 text-red-600 dark:text-red-400 focus:ring-4 focus:ring-red-500/20 focus:outline-none"
+                    />
+                  </div>
+
+                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    at "The Recap Media Cast Ltd"
+                  </p>
+                  <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    Enter your verification code and go ahead
+                  </p>
+
+                  {verificationError && (
+                    <div className="p-2.5 bg-red-50 dark:bg-red-950/70 text-red-700 dark:text-red-300 text-xs font-bold rounded-xl border border-red-200 dark:border-red-900 text-left">
+                      ⚠️ {verificationError}
+                    </div>
+                  )}
+
+                  {verificationSuccess && (
+                    <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 text-xs font-bold rounded-xl border border-emerald-200 dark:border-emerald-900 text-left">
+                      ✓ {verificationSuccess}
+                    </div>
+                  )}
+
+                  {/* SPAM FOLDER NOTICE */}
+                  <div className="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-900 text-[11px] text-amber-800 dark:text-amber-300 font-semibold text-left">
+                    ⚠️ <strong>জরুরি নির্দেশ:</strong> ইনবক্সে মেসেজ না পেলে অনুগ্রহ করে আপনার জিমেইল-এর <strong>স্প্যাম ফোল্ডার (Spam)</strong> চেক করুন।
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowVerifyModal(false)}
+                      className="w-1/3 py-2.5 text-xs font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl"
+                    >
+                      বাতিল
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isVerifyingCode || verificationCodeInput.length !== 6}
+                      className="w-2/3 py-2.5 text-xs font-bold bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      {isVerifyingCode ? (
+                        <span>যাচাই হচ্ছে...</span>
+                      ) : (
+                        <span>কোড যাচাই ও প্রবেশ করুন</span>
+                      )}
+                    </button>
+                  </div>
+                </form>
+
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-700/60">
+                  <button
+                    type="button"
+                    disabled={resendCooldown > 0 || isSendingCode}
+                    onClick={handleSendVerificationCode}
+                    className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50 cursor-pointer"
+                  >
+                    {resendCooldown > 0
+                      ? `পুনরায় কোড পাঠান (${resendCooldown}s অপেক্ষা করুন)`
+                      : 'কোড পাননি? পুনরায় কোড পাঠান'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1650,7 +1939,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                       className="w-4 h-4 rounded text-red-600"
                     />
                     <label htmlFor="videoShareNameCheck" className="text-xs font-bold text-slate-900 dark:text-white cursor-pointer">
-                      ওয়েবসাইটে ভিডিওর নিচে প্রতিবেদক হিসেবে আমার নাম দেখান ({writerProfile?.name || 'প্রতিবেদক'})
+                      ওয়েবসাইটে ভিডিওর নিচে প্রতিবেদক হিসেবে আমার নাম দেখান ({formatReporterName(writerProfile?.name || 'প্রতিবেদক', writerProfile?.district)})
                     </label>
                   </div>
 
@@ -2002,7 +2291,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                   </label>
                 </div>
                 <p className="text-[11px] text-slate-600 dark:text-slate-400 pl-8">
-                  সিলেক্ট করা থাকলে সংবাদের নিচে প্রতিবেদক হিসেবে দেখাবে: <strong className="text-red-600 dark:text-red-400">{writerProfile?.name} (প্রতিবেদক)</strong>
+                  সিলেক্ট করা থাকলে সংবাদের নিচে প্রতিবেদক হিসেবে দেখাবে: <strong className="text-red-600 dark:text-red-400">{formatReporterName(writerProfile?.name || 'প্রতিবেদক', writerProfile?.district)}</strong>
                 </p>
               </div>
 
@@ -3036,6 +3325,13 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           </div>
         </div>
       )}
+
+      {/* Native Banner Ad 2 for Reporter Panel (Bottom) */}
+      <NativeBannerAd
+        settings={siteSettings?.dynamicAds?.nativeBanner}
+        isPostWriting={activeTab === 'create' || editingArticleId !== null}
+        panelLabel="প্রতিবেদক প্যানেল (ব্যানার ২)"
+      />
 
       {/* Cloudflare & reCAPTCHA Bot Protection Modal */}
       <BotProtectionModal
