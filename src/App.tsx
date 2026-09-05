@@ -15,7 +15,7 @@ import { UserProfileModal } from './components/UserProfileModal';
 import { AdBlockerDetector } from './components/AdBlockerDetector';
 import { CloudflareSecurityBadge, BotProtectionModal } from './components/BotProtection';
 import { FooterStats } from './components/FooterStats';
-import { NewsArticle, Category, Language, UserProfile, SiteSettings, WriterProfile, ManagerProfile, WithdrawalRequest, SystemNotification, CategoryConfig, SocialWidget, DynamicAdSettings } from './types';
+import { NewsArticle, Category, Language, UserProfile, SiteSettings, WriterProfile, ManagerProfile, AdminProfile, WithdrawalRequest, SystemNotification, CategoryConfig, SocialWidget, DynamicAdSettings } from './types';
 import {
   fetchInitialStateFromFirestore,
   DEFAULT_CATEGORIES,
@@ -45,6 +45,8 @@ import {
   saveManagerToFirebase,
   deleteManagerFromFirebase,
   updateManagerInFirebase,
+  subscribeToAdmins,
+  saveAdminToFirebase,
   subscribeToCategories,
   saveCategoriesToFirebase,
   subscribeToWithdrawals,
@@ -164,6 +166,18 @@ export default function App() {
     setManagers(newManagers);
     localStorage.setItem('recap_managers', JSON.stringify(newManagers));
     newManagers.forEach((m) => saveManagerToFirebase(m).catch(() => {}));
+  };
+
+  // Registered Admins list
+  const [admins, setAdmins] = useState<AdminProfile[]>(() => {
+    const saved = localStorage.getItem('recap_admins');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const handleUpdateAdmins = (newAdmins: AdminProfile[]) => {
+    setAdmins(newAdmins);
+    localStorage.setItem('recap_admins', JSON.stringify(newAdmins));
+    newAdmins.forEach((a) => saveAdminToFirebase(a).catch(() => {}));
   };
 
   // Withdrawal Requests list
@@ -329,6 +343,12 @@ export default function App() {
       }
     });
 
+    const unsubscribeAdmins = subscribeToAdmins((liveAdmins) => {
+      if (Array.isArray(liveAdmins)) {
+        setAdmins(liveAdmins);
+      }
+    });
+
     const unsubscribeCategories = subscribeToCategories((liveCategories) => {
       if (Array.isArray(liveCategories) && liveCategories.length > 0) {
         setCategories(liveCategories);
@@ -352,6 +372,7 @@ export default function App() {
       unsubscribeSettings();
       unsubscribeWriters();
       unsubscribeManagers();
+      unsubscribeAdmins();
       unsubscribeCategories();
       unsubscribeWithdrawals();
       unsubscribeNotifications();
@@ -730,6 +751,8 @@ export default function App() {
             onUpdateCategories={handleUpdateCategories}
             managers={managers}
             onUpdateManagers={handleUpdateManagers}
+            admins={admins}
+            onUpdateAdmins={handleUpdateAdmins}
           />
         )}
       </main>

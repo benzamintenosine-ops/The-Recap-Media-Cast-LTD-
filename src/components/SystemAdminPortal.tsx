@@ -39,7 +39,10 @@ import {
   EyeOff,
   Edit2,
   X,
-  Building2
+  Building2,
+  UserCheck,
+  Camera,
+  Key
 } from 'lucide-react';
 import { 
   NewsArticle, 
@@ -56,6 +59,8 @@ import {
   DynamicAdSettings
 } from '../types';
 import { RichContentEditor } from './BloggerRichEditor';
+import { uploadImageToCloudinary } from '../services/cloudinaryService';
+import { saveAdminToFirebase } from '../services/firebaseDataService';
 
 interface SystemAdminPortalProps {
   articles: NewsArticle[];
@@ -73,6 +78,8 @@ interface SystemAdminPortalProps {
   onUpdateCategories: (categories: CategoryConfig[]) => void;
   managers?: ManagerProfile[];
   onUpdateManagers?: (managers: ManagerProfile[]) => void;
+  admins?: AdminProfile[];
+  onUpdateAdmins?: (admins: AdminProfile[]) => void;
 }
 
 const DEFAULT_SOCIAL_WIDGETS: SocialWidget[] = [
@@ -96,7 +103,9 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
   categories = [],
   onUpdateCategories,
   managers = [],
-  onUpdateManagers
+  onUpdateManagers,
+  admins = [],
+  onUpdateAdmins
 }) => {
   // Auth state for Admin
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -124,8 +133,159 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
 
   // Active Admin Tab
   const [activeTab, setActiveTab] = useState<
-    'withdrawals' | 'managers' | 'settings' | 'ads' | 'socials' | 'analytics'
+    'withdrawals' | 'managers' | 'settings' | 'ads' | 'socials' | 'analytics' | 'profile'
   >('withdrawals');
+
+  // Admin Profile Setup & Edit States
+  const [showEditAdminModal, setShowEditAdminModal] = useState(false);
+  const [editAdminName, setEditAdminName] = useState('');
+  const [editAdminDesignation, setEditAdminDesignation] = useState('');
+  const [editAdminMobile, setEditAdminMobile] = useState('');
+  const [editAdminAddress, setEditAdminAddress] = useState('');
+  const [editAdminAge, setEditAdminAge] = useState<number | ''>(32);
+  const [editAdminBio, setEditAdminBio] = useState('');
+  const [editAdminNid, setEditAdminNid] = useState('');
+  const [editAdminAvatarUrl, setEditAdminAvatarUrl] = useState('');
+  const [editAdminNewPassword, setEditAdminNewPassword] = useState('');
+  const [isUploadingAdminAvatar, setIsUploadingAdminAvatar] = useState(false);
+  const [adminProfileSuccessMsg, setAdminProfileSuccessMsg] = useState('');
+
+  // Quick Password Change in Profile Tab
+  const [quickOldPassword, setQuickOldPassword] = useState('');
+  const [quickNewPassword, setQuickNewPassword] = useState('');
+  const [quickConfirmPassword, setQuickConfirmPassword] = useState('');
+  const [quickPasswordMsg, setQuickPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const initAdminEditModal = () => {
+    if (adminProfile) {
+      setEditAdminName(adminProfile.name || '');
+      setEditAdminDesignation(adminProfile.designation || 'প্রধান সম্পাদক ও চিফ অ্যাডমিন');
+      setEditAdminMobile(adminProfile.mobile || '');
+      setEditAdminAddress(adminProfile.address || '');
+      setEditAdminAge(adminProfile.age || 32);
+      setEditAdminBio(adminProfile.bio || '');
+      setEditAdminNid(adminProfile.nidNumber || '');
+      setEditAdminAvatarUrl(adminProfile.avatarUrl || '');
+      setEditAdminNewPassword('');
+    }
+  };
+
+  const handleAdminAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('ছবির সাইজ ১০MB এর কম হতে হবে!');
+      return;
+    }
+
+    try {
+      setIsUploadingAdminAvatar(true);
+      const url = await uploadImageToCloudinary(file, 'admin_avatars');
+      setEditAdminAvatarUrl(url);
+    } catch (err) {
+      console.warn('Cloudinary upload fallback to data url:', err);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditAdminAvatarUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsUploadingAdminAvatar(false);
+    }
+  };
+
+  const handleSaveAdminProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminProfile) return;
+
+    const cleanMobile = editAdminMobile.trim().replace(/\D/g, '');
+    if (cleanMobile.length !== 11) {
+      alert('মোবাইল নম্বরটি অবশ্যই সঠিক ১১ ডিজিটের হতে হবে (যেমন: 01712345678)!');
+      return;
+    }
+
+    if (editAdminNewPassword.trim() && editAdminNewPassword.trim().length < 6) {
+      alert('নতুন পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে!');
+      return;
+    }
+
+    const updatedProfile: AdminProfile = {
+      ...adminProfile,
+      name: editAdminName.trim() || adminProfile.name,
+      designation: editAdminDesignation.trim() || 'প্রধান সম্পাদক ও চিফ অ্যাডমিন',
+      mobile: editAdminMobile.trim(),
+      address: editAdminAddress.trim(),
+      age: Number(editAdminAge) || 32,
+      bio: editAdminBio.trim(),
+      nidNumber: editAdminNid.trim(),
+      avatarUrl: editAdminAvatarUrl.trim() || adminProfile.avatarUrl,
+      password: editAdminNewPassword.trim() ? editAdminNewPassword.trim() : (adminProfile.password || '')
+    };
+
+    setAdminProfile(updatedProfile);
+    localStorage.setItem('recap_admin_profile', JSON.stringify(updatedProfile));
+
+    try {
+      await saveAdminToFirebase(updatedProfile);
+    } catch (err) {
+      console.warn('Could not save admin profile to Firebase:', err);
+    }
+
+    if (onUpdateAdmins && admins) {
+      const filtered = admins.filter(a => a.id !== updatedProfile.id && a.email.toLowerCase() !== updatedProfile.email.toLowerCase());
+      onUpdateAdmins([...filtered, updatedProfile]);
+    }
+
+    setShowEditAdminModal(false);
+    setAdminProfileSuccessMsg('অ্যাডমিন প্রোফাইল সফলভাবে আপডেট ও ক্লাউডে সংরক্ষণ করা হয়েছে!');
+    setTimeout(() => setAdminProfileSuccessMsg(''), 5000);
+  };
+
+  const handleQuickPasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setQuickPasswordMsg(null);
+    if (!adminProfile) return;
+
+    const currentSecret = siteSettings.adminSecretCode || 'ADMIN2026';
+    if (adminProfile.password && quickOldPassword.trim() !== adminProfile.password && quickOldPassword.trim() !== currentSecret) {
+      setQuickPasswordMsg({ type: 'error', text: 'বর্তমান পাসওয়ার্ডটি সঠিক নয়!' });
+      return;
+    }
+
+    if (quickNewPassword.trim().length < 6) {
+      setQuickPasswordMsg({ type: 'error', text: 'নতুন পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে!' });
+      return;
+    }
+
+    if (quickNewPassword.trim() !== quickConfirmPassword.trim()) {
+      setQuickPasswordMsg({ type: 'error', text: 'নতুন পাসওয়ার্ড এবং নিশ্চিতকরণ পাসওয়ার্ড মেলেনি!' });
+      return;
+    }
+
+    const updatedProfile: AdminProfile = {
+      ...adminProfile,
+      password: quickNewPassword.trim()
+    };
+
+    setAdminProfile(updatedProfile);
+    localStorage.setItem('recap_admin_profile', JSON.stringify(updatedProfile));
+    try {
+      await saveAdminToFirebase(updatedProfile);
+    } catch (err) {
+      console.warn(err);
+    }
+    if (onUpdateAdmins && admins) {
+      const filtered = admins.filter(a => a.id !== updatedProfile.id && a.email.toLowerCase() !== updatedProfile.email.toLowerCase());
+      onUpdateAdmins([...filtered, updatedProfile]);
+    }
+
+    setQuickOldPassword('');
+    setQuickNewPassword('');
+    setQuickConfirmPassword('');
+    setQuickPasswordMsg({ type: 'success', text: 'পাসওয়ার্ড সফলভাবে পরিবর্তন করা হয়েছে!' });
+    setTimeout(() => setQuickPasswordMsg(null), 5000);
+  };
 
   // Modal / Form States
   const [deleteModalArticle, setDeleteModalArticle] = useState<NewsArticle | null>(null);
@@ -287,11 +447,22 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
     e.preventDefault();
     setAuthError('');
 
+    const currentSecret = siteSettings.adminSecretCode || 'ADMIN2026';
+
     if (authMode === 'signup') {
       // Validate secret code (must match siteSettings.adminSecretCode)
-      const currentSecret = siteSettings.adminSecretCode || 'ADMIN2026';
       if (secretCodeInput.trim() !== currentSecret) {
         setAuthError('অ্যাডমিন সাইনআপের জন্য গোপন কোডটি (Secret Code) ভুল হয়েছে!');
+        return;
+      }
+
+      if (!setupName.trim() || !emailInput.trim() || !setupMobile.trim()) {
+        setAuthError('অনুগ্রহ করে নাম, ইমেইল ও মোবাইল নম্বর পূরণ করুন।');
+        return;
+      }
+
+      if (passwordInput.trim().length < 6) {
+        setAuthError('পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে!');
         return;
       }
 
@@ -301,24 +472,33 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
         return;
       }
 
-      if (!setupName.trim() || !emailInput.trim() || !setupMobile.trim()) {
-        setAuthError('অনুগ্রহ করে নাম, ইমেইল ও মোবাইল নম্বর পূরণ করুন।');
+      const cleanEmail = emailInput.trim().toLowerCase();
+      if (admins?.some(a => a.email.trim().toLowerCase() === cleanEmail)) {
+        setAuthError('এই ইমেইলে ইতিমধ্যে একটি অ্যাডমিন অ্যাকাউন্ট রয়েছে! দয়া করে সাইন-ইন করুন।');
         return;
       }
 
       const newAdminProfile: AdminProfile = {
         id: `admin-${Date.now()}`,
-        name: setupName,
-        email: emailInput,
-        address: setupAddress || 'গুলশান, ঢাকা',
-        mobile: setupMobile,
+        name: setupName.trim(),
+        email: cleanEmail,
+        designation: 'প্রধান সম্পাদক ও চিফ অ্যাডমিন',
+        password: passwordInput.trim(),
+        address: setupAddress.trim() || 'গুলশান, ঢাকা',
+        mobile: setupMobile.trim(),
         age: Number(setupAge) || 30,
         avatarUrl: setupAvatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-        secretCodeUsed: secretCodeInput,
+        secretCodeUsed: secretCodeInput.trim(),
         createdAt: new Date().toISOString()
       };
 
       setAdminProfile(newAdminProfile);
+      localStorage.setItem('recap_admin_profile', JSON.stringify(newAdminProfile));
+      if (onUpdateAdmins) {
+        onUpdateAdmins([...(admins || []).filter(a => a.email.toLowerCase() !== cleanEmail), newAdminProfile]);
+      }
+      saveAdminToFirebase(newAdminProfile).catch(() => {});
+
       localStorage.setItem('recap_admin_logged', 'true');
       setIsAuthenticated(true);
     } else {
@@ -328,23 +508,34 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
         return;
       }
 
-      // Check existing admin profile or authenticate
-      if (!adminProfile) {
-        // Create default profile for login fallback
-        const defaultAdmin: AdminProfile = {
-          id: 'admin-default',
-          name: emailInput.split('@')[0] || 'প্রধান অ্যাডমিন',
-          email: emailInput,
-          address: 'ঢাকা, বাংলাদেশ',
-          mobile: '+8801700000000',
-          age: 32,
-          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-          secretCodeUsed: siteSettings.adminSecretCode || 'ADMIN2026',
-          createdAt: new Date().toISOString()
-        };
-        setAdminProfile(defaultAdmin);
+      const cleanEmail = emailInput.trim().toLowerCase();
+      let matched = admins?.find(a => a.email.trim().toLowerCase() === cleanEmail) ||
+        (adminProfile && adminProfile.email.toLowerCase() === cleanEmail ? adminProfile : null);
+
+      if (!matched) {
+        try {
+          const cached = localStorage.getItem('recap_admins');
+          if (cached) {
+            const parsed: AdminProfile[] = JSON.parse(cached);
+            matched = parsed.find(a => a.email.trim().toLowerCase() === cleanEmail) || null;
+          }
+        } catch {}
       }
 
+      // STRICT: No one can sign in without having signed up previously!
+      if (!matched) {
+        setAuthError('এই ইমেইলে কোনো অ্যাডমিন অ্যাকাউন্ট পাওয়া যায়নি! সাইন-ইন করার পূর্বে অনুগ্রহ করে প্রথমে "নতুন অ্যাডমিন সাইনআপ (Sign Up)" করুন।');
+        return;
+      }
+
+      // Password verification - strictly check registered password
+      if (!matched.password || matched.password !== passwordInput.trim()) {
+        setAuthError('ভুল পাসওয়ার্ড! অনুগ্রহ করে আপনার নিবন্ধিত সঠিক পাসওয়ার্ড প্রদান করুন।');
+        return;
+      }
+
+      setAdminProfile(matched);
+      localStorage.setItem('recap_admin_profile', JSON.stringify(matched));
       localStorage.setItem('recap_admin_logged', 'true');
       setIsAuthenticated(true);
     }
@@ -355,14 +546,21 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
     setIsAuthenticated(false);
   };
 
-  // Image File Upload Helper
-  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (url: string) => void) => {
+  // Image File Upload Helper with Cloudinary
+  const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, setter: (url: string) => void) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('ছবি ৫MB এর বড় হওয়া যাবে না!');
-        return;
-      }
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('ছবি ১০MB এর বড় হওয়া যাবে না!');
+      return;
+    }
+
+    try {
+      const url = await uploadImageToCloudinary(file, 'system_admin');
+      setter(url);
+    } catch (err) {
+      console.warn('Cloudinary upload fallback to data URL:', err);
       const reader = new FileReader();
       reader.onloadend = () => {
         setter(reader.result as string);
@@ -914,6 +1112,19 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
               </button>
             )}
 
+            {/* Profile Setup / Edit Button in Header */}
+            <button
+              onClick={() => {
+                initAdminEditModal();
+                setShowEditAdminModal(true);
+              }}
+              className="px-3.5 py-2 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white text-xs font-bold rounded-2xl shadow flex items-center gap-2 transition-all"
+              title="অ্যাডমিন প্রোফাইল সেটাপ ও এডিট করুন"
+            >
+              <UserCheck className="w-4 h-4" />
+              <span>প্রোফাইল সেটাপ / এডিট</span>
+            </button>
+
             <button
               onClick={handleLogout}
               className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-2xl border border-slate-700 flex items-center gap-2 transition-colors"
@@ -926,6 +1137,18 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
 
         {/* Navigation Tabs Bar */}
         <div className="bg-white dark:bg-slate-900 rounded-2xl p-2 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 ${
+              activeTab === 'profile'
+                ? 'bg-red-600 text-white shadow-md ring-2 ring-red-400/40'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <UserCheck className="w-4 h-4 text-amber-400" />
+            <span>🛡️ অ্যাডমিন প্রোফাইল সেটাপ</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('withdrawals')}
             className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 ${
@@ -3436,7 +3659,522 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
           );
         })()}
 
+        {/* TAB: ADMIN PROFILE SETUP & EDIT */}
+        {activeTab === 'profile' && (
+          <div className="space-y-6">
+            {adminProfileSuccessMsg && (
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-emerald-600 dark:text-emerald-400 font-bold text-sm flex items-center gap-3 animate-fadeIn">
+                <Check className="w-5 h-5 text-emerald-500 shrink-0" />
+                <span>{adminProfileSuccessMsg}</span>
+              </div>
+            )}
+
+            {/* Profile Overview Banner */}
+            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white rounded-3xl p-6 sm:p-8 border border-slate-700 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-80 h-80 bg-red-600/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
+
+              <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+                  <div className="relative group">
+                    <img
+                      src={adminProfile?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'}
+                      alt={adminProfile?.name}
+                      className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover border-4 border-slate-700 shadow-2xl group-hover:opacity-90 transition-opacity"
+                    />
+                    <button
+                      onClick={() => {
+                        initAdminEditModal();
+                        setShowEditAdminModal(true);
+                      }}
+                      className="absolute bottom-1 right-1 p-2 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-lg transition-transform hover:scale-110"
+                      title="ছবি পরিবর্তন করুন"
+                    >
+                      <Camera className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="bg-red-600 text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow">
+                        <ShieldCheck className="w-3.5 h-3.5" /> SUPER ADMIN
+                      </span>
+                      <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Check className="w-3 h-3" /> ক্লাউড ডেটাবেজে ভেরিফাইড
+                      </span>
+                      <span className="bg-blue-500/20 text-blue-400 border border-blue-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <UploadCloud className="w-3 h-3" /> Cloudinary সিঙ্কড
+                      </span>
+                    </div>
+
+                    <h2 className="text-2xl sm:text-3xl font-black font-serif tracking-tight text-white">
+                      {adminProfile?.name || 'প্রধান নির্বাহী ও সুপার অ্যাডমিন'}
+                    </h2>
+                    <p className="text-sm text-red-400 font-bold">
+                      {adminProfile?.designation || 'প্রধান সম্পাদক ও চিফ অ্যাডমিন'}
+                    </p>
+                    <p className="text-xs text-slate-400 flex items-center gap-2">
+                      <span>📧 {adminProfile?.email}</span>
+                      <span>•</span>
+                      <span>📱 {adminProfile?.mobile}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => {
+                      initAdminEditModal();
+                      setShowEditAdminModal(true);
+                    }}
+                    className="px-5 py-3 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-2xl shadow-lg transition-all flex items-center gap-2 hover:shadow-red-600/30"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                    <span>প্রোফাইল তথ্য ও ছবি এডিট করুন</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Profile Detailed Cards Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left 2 Cols: Details & Bio */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Official Information Card */}
+                <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white font-serif flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <UserCheck className="w-5 h-5 text-red-600" />
+                    অ্যাডমিনের প্রাতিষ্ঠানিক ও ব্যক্তিগত বিবরণ
+                  </h3>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
+                      <span className="text-[11px] font-bold text-slate-400 block uppercase">পূর্ণ নাম</span>
+                      <strong className="text-sm text-slate-900 dark:text-white mt-0.5 block">{adminProfile?.name}</strong>
+                    </div>
+
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
+                      <span className="text-[11px] font-bold text-slate-400 block uppercase">পদবী ও দায়িত্ব</span>
+                      <strong className="text-sm text-slate-900 dark:text-white mt-0.5 block">{adminProfile?.designation || 'প্রধান সম্পাদক ও চিফ অ্যাডমিন'}</strong>
+                    </div>
+
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
+                      <span className="text-[11px] font-bold text-slate-400 block uppercase">অফিসিয়াল ইমেইল এড্রেস</span>
+                      <strong className="text-sm font-mono text-slate-900 dark:text-white mt-0.5 block">{adminProfile?.email}</strong>
+                    </div>
+
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
+                      <span className="text-[11px] font-bold text-slate-400 block uppercase">মোবাইল নম্বর</span>
+                      <strong className="text-sm font-mono text-slate-900 dark:text-white mt-0.5 block">{adminProfile?.mobile}</strong>
+                    </div>
+
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
+                      <span className="text-[11px] font-bold text-slate-400 block uppercase">বয়স</span>
+                      <strong className="text-sm text-slate-900 dark:text-white mt-0.5 block">{adminProfile?.age ? `${adminProfile.age} বছর` : 'তথ্য নেই'}</strong>
+                    </div>
+
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
+                      <span className="text-[11px] font-bold text-slate-400 block uppercase">জাতীয় পরিচয়পত্র (NID) নম্বর</span>
+                      <strong className="text-sm font-mono text-slate-900 dark:text-white mt-0.5 block">{adminProfile?.nidNumber || 'তথ্য নেই'}</strong>
+                    </div>
+
+                    <div className="sm:col-span-2 p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
+                      <span className="text-[11px] font-bold text-slate-400 block uppercase">ঠিকানা (অফিস ও যোগাযোগ)</span>
+                      <p className="text-xs text-slate-800 dark:text-slate-200 mt-1">{adminProfile?.address || 'গুলশান-২, ঢাকা, বাংলাদেশ'}</p>
+                    </div>
+
+                    {adminProfile?.bio && (
+                      <div className="sm:col-span-2 p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        <span className="text-[11px] font-bold text-slate-400 block uppercase">পরিচিতি ও বায়ো</span>
+                        <p className="text-xs text-slate-700 dark:text-slate-300 mt-1 leading-relaxed">{adminProfile.bio}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Authorized Admins List */}
+                <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white font-serif flex items-center gap-2">
+                      <ShieldCheck className="w-5 h-5 text-amber-500" />
+                      নিবন্ধিত অ্যাডমিনদের তালিকা ({admins ? admins.length : 1} জন)
+                    </h3>
+                    <span className="text-[10px] text-slate-400">Firebase Firestore সিঙ্কড</span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {admins && admins.length > 0 ? (
+                      admins.map((adm) => (
+                        <div
+                          key={adm.id}
+                          className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={adm.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'}
+                              alt={adm.name}
+                              className="w-10 h-10 rounded-xl object-cover border border-slate-300 dark:border-slate-600"
+                            />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-xs font-bold text-slate-900 dark:text-white">{adm.name}</h4>
+                                {adm.id === adminProfile?.id && (
+                                  <span className="text-[9px] bg-red-600 text-white font-bold px-1.5 py-0.2 rounded-full">আপনি</span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-slate-500 font-mono">{adm.email} | {adm.mobile}</p>
+                            </div>
+                          </div>
+                          <div className="text-right text-[11px] text-slate-400">
+                            <span className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded font-medium text-[10px] block mb-1">
+                              {adm.designation || 'সুপার অ্যাডমিন'}
+                            </span>
+                            <span>{new Date(adm.createdAt).toLocaleDateString('bn-BD')}</span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 flex items-center gap-3">
+                        <img
+                          src={adminProfile?.avatarUrl}
+                          alt={adminProfile?.name}
+                          className="w-10 h-10 rounded-xl object-cover"
+                        />
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-900 dark:text-white">{adminProfile?.name} (প্রধান অ্যাডমিন)</h4>
+                          <p className="text-[11px] text-slate-500 font-mono">{adminProfile?.email}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Security & Quick Password Change */}
+              <div className="space-y-6">
+                {/* Security Status Box */}
+                <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white font-serif flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <Lock className="w-5 h-5 text-red-600" />
+                    নিরাপত্তা ও অ্যাক্সেস স্ট্যাটাস
+                  </h3>
+
+                  <div className="space-y-3 text-xs">
+                    <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+                      <span className="text-slate-500 dark:text-slate-400">অ্যাকাউন্ট আইডি:</span>
+                      <strong className="font-mono text-slate-900 dark:text-white text-[11px]">{adminProfile?.id}</strong>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+                      <span className="text-slate-500 dark:text-slate-400">পাসওয়ার্ড স্ট্যাটাস:</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" /> এনক্রিপ্টেড ও সুরক্ষিত
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+                      <span className="text-slate-500 dark:text-slate-400">নিবন্ধন সময়:</span>
+                      <span className="font-mono text-slate-700 dark:text-slate-300 text-[11px]">
+                        {adminProfile?.createdAt ? new Date(adminProfile.createdAt).toLocaleDateString('bn-BD') : 'তথ্য নেই'}
+                      </span>
+                    </div>
+
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-1">
+                      <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                        <Lock className="w-3.5 h-3.5" /> জরুরি সতর্কতা
+                      </span>
+                      <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                        আপনার অ্যাডমিন পাসওয়ার্ড ও গোপন কোড অন্য কারও সাথে শেয়ার করবেন না।
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Password Change Form */}
+                <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white font-serif flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <Key className="w-5 h-5 text-amber-500" />
+                    পাসওয়ার্ড পরিবর্তন করুন
+                  </h3>
+
+                  {quickPasswordMsg && (
+                    <div className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 ${
+                      quickPasswordMsg.type === 'success'
+                        ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
+                        : 'bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800'
+                    }`}>
+                      {quickPasswordMsg.type === 'success' ? <Check className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                      <span>{quickPasswordMsg.text}</span>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleQuickPasswordChange} className="space-y-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                        বর্তমান পাসওয়ার্ড
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        value={quickOldPassword}
+                        onChange={(e) => setQuickOldPassword(e.target.value)}
+                        placeholder="বর্তমান পাসওয়ার্ড টাইপ করুন..."
+                        className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                        নতুন পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        value={quickNewPassword}
+                        onChange={(e) => setQuickNewPassword(e.target.value)}
+                        placeholder="নতুন শক্তিশালী পাসওয়ার্ড..."
+                        className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                        নতুন পাসওয়ার্ড নিশ্চিত করুন
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        value={quickConfirmPassword}
+                        onChange={(e) => setQuickConfirmPassword(e.target.value)}
+                        placeholder="আবার নতুন পাসওয়ার্ড টাইপ করুন..."
+                        className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white dark:bg-red-600 dark:hover:bg-red-700 text-xs font-bold rounded-xl transition-colors shadow flex items-center justify-center gap-2 mt-2"
+                    >
+                      <Key className="w-3.5 h-3.5" />
+                      <span>পাসওয়ার্ড আপডেট করুন</span>
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
+
+      {/* EDIT ADMIN PROFILE MODAL */}
+      {showEditAdminModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-xl w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-5 animate-fadeIn max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-600">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900 dark:text-white font-serif">
+                    ✏️ অ্যাডমিন প্রোফাইল সেটাপ ও তথ্য পরিবর্তন
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    আপনার নাম, পদবী, মোবাইল, ঠিকানা ও ছবি আপডেট করুন।
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowEditAdminModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-full bg-slate-100 dark:bg-slate-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAdminProfile} className="space-y-4">
+              {/* Photo Upload with Cloudinary */}
+              <div>
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                  প্রোফাইল ফটো (Cloudinary স্টোরেজ বা লিঙ্ক)
+                </label>
+                <div className="flex items-center gap-3">
+                  <img
+                    src={editAdminAvatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'}
+                    alt="Preview"
+                    className="w-14 h-14 rounded-2xl object-cover border-2 border-red-600 shrink-0"
+                  />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={editAdminAvatarUrl}
+                        onChange={(e) => setEditAdminAvatarUrl(e.target.value)}
+                        placeholder="https://..."
+                        className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                      />
+                      <label className="px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl cursor-pointer shadow transition-colors flex items-center gap-1.5 whitespace-nowrap">
+                        <UploadCloud className="w-3.5 h-3.5" />
+                        <span>{isUploadingAdminAvatar ? 'আপলোড হচ্ছে...' : 'ছবি বেছে নিন'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAdminAvatarUpload}
+                          disabled={isUploadingAdminAvatar}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                    <span className="text-[10px] text-slate-400 block">
+                      📷 আপনার ফোন বা কম্পিউটার থেকে ছবি আপলোড করুন, সরাসরি Cloudinary তে জমা হবে।
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Name & Designation */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                    অ্যাডমিনের পূর্ণ নাম *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editAdminName}
+                    onChange={(e) => setEditAdminName(e.target.value)}
+                    placeholder="আপনার নাম..."
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                    পদবী ও দায়িত্ব
+                  </label>
+                  <input
+                    type="text"
+                    value={editAdminDesignation}
+                    onChange={(e) => setEditAdminDesignation(e.target.value)}
+                    placeholder="যেমন: প্রধান সম্পাদক ও চিফ অ্যাডমিন"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                  />
+                </div>
+              </div>
+
+              {/* Mobile & Age */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                    মোবাইল নম্বর (১১ ডিজিট) *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={editAdminMobile}
+                    onChange={(e) => setEditAdminMobile(e.target.value)}
+                    placeholder="01712345678"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                    বয়স
+                  </label>
+                  <input
+                    type="number"
+                    value={editAdminAge}
+                    onChange={(e) => setEditAdminAge(e.target.value ? Number(e.target.value) : '')}
+                    placeholder="32"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                  />
+                </div>
+              </div>
+
+              {/* NID Number */}
+              <div>
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                  জাতীয় পরিচয়পত্র (NID) নম্বর
+                </label>
+                <input
+                  type="text"
+                  value={editAdminNid}
+                  onChange={(e) => setEditAdminNid(e.target.value)}
+                  placeholder="NID নম্বর..."
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 font-mono"
+                />
+              </div>
+
+              {/* Address */}
+              <div>
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                  ঠিকানা (অফিস বা স্থায়ী ঠিকানা)
+                </label>
+                <input
+                  type="text"
+                  value={editAdminAddress}
+                  onChange={(e) => setEditAdminAddress(e.target.value)}
+                  placeholder="গুলশান-২, ঢাকা, বাংলাদেশ"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                />
+              </div>
+
+              {/* Bio */}
+              <div>
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                  পরিচিতি ও জীবনবৃত্তান্ত (Bio)
+                </label>
+                <textarea
+                  rows={3}
+                  value={editAdminBio}
+                  onChange={(e) => setEditAdminBio(e.target.value)}
+                  placeholder="আপনার সংক্ষিপ্ত পরিচিতি বা দায়িত্বের বিবরণ লিখুন..."
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                />
+              </div>
+
+              {/* Optional New Password */}
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-1">
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-amber-500" />
+                  নতুন পাসওয়ার্ড (ঐচ্ছিক — পরিবর্তন করতে চাইলে দিন)
+                </label>
+                <input
+                  type="password"
+                  value={editAdminNewPassword}
+                  onChange={(e) => setEditAdminNewPassword(e.target.value)}
+                  placeholder="অপরিবর্তিত রাখতে খালি রাখুন..."
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                />
+                <span className="text-[10px] text-slate-400">
+                  পাসওয়ার্ড পরিবর্তন না করতে চাইলে এটি খালি রাখুন।
+                </span>
+              </div>
+
+              {/* Buttons */}
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowEditAdminModal(false)}
+                  className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl hover:bg-slate-200"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUploadingAdminAvatar}
+                  className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow-lg transition-all flex items-center gap-2"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>সংরক্ষণ ও আপডেট করুন</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* VIEW WRITER PROFILE MODAL */}
       {selectedWriter && (

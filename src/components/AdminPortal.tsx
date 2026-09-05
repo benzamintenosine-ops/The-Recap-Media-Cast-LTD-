@@ -390,8 +390,18 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         setAuthError('আপনার পূর্ণ নাম প্রদান করুন!');
         return;
       }
+      if (passwordInput.trim().length < 6) {
+        setAuthError('পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে!');
+        return;
+      }
       if (!secretCodeInput.trim()) {
         setAuthError('ম্যানেজারের গোপন রেফার কোড দেওয়া বাধ্যতামূলক!');
+        return;
+      }
+
+      const cleanEmail = emailInput.trim().toLowerCase();
+      if (writers?.some(w => w.email.trim().toLowerCase() === cleanEmail)) {
+        setAuthError('এই ইমেইলে ইতিমধ্যে একটি অ্যাকাউন্ট রয়েছে! অনুগ্রহ করে লগইন করুন।');
         return;
       }
 
@@ -421,11 +431,11 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         }
       }
 
-      const cleanEmail = emailInput.trim().toLowerCase();
       const initialProfile: WriterProfile = {
         id: `writer-${Date.now()}`,
         name: setupName.trim(),
         email: cleanEmail,
+        password: passwordInput.trim(),
         address: '',
         mobile: '',
         age: 25,
@@ -438,6 +448,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
       setWriterProfile(initialProfile);
       localStorage.setItem('recap_writer_profile', JSON.stringify(initialProfile));
+      if (onRegisterWriter) onRegisterWriter(initialProfile);
       setIsEditingProfile(true);
       setIsAuthenticated(true);
       localStorage.setItem('recap_writer_logged', 'true');
@@ -446,42 +457,45 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
     if (authMode === 'login') {
       const cleanEmail = emailInput.trim().toLowerCase();
-      const existing = writers?.find((w) => w.email.trim().toLowerCase() === cleanEmail);
-      if (existing) {
-        if (existing.isBanned) {
-          setAuthError('আপনার অ্যাকাউন্টটি অ্যাডমিন প্যানেল থেকে সাময়িকভাবে বন্ধ (Banned) করা হয়েছে।');
-          return;
-        }
-        setWriterProfile(existing);
-        localStorage.setItem('recap_writer_profile', JSON.stringify(existing));
-        setSetupName(existing.name || '');
-        setIsAuthenticated(true);
-        localStorage.setItem('recap_writer_logged', 'true');
-        return;
-      } else if (!writerProfile || writerProfile.email.toLowerCase() !== cleanEmail) {
-        const newTemp: WriterProfile = {
-          id: `writer-${Date.now()}`,
-          name: cleanEmail.split('@')[0] || 'প্রতিবেদক',
-          email: cleanEmail,
-          address: '',
-          mobile: '',
-          age: 0,
-          status: 'pending',
-          createdAt: new Date().toISOString(),
-          secretCodeUsed: 'DIRECT_LOGIN',
-        };
-        setWriterProfile(newTemp);
-        localStorage.setItem('recap_writer_profile', JSON.stringify(newTemp));
-      }
-    }
+      let existing = writers?.find((w) => w.email.trim().toLowerCase() === cleanEmail) || 
+        (writerProfile && writerProfile.email.toLowerCase() === cleanEmail ? writerProfile : null);
 
-    if (writerProfile && writerProfile.isBanned) {
-      setAuthError('আপনার অ্যাকাউন্টটি অ্যাডমিন প্যানেল থেকে সাময়িকভাবে বন্ধ (Banned) করা হয়েছে। যোগাযোগের জন্য সাপোর্ট টিমকে জানান।');
+      if (!existing) {
+        try {
+          const cached = localStorage.getItem('recap_writers');
+          if (cached) {
+            const parsed: WriterProfile[] = JSON.parse(cached);
+            existing = parsed.find(w => w.email.trim().toLowerCase() === cleanEmail) || null;
+          }
+        } catch {}
+      }
+
+      if (!existing) {
+        setAuthError('এই ইমেইলে কোনো প্রতিবেদক অ্যাকাউন্ট পাওয়া যায়নি! সাইন-ইন করার পূর্বে অনুগ্রহ করে প্রথমে "নিবন্ধন (Sign Up)" করুন।');
+        return;
+      }
+
+      if (existing.isBanned) {
+        setAuthError('আপনার অ্যাকাউন্টটি অ্যাডমিন প্যানেল থেকে সাময়িকভাবে বন্ধ (Banned) করা হয়েছে। যোগাযোগের জন্য সাপোর্ট টিমকে জানান।');
+        return;
+      }
+
+      // Password verification - strictly require password to match registered password
+      if (!existing.password || existing.password !== passwordInput.trim()) {
+        setAuthError('ভুল পাসওয়ার্ড! অনুগ্রহ করে আপনার নিবন্ধিত সঠিক পাসওয়ার্ড প্রদান করুন।');
+        return;
+      }
+
+      setWriterProfile(existing);
+      localStorage.setItem('recap_writer_profile', JSON.stringify(existing));
+      setSetupName(existing.name || '');
+      setIsAuthenticated(true);
+      localStorage.setItem('recap_writer_logged', 'true');
       return;
     }
 
-    setIsAuthenticated(true);
-    localStorage.setItem('recap_writer_logged', 'true');
+    // Block any unauthorized fallthrough
+    setAuthError('অননুমোদিত প্রবেশ নিষিদ্ধ! অনুগ্রহ করে সাইন-আপ বা সাইন-ইন করুন।');
   };
 
   // Profile Picture Upload and AI Human Verification with Cloudinary Cloud Storage

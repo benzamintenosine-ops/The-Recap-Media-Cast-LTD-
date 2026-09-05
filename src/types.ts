@@ -83,6 +83,8 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
+  password?: string;
+  mobile?: string;
   role: 'admin' | 'viewer';
   avatar?: string;
   bio?: string;
@@ -105,6 +107,7 @@ export interface WriterProfile {
   mobile: string;
   age: number;
   avatarUrl?: string;
+  password?: string;
   secretCodeUsed: string;
   managerId?: string;
   managerName?: string;
@@ -121,6 +124,9 @@ export interface AdminProfile {
   name: string;
   email: string;
   address: string;
+  designation?: string;
+  bio?: string;
+  password?: string;
   postOffice?: string;
   postCode?: string;
   thana?: string;
@@ -142,6 +148,7 @@ export interface ManagerProfile {
   avatarUrl?: string;
   address?: string;
   designation?: string;
+  password?: string;
   age?: number;
   bio?: string;
   secretCodeUsed: string;

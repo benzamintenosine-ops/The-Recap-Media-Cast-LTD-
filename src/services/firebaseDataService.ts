@@ -12,9 +12,11 @@ import { db } from '../firebase';
 import {
   WriterProfile,
   ManagerProfile,
+  AdminProfile,
   CategoryConfig,
   WithdrawalRequest,
-  SystemNotification
+  SystemNotification,
+  UserProfile
 } from '../types';
 
 // ==================== WRITERS (প্রতিবেদকবৃন্দ) ====================
@@ -300,3 +302,129 @@ export async function saveNotificationToFirebase(notification: SystemNotificatio
     console.warn('Could not save notification to Firestore:', err);
   }
 }
+
+// ==================== ADMINS (সুপার অ্যাডমিনবৃন্দ) ====================
+const ADMINS_COLLECTION = 'admins';
+
+export function subscribeToAdmins(onUpdate: (admins: AdminProfile[]) => void) {
+  const colRef = collection(db, ADMINS_COLLECTION);
+  return onSnapshot(
+    colRef,
+    (snapshot) => {
+      const list: AdminProfile[] = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          name: data.name || '',
+          email: data.email || '',
+          address: data.address || '',
+          designation: data.designation || 'প্রধান অ্যাডমিন',
+          bio: data.bio || '',
+          password: data.password || '',
+          postOffice: data.postOffice || '',
+          postCode: data.postCode || '',
+          thana: data.thana || '',
+          district: data.district || '',
+          division: data.division || '',
+          nidNumber: data.nidNumber || '',
+          mobile: data.mobile || '',
+          age: typeof data.age === 'number' ? data.age : 32,
+          avatarUrl: data.avatarUrl || '',
+          secretCodeUsed: data.secretCodeUsed || '',
+          createdAt: data.createdAt || new Date().toISOString()
+        } as AdminProfile;
+      });
+
+      try {
+        localStorage.setItem('recap_admins', JSON.stringify(list));
+      } catch (e) {}
+
+      onUpdate(list);
+    },
+    (error) => {
+      console.warn('Admins subscription note:', error?.message || error);
+      try {
+        const cached = localStorage.getItem('recap_admins');
+        if (cached) onUpdate(JSON.parse(cached));
+      } catch (e) {}
+    }
+  );
+}
+
+export async function saveAdminToFirebase(admin: AdminProfile): Promise<void> {
+  try {
+    const docRef = doc(db, ADMINS_COLLECTION, admin.id);
+    await setDoc(docRef, admin, { merge: true });
+  } catch (err) {
+    console.warn('Could not save admin to Firestore:', err);
+  }
+}
+
+export async function deleteAdminFromFirebase(adminId: string): Promise<void> {
+  try {
+    const docRef = doc(db, ADMINS_COLLECTION, adminId);
+    await deleteDoc(docRef);
+  } catch (err) {
+    console.warn('Could not delete admin from Firestore:', err);
+  }
+}
+
+export async function updateAdminInFirebase(adminId: string, updates: Partial<AdminProfile>): Promise<void> {
+  try {
+    const docRef = doc(db, ADMINS_COLLECTION, adminId);
+    await updateDoc(docRef, updates);
+  } catch (err) {
+    console.warn('Could not update admin in Firestore:', err);
+  }
+}
+
+// ==================== READERS (নিয়মিত পাঠকবৃন্দ) ====================
+const READERS_COLLECTION = 'readers';
+
+export function subscribeToReaders(onUpdate: (readers: UserProfile[]) => void) {
+  const colRef = collection(db, READERS_COLLECTION);
+  return onSnapshot(
+    colRef,
+    (snapshot) => {
+      const list: UserProfile[] = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          name: data.name || '',
+          email: data.email || '',
+          password: data.password || '',
+          mobile: data.mobile || '',
+          role: data.role || 'viewer',
+          avatar: data.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.email || '')}`,
+          bio: data.bio || '',
+          bookmarks: Array.isArray(data.bookmarks) ? data.bookmarks : [],
+          offlineSaved: Array.isArray(data.offlineSaved) ? data.offlineSaved : [],
+          joinedAt: data.joinedAt || new Date().toISOString()
+        } as UserProfile;
+      });
+
+      try {
+        localStorage.setItem('recap_registered_readers', JSON.stringify(list));
+      } catch (e) {}
+
+      onUpdate(list);
+    },
+    (error) => {
+      console.warn('Readers subscription note:', error?.message || error);
+      try {
+        const cached = localStorage.getItem('recap_registered_readers');
+        if (cached) onUpdate(JSON.parse(cached));
+      } catch (e) {}
+    }
+  );
+}
+
+export async function saveReaderToFirebase(reader: UserProfile): Promise<void> {
+  try {
+    const docRef = doc(db, READERS_COLLECTION, reader.id);
+    await setDoc(docRef, reader, { merge: true });
+  } catch (err) {
+    console.warn('Could not save reader to Firestore:', err);
+  }
+}
+

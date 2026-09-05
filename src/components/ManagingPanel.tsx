@@ -324,22 +324,33 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
         return;
       }
 
+      if (!setupName.trim() || !emailInput.trim() || !setupMobile.trim()) {
+        setAuthError('অনুগ্রহ করে নাম, ইমেইল ও মোবাইল নম্বর পূরণ করুন।');
+        return;
+      }
+
+      if (passwordInput.trim().length < 6) {
+        setAuthError('পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে!');
+        return;
+      }
+
       const cleanMobile = setupMobile.trim().replace(/\D/g, '');
       if (cleanMobile.length !== 11) {
         setAuthError('মোবাইল নম্বরটি অবশ্যই সঠিক ১১ ডিজিটের হতে হবে (যেমন: 01712345678)!');
         return;
       }
 
-      if (!setupName.trim() || !emailInput.trim() || !setupMobile.trim()) {
-        setAuthError('অনুগ্রহ করে নাম, ইমেইল ও মোবাইল নম্বর পূরণ করুন।');
+      const cleanEmail = emailInput.trim().toLowerCase();
+      if (managers?.some(m => m.email.trim().toLowerCase() === cleanEmail)) {
+        setAuthError('এই ইমেইলে ইতিমধ্যে একটি ম্যানেজার অ্যাকাউন্ট রয়েছে! অনুগ্রহ করে লগইন করুন।');
         return;
       }
 
-      const cleanEmail = emailInput.trim().toLowerCase();
       const newProfile: ManagerProfile = {
         id: `manager-${Date.now()}`,
         name: setupName.trim(),
         email: cleanEmail,
+        password: passwordInput.trim(),
         mobile: setupMobile.trim(),
         designation: 'ব্যবস্থাপনা পরিচালক',
         secretCodeUsed: secretCodeInput.trim(),
@@ -349,6 +360,7 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
       setManagerProfile(newProfile);
       const updatedManagers = [...managers.filter(m => m.email.toLowerCase() !== cleanEmail), newProfile];
       onUpdateManagers(updatedManagers);
+      saveManagerToFirebase(newProfile).catch(() => {});
 
       localStorage.setItem('recap_manager_profile', JSON.stringify(newProfile));
       localStorage.setItem('recap_manager_logged', 'true');
@@ -360,24 +372,32 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
       }
 
       const cleanEmail = emailInput.trim().toLowerCase();
-      const matched = managers.find(m => m.email.trim().toLowerCase() === cleanEmail);
-      const activeProfile: ManagerProfile = matched || {
-        id: `manager-${Date.now()}`,
-        name: cleanEmail.split('@')[0] || 'ব্যবস্থাপনা পরিচালক',
-        email: cleanEmail,
-        mobile: '+8801700000000',
-        designation: 'ব্যবস্থাপনা পরিচালক',
-        secretCodeUsed: targetSecret,
-        createdAt: new Date().toISOString()
-      };
+      let matched = managers.find(m => m.email.trim().toLowerCase() === cleanEmail) ||
+        (managerProfile && managerProfile.email.toLowerCase() === cleanEmail ? managerProfile : null);
 
-      setManagerProfile(activeProfile);
-      localStorage.setItem('recap_manager_profile', JSON.stringify(activeProfile));
-
-      if (!managers.some(m => m.id === activeProfile.id || m.email.toLowerCase() === activeProfile.email.toLowerCase())) {
-        onUpdateManagers([...managers, activeProfile]);
+      if (!matched) {
+        try {
+          const cached = localStorage.getItem('recap_managers');
+          if (cached) {
+            const parsed: ManagerProfile[] = JSON.parse(cached);
+            matched = parsed.find(m => m.email.trim().toLowerCase() === cleanEmail) || null;
+          }
+        } catch {}
       }
 
+      if (!matched) {
+        setAuthError('এই ইমেইলে কোনো ম্যানেজার অ্যাকাউন্ট পাওয়া যায়নি! সাইন-ইন করার পূর্বে অনুগ্রহ করে প্রথমে "সাইন-আপ (Sign Up)" করুন।');
+        return;
+      }
+
+      // Password verification - strictly require registered password
+      if (!matched.password || matched.password !== passwordInput.trim()) {
+        setAuthError('ভুল পাসওয়ার্ড! অনুগ্রহ করে আপনার নিবন্ধিত সঠিক পাসওয়ার্ড প্রদান করুন।');
+        return;
+      }
+
+      setManagerProfile(matched);
+      localStorage.setItem('recap_manager_profile', JSON.stringify(matched));
       localStorage.setItem('recap_manager_logged', 'true');
       setIsAuthenticated(true);
     }
