@@ -106,10 +106,17 @@ app.post("/api/upload-cloudinary", async (req, res) => {
       return res.status(400).json({ error: "ছবি বা ইমেজ ডেটা প্রদান করুন!" });
     }
 
-    const uploadResult = await cloudinary.uploader.upload(image, {
+    // Run Cloudinary upload with a 15-second timeout promise
+    const uploadPromise = cloudinary.uploader.upload(image, {
       folder: folder,
       resource_type: "image",
     });
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Cloudinary upload request timed out")), 15000)
+    );
+
+    const uploadResult = (await Promise.race([uploadPromise, timeoutPromise])) as any;
 
     return res.json({
       success: true,

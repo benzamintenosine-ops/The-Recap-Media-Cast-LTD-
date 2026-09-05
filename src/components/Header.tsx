@@ -752,6 +752,7 @@ export const Header: React.FC<HeaderProps> = ({
         activeModal={activeInfoModal}
         onClose={() => setActiveInfoModal(null)}
         currentLang={currentLang}
+        siteSettings={siteSettings}
       />
 
       {/* Global Interactive Search Modal */}

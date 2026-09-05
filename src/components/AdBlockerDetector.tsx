@@ -12,7 +12,17 @@ export const AdBlockerDetector: React.FC<AdBlockerDetectorProps> = ({ onStatusCh
 
   const isDismissed = () => {
     try {
-      return sessionStorage.getItem('recap_adblock_dismissed') === 'true';
+      if (sessionStorage.getItem('recap_adblock_dismissed') === 'true') return true;
+      // Do not block admin, manager, or writer operations
+      const isEditorActive =
+        localStorage.getItem('recap_writer_logged') === 'true' ||
+        localStorage.getItem('recap_manager_logged') === 'true' ||
+        localStorage.getItem('recap_admin_logged') === 'true' ||
+        window.location.hash.includes('admin') ||
+        window.location.hash.includes('writer') ||
+        window.location.hash.includes('manage');
+      if (isEditorActive) return true;
+      return false;
     } catch {
       return false;
     }

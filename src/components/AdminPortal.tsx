@@ -148,6 +148,37 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   const [profileError, setProfileError] = useState('');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
 
+  // Synchronize profile form states when writerProfile changes or is cleared
+  useEffect(() => {
+    if (writerProfile) {
+      setSetupName(writerProfile.name || '');
+      setSetupPostOffice(writerProfile.postOffice || '');
+      setSetupPostCode(writerProfile.postCode || '');
+      setSetupThana(writerProfile.thana || '');
+      setSetupDistrict(writerProfile.district || '');
+      setSetupDivision(writerProfile.division || '');
+      setSetupNidNumber(writerProfile.nidNumber || '');
+      setSetupAddress(writerProfile.address || '');
+      setSetupMobile(writerProfile.mobile || '');
+      setSetupAge(writerProfile.age || '');
+      setSetupAvatarUrl(writerProfile.avatarUrl || '');
+      setPhotoVerified(Boolean(writerProfile.avatarUrl));
+    } else {
+      setSetupName('');
+      setSetupPostOffice('');
+      setSetupPostCode('');
+      setSetupThana('');
+      setSetupDistrict('');
+      setSetupDivision('');
+      setSetupNidNumber('');
+      setSetupAddress('');
+      setSetupMobile('');
+      setSetupAge('');
+      setSetupAvatarUrl('');
+      setPhotoVerified(false);
+    }
+  }, [writerProfile]);
+
   // Referral Code Window State (Screen 3 after profile setup)
   const [showReferralWindow, setShowReferralWindow] = useState<boolean>(false);
   const [referralSecretInput, setReferralSecretInput] = useState<string>('');
@@ -181,6 +212,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   const [postTags, setPostTags] = useState<string[]>(['সংবাদ', 'জাতীয়', 'ব্রেকিং']);
   const [customTagInput, setCustomTagInput] = useState('');
   const [postImageUrl, setPostImageUrl] = useState('https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=1200&q=80');
+  const [isUploadingPostImage, setIsUploadingPostImage] = useState(false);
   const [isBreaking, setIsBreaking] = useState(false);
   const [shareNameUnderPost, setShareNameUnderPost] = useState(true);
   const [postSuccessMessage, setPostSuccessMessage] = useState('');
@@ -457,8 +489,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
     if (authMode === 'login') {
       const cleanEmail = emailInput.trim().toLowerCase();
-      let existing = writers?.find((w) => w.email.trim().toLowerCase() === cleanEmail) || 
-        (writerProfile && writerProfile.email.toLowerCase() === cleanEmail ? writerProfile : null);
+      let existing = writers?.find((w) => w.email.trim().toLowerCase() === cleanEmail);
 
       if (!existing) {
         try {
@@ -676,35 +707,46 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     setSetupThana('');
     setSetupPostOffice('');
     setSetupPostCode('');
+    setSetupAddress('');
+    setSetupAge('');
     setSetupAvatarUrl('');
     setPhotoVerified(false);
     setIsEmailVerified(false);
+    setIsEditingProfile(false);
     setShowReferralWindow(false);
     setReferralSecretInput('');
     setReferralSecretError('');
     setAuthError('');
   };
 
-  // Image Upload handler with 500KB Minimum File Size Validation
-  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Image Upload handler with automatic optimization & Cloudinary upload
+  const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setImageSizeError('');
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const minSizeInBytes = 500 * 1024; // 500 KB
-    if (file.size < minSizeInBytes) {
-      const actualKb = Math.round(file.size / 1024);
-      setImageSizeError(`ছবিটি সাইজে খুবই ছোট (${actualKb} KB)। সর্বনিম্ন 500 KB হাই-কোয়ালিটি ছবি আপলোড করা আবশ্যক!`);
+    if (file.size > 15 * 1024 * 1024) {
+      setImageSizeError('ছবির সাইজ ১৫MB এর বেশি হওয়া যাবে না!');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setPostImageUrl(event.target.result as string);
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      setIsUploadingPostImage(true);
+      const url = await uploadImageToCloudinary(file, 'news_covers');
+      setPostImageUrl(url);
+    } catch (err: any) {
+      console.warn('Image upload error:', err);
+      // Fallback via FileReader
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setPostImageUrl(event.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsUploadingPostImage(false);
+    }
   };
 
   // Gemini AI Fact-Checking & Duplicate / Social Media Copy Verification (Manual run if needed)

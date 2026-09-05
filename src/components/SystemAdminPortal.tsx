@@ -61,6 +61,7 @@ import {
 import { RichContentEditor } from './BloggerRichEditor';
 import { uploadImageToCloudinary } from '../services/cloudinaryService';
 import { saveAdminToFirebase } from '../services/firebaseDataService';
+import { InfoModals } from './InfoModals';
 
 interface SystemAdminPortalProps {
   articles: NewsArticle[];
@@ -169,6 +170,32 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
       setEditAdminNewPassword('');
     }
   };
+
+  // Sync profile fields whenever adminProfile changes or is cleared
+  useEffect(() => {
+    if (adminProfile) {
+      setEditAdminName(adminProfile.name || '');
+      setEditAdminDesignation(adminProfile.designation || 'প্রধান সম্পাদক ও চিফ অ্যাডমিন');
+      setEditAdminMobile(adminProfile.mobile || '');
+      setEditAdminAddress(adminProfile.address || '');
+      setEditAdminAge(adminProfile.age || 32);
+      setEditAdminBio(adminProfile.bio || '');
+      setEditAdminNid(adminProfile.nidNumber || '');
+      setEditAdminAvatarUrl(adminProfile.avatarUrl || '');
+    } else {
+      setEditAdminName('');
+      setEditAdminDesignation('প্রধান সম্পাদক ও চিফ অ্যাডমিন');
+      setEditAdminMobile('');
+      setEditAdminAddress('');
+      setEditAdminAge(32);
+      setEditAdminBio('');
+      setEditAdminNid('');
+      setEditAdminAvatarUrl('');
+    }
+  }, [adminProfile]);
+
+  // Modal editor for static pages (About Us, Privacy Policy, Contact Us)
+  const [adminInfoModal, setAdminInfoModal] = useState<'about' | 'privacy' | 'contact' | null>(null);
 
   const handleAdminAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -509,8 +536,7 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
       }
 
       const cleanEmail = emailInput.trim().toLowerCase();
-      let matched = admins?.find(a => a.email.trim().toLowerCase() === cleanEmail) ||
-        (adminProfile && adminProfile.email.toLowerCase() === cleanEmail ? adminProfile : null);
+      let matched = admins?.find(a => a.email.trim().toLowerCase() === cleanEmail);
 
       if (!matched) {
         try {
@@ -543,7 +569,16 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
 
   const handleLogout = () => {
     localStorage.removeItem('recap_admin_logged');
+    localStorage.removeItem('recap_admin_profile');
     setIsAuthenticated(false);
+    setAdminProfile(null);
+    setEmailInput('');
+    setPasswordInput('');
+    setSecretCodeInput('');
+    setSetupName('');
+    setSetupMobile('');
+    setSetupAddress('');
+    setAuthError('');
   };
 
   // Image File Upload Helper with Cloudinary
@@ -2255,43 +2290,109 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
 
               {/* SUBTAB 3: ABOUT US EDIT BOARD */}
               {settingsSubTab === 'about' && (
-                <div className="space-y-3">
-                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                    About Us (আমাদের কথা) মূল লেখা সম্পাদনা বোর্ড *
-                  </label>
-                  <RichContentEditor
-                    value={aboutHtml}
-                    onChange={(html) => setAboutHtml(html)}
-                    minHeight="350px"
-                  />
+                <div className="space-y-4">
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-red-500/10 via-amber-500/10 to-red-500/10 border border-red-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-red-600" />
+                        About Us (আমাদের কথা) লাইভ মডাল এডিটর
+                      </h4>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                        পাঠক মেনু থেকে যেভাবে উইন্ডোটি দেখেন, হুবহু সেই উইন্ডোতে সরাসরি ক্লিক করে টেক্সট সম্পাদনা করুন।
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAdminInfoModal('about')}
+                      className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow flex items-center gap-2 cursor-pointer shrink-0"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                      <span>লাইভ উইন্ডো খুলে এডিট করুন</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                      About Us (আমাদের কথা) এইচটিএমএল মূল লেখা সম্পাদনা বোর্ড *
+                    </label>
+                    <RichContentEditor
+                      value={aboutHtml}
+                      onChange={(html) => setAboutHtml(html)}
+                      minHeight="350px"
+                    />
+                  </div>
                 </div>
               )}
 
               {/* SUBTAB 4: PRIVACY POLICY EDIT BOARD */}
               {settingsSubTab === 'privacy' && (
-                <div className="space-y-3">
-                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                    Privacy & Policy (প্রাইভেসি ও ব্যবহারের নীতি) মূল লেখা সম্পাদনা বোর্ড *
-                  </label>
-                  <RichContentEditor
-                    value={privacyHtml}
-                    onChange={(html) => setPrivacyHtml(html)}
-                    minHeight="350px"
-                  />
+                <div className="space-y-4">
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-red-500/10 via-amber-500/10 to-red-500/10 border border-red-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-red-600" />
+                        Privacy & Policy লাইভ মডাল এডিটর
+                      </h4>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                        পাঠক মেনু থেকে যেভাবে উইন্ডোটি দেখেন, হুবহু সেই উইন্ডোতে সরাসরি ক্লিক করে টেক্সট সম্পাদনা করুন।
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAdminInfoModal('privacy')}
+                      className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow flex items-center gap-2 cursor-pointer shrink-0"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                      <span>লাইভ উইন্ডো খুলে এডিট করুন</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                      Privacy & Policy (প্রাইভেসি ও ব্যবহারের নীতি) মূল লেখা সম্পাদনা বোর্ড *
+                    </label>
+                    <RichContentEditor
+                      value={privacyHtml}
+                      onChange={(html) => setPrivacyHtml(html)}
+                      minHeight="350px"
+                    />
+                  </div>
                 </div>
               )}
 
               {/* SUBTAB 5: CONTACT US EDIT BOARD */}
               {settingsSubTab === 'contact' && (
-                <div className="space-y-3">
-                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                    Contact Us (যোগাযোগ) মূল লেখা সম্পাদনা বোর্ড *
-                  </label>
-                  <RichContentEditor
-                    value={contactHtml}
-                    onChange={(html) => setContactHtml(html)}
-                    minHeight="350px"
-                  />
+                <div className="space-y-4">
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-red-500/10 via-amber-500/10 to-red-500/10 border border-red-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-red-600" />
+                        Contact Us (যোগাযোগ) লাইভ মডাল এডিটর
+                      </h4>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                        পাঠক মেনু থেকে যেভাবে উইন্ডোটি দেখেন, হুবহু সেই উইন্ডোতে সরাসরি ক্লিক করে তথ্য ও টেক্সট সম্পাদনা করুন।
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAdminInfoModal('contact')}
+                      className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow flex items-center gap-2 cursor-pointer shrink-0"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                      <span>লাইভ উইন্ডো খুলে এডিট করুন</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                      Contact Us (যোগাযোগ) মূল লেখা সম্পাদনা বোর্ড *
+                    </label>
+                    <RichContentEditor
+                      value={contactHtml}
+                      onChange={(html) => setContactHtml(html)}
+                      minHeight="350px"
+                    />
+                  </div>
                 </div>
               )}
 
@@ -4548,6 +4649,24 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
           </div>
         </div>
       )}
+
+      {/* Admin Live Modal Editor for Static Pages (About Us, Privacy Policy, Contact Us) */}
+      <InfoModals
+        activeModal={adminInfoModal}
+        onClose={() => setAdminInfoModal(null)}
+        currentLang={currentLang}
+        siteSettings={siteSettings}
+        isEditable={true}
+        onSave={(updated) => {
+          onUpdateSiteSettings({
+            ...siteSettings,
+            ...updated
+          });
+          if (updated.aboutUsHtml !== undefined) setAboutHtml(updated.aboutUsHtml);
+          if (updated.privacyPolicyHtml !== undefined) setPrivacyHtml(updated.privacyPolicyHtml);
+          if (updated.contactUsHtml !== undefined) setContactHtml(updated.contactUsHtml);
+        }}
+      />
     </div>
   );
 };

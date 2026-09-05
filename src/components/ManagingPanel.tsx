@@ -141,6 +141,26 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
     setShowEditProfileModal(true);
   };
 
+  useEffect(() => {
+    if (managerProfile) {
+      setEditManagerName(managerProfile.name || '');
+      setEditManagerMobile(managerProfile.mobile || '');
+      setEditManagerDesignation(managerProfile.designation || 'ব্যবস্থাপনা পরিচালক');
+      setEditManagerAddress(managerProfile.address || '');
+      setEditManagerAge(managerProfile.age || '');
+      setEditManagerBio(managerProfile.bio || '');
+      setEditManagerAvatar(managerProfile.avatarUrl || '');
+    } else {
+      setEditManagerName('');
+      setEditManagerMobile('');
+      setEditManagerDesignation('ব্যবস্থাপনা পরিচালক');
+      setEditManagerAddress('');
+      setEditManagerAge('');
+      setEditManagerBio('');
+      setEditManagerAvatar('');
+    }
+  }, [managerProfile]);
+
   // Article Filter State
   const [articleFilter, setArticleFilter] = useState<'all' | 'flagged' | 'safe' | 'unpublished'>('all');
 
@@ -372,8 +392,7 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
       }
 
       const cleanEmail = emailInput.trim().toLowerCase();
-      let matched = managers.find(m => m.email.trim().toLowerCase() === cleanEmail) ||
-        (managerProfile && managerProfile.email.toLowerCase() === cleanEmail ? managerProfile : null);
+      let matched = managers.find(m => m.email.trim().toLowerCase() === cleanEmail);
 
       if (!matched) {
         try {
