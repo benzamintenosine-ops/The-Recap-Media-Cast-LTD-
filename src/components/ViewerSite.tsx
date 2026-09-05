@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { NewsArticle, Category, Language, SiteSettings } from '../types';
 import { getTranslation } from '../utils/i18n';
+import { formatReporterName } from '../utils/authorHelper';
 import { AdPanel } from './AdPanel';
 import { SocialBarController } from './DynamicAdServices';
 
@@ -219,7 +220,7 @@ export const ViewerSite: React.FC<ViewerSiteProps> = ({
                       
                       <div className="flex flex-wrap items-center gap-4 text-xs text-gray-400 font-medium pt-1">
                         <span className="flex items-center gap-1 text-gray-200 font-semibold">
-                          <User className="w-3.5 h-3.5 text-red-500" /> {heroArticle.author}
+                          <User className="w-3.5 h-3.5 text-red-500" /> {formatReporterName(heroArticle.author, heroArticle.authorDistrict)}
                         </span>
                         <span>•</span>
                         <span className="flex items-center gap-1">
@@ -276,13 +277,14 @@ export const ViewerSite: React.FC<ViewerSiteProps> = ({
                         </p>
                       </div>
 
-                      <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-gray-400 pt-3 border-t border-slate-100 dark:border-white/10">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-gray-400" /> {art.readTimeMinutes} min
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-gray-400 pt-3 border-t border-slate-100 dark:border-white/10 gap-2">
+                        <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300 font-medium truncate max-w-[140px]">
+                          <User className="w-3 h-3 text-red-500 shrink-0" />
+                          {formatReporterName(art.author, art.authorDistrict)}
                         </span>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 shrink-0">
                           <span className="flex items-center gap-1">
-                            <MessageSquare className="w-3 h-3 text-gray-400" /> {art.comments.length}
+                            <Clock className="w-3 h-3 text-gray-400" /> {art.readTimeMinutes} min
                           </span>
                           <span className="flex items-center gap-1 text-red-500 font-semibold font-mono">
                             <Eye className="w-3 h-3" /> {art.viewsCount}

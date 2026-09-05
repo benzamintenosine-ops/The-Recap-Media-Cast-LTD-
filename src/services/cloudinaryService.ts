@@ -153,3 +153,26 @@ export async function checkCloudinaryConnection(): Promise<{
     return { success: false, error: err?.message || 'Network error connecting to Cloudinary' };
   }
 }
+
+/**
+ * Delete an image from Cloudinary storage when profile photo is changed or content deleted
+ */
+export async function deleteImageFromCloudinary(imageUrlOrPublicId?: string): Promise<boolean> {
+  if (!imageUrlOrPublicId) return false;
+  if (!imageUrlOrPublicId.includes('cloudinary.com') && !imageUrlOrPublicId.includes('/')) {
+    return false;
+  }
+  try {
+    const res = await fetch('/api/delete-cloudinary-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: imageUrlOrPublicId }),
+    });
+    const data = await res.json();
+    return Boolean(data.success);
+  } catch (err) {
+    console.warn('Cloudinary delete request error:', err);
+    return false;
+  }
+}
+

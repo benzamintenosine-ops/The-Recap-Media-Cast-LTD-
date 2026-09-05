@@ -776,6 +776,8 @@ export default function App() {
           siteSettings={siteSettings}
           user={user}
           onRequireLogin={() => setShowProfileModal(true)}
+          writers={writers}
+          allArticles={articles}
         />
       )}
 

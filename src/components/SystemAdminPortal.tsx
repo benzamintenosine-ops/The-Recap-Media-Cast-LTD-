@@ -42,7 +42,9 @@ import {
   Building2,
   UserCheck,
   Camera,
-  Key
+  Key,
+  Mail,
+  CheckCircle2
 } from 'lucide-react';
 import { 
   NewsArticle, 
@@ -56,12 +58,20 @@ import {
   AdBanner, 
   SocialWidget,
   CategoryConfig,
-  DynamicAdSettings
+  DynamicAdSettings,
+  ContactMessage
 } from '../types';
 import { RichContentEditor } from './BloggerRichEditor';
 import { uploadImageToCloudinary, compressImageClientSide } from '../services/cloudinaryService';
-import { saveAdminToFirebase } from '../services/firebaseDataService';
+import { 
+  saveAdminToFirebase, 
+  subscribeToContactMessages, 
+  deleteContactMessageFromFirebase, 
+  markContactMessageReadInFirebase 
+} from '../services/firebaseDataService';
 import { InfoModals } from './InfoModals';
+import { UnifiedProfileSetup, UnifiedProfileSetupData } from './UnifiedProfileSetup';
+import { UnifiedAuthCard, UnifiedAuthData } from './UnifiedAuthCard';
 
 interface SystemAdminPortalProps {
   articles: NewsArticle[];
@@ -134,8 +144,70 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
 
   // Active Admin Tab
   const [activeTab, setActiveTab] = useState<
-    'withdrawals' | 'managers' | 'settings' | 'ads' | 'socials' | 'analytics' | 'profile'
+    'withdrawals' | 'managers' | 'messages' | 'settings' | 'ads' | 'socials' | 'analytics' | 'profile'
   >('withdrawals');
+
+  // Contact Messages Inbox State
+  const [contactMessages, setContactMessages] = useState<ContactMessage[]>(() => {
+    try {
+      const saved = localStorage.getItem('recap_contact_messages');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [contactMsgSearch, setContactMsgSearch] = useState('');
+  const [contactMsgFilter, setContactMsgFilter] = useState<'all' | 'unread' | 'read'>('all');
+  const [selectedContactMsg, setSelectedContactMsg] = useState<ContactMessage | null>(null);
+
+  // Subscribe to real-time contact messages from Firebase
+  useEffect(() => {
+    const unsub = subscribeToContactMessages((msgs) => {
+      setContactMessages(msgs);
+    });
+    return () => {
+      if (unsub) unsub();
+    };
+  }, []);
+
+  const unreadMessagesCount = contactMessages.filter((m) => !m.read).length;
+
+  const handleToggleMessageRead = async (msgId: string, currentRead?: boolean) => {
+    const newStatus = !currentRead;
+    setContactMessages((prev) =>
+      prev.map((m) => (m.id === msgId ? { ...m, read: newStatus } : m))
+    );
+    try {
+      const existing: ContactMessage[] = JSON.parse(localStorage.getItem('recap_contact_messages') || '[]');
+      const updated = existing.map((m) => (m.id === msgId ? { ...m, read: newStatus } : m));
+      localStorage.setItem('recap_contact_messages', JSON.stringify(updated));
+    } catch {}
+
+    try {
+      await markContactMessageReadInFirebase(msgId, newStatus);
+    } catch (e) {
+      console.warn('Could not mark message read in Firebase:', e);
+    }
+  };
+
+  const handleDeleteContactMessage = async (msgId: string) => {
+    if (!confirm('আপনি কি নিশ্চিত যে এই বার্তাটি মুছে ফেলতে চান?')) return;
+    setContactMessages((prev) => prev.filter((m) => m.id !== msgId));
+    if (selectedContactMsg?.id === msgId) {
+      setSelectedContactMsg(null);
+    }
+    try {
+      const existing: ContactMessage[] = JSON.parse(localStorage.getItem('recap_contact_messages') || '[]');
+      const updated = existing.filter((m) => m.id !== msgId);
+      localStorage.setItem('recap_contact_messages', JSON.stringify(updated));
+    } catch {}
+
+    try {
+      await deleteContactMessageFromFirebase(msgId);
+    } catch (e) {
+      console.warn('Could not delete contact message in Firebase:', e);
+    }
+  };
 
   // Admin Profile Setup & Edit States
   const [showEditAdminModal, setShowEditAdminModal] = useState(false);
@@ -470,103 +542,116 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
     setContactHtml(siteSettings.contactUsHtml || '');
   }, [siteSettings]);
 
-  // Handle Admin Sign In / Sign Up
-  const handleAdminAuth = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Unified Admin Login Handler
+  const handleAdminUnifiedLogin = (credentials: { email: string; password: string }) => {
     setAuthError('');
+    const cleanEmail = credentials.email.trim().toLowerCase();
+    let matched = admins?.find(a => a.email.trim().toLowerCase() === cleanEmail);
 
-    const currentSecret = (siteSettings.adminSecretCode || 'ADMIN-RECAP-9824').trim().toUpperCase();
-    const enteredSecret = secretCodeInput.trim().toUpperCase();
-
-    if (authMode === 'signup') {
-      // Validate secret code (must match siteSettings.adminSecretCode or default)
-      if (enteredSecret !== currentSecret && enteredSecret !== 'ADMIN-RECAP-9824' && enteredSecret !== 'ADMIN2026') {
-        setAuthError('অ্যাডমিন সাইনআপের জন্য গোপন কোডটি (Secret Code) ভুল হয়েছে!');
-        return;
-      }
-
-      if (!setupName.trim() || !emailInput.trim() || !setupMobile.trim()) {
-        setAuthError('অনুগ্রহ করে নাম, ইমেইল ও মোবাইল নম্বর পূরণ করুন।');
-        return;
-      }
-
-      if (passwordInput.trim().length < 6) {
-        setAuthError('পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে!');
-        return;
-      }
-
-      const cleanMobile = setupMobile.trim().replace(/\D/g, '');
-      if (cleanMobile.length !== 11) {
-        setAuthError('মোবাইল নম্বরটি অবশ্যই সঠিক ১১ ডিজিটের হতে হবে (যেমন: 01712345678)!');
-        return;
-      }
-
-      const cleanEmail = emailInput.trim().toLowerCase();
-      if (admins?.some(a => a.email.trim().toLowerCase() === cleanEmail)) {
-        setAuthError('এই ইমেইলে ইতিমধ্যে একটি অ্যাডমিন অ্যাকাউন্ট রয়েছে! দয়া করে সাইন-ইন করুন।');
-        return;
-      }
-
-      const newAdminProfile: AdminProfile = {
-        id: `admin-${Date.now()}`,
-        name: setupName.trim(),
-        email: cleanEmail,
-        designation: 'প্রধান সম্পাদক ও চিফ অ্যাডমিন',
-        password: passwordInput.trim(),
-        address: setupAddress.trim() || 'গুলশান, ঢাকা',
-        mobile: setupMobile.trim(),
-        age: Number(setupAge) || 30,
-        avatarUrl: setupAvatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-        secretCodeUsed: secretCodeInput.trim(),
-        createdAt: new Date().toISOString()
-      };
-
-      setAdminProfile(newAdminProfile);
-      localStorage.setItem('recap_admin_profile', JSON.stringify(newAdminProfile));
-      if (onUpdateAdmins) {
-        onUpdateAdmins([...(admins || []).filter(a => a.email.toLowerCase() !== cleanEmail), newAdminProfile]);
-      }
-      saveAdminToFirebase(newAdminProfile).catch(() => {});
-
-      localStorage.setItem('recap_admin_logged', 'true');
-      setIsAuthenticated(true);
-    } else {
-      // Login mode validation
-      if (!emailInput.trim() || !passwordInput.trim()) {
-        setAuthError('অনুগ্রহ করে ইমেইল ও পাসওয়ার্ড প্রদান করুন।');
-        return;
-      }
-
-      const cleanEmail = emailInput.trim().toLowerCase();
-      let matched = admins?.find(a => a.email.trim().toLowerCase() === cleanEmail);
-
-      if (!matched) {
-        try {
-          const cached = localStorage.getItem('recap_admins');
-          if (cached) {
-            const parsed: AdminProfile[] = JSON.parse(cached);
-            matched = parsed.find(a => a.email.trim().toLowerCase() === cleanEmail) || null;
-          }
-        } catch {}
-      }
-
-      // STRICT: No one can sign in without having signed up previously!
-      if (!matched) {
-        setAuthError('এই ইমেইলে কোনো অ্যাডমিন অ্যাকাউন্ট পাওয়া যায়নি! সাইন-ইন করার পূর্বে অনুগ্রহ করে প্রথমে "নতুন অ্যাডমিন সাইনআপ (Sign Up)" করুন।');
-        return;
-      }
-
-      // Password verification - strictly check registered password
-      if (!matched.password || matched.password !== passwordInput.trim()) {
-        setAuthError('ভুল পাসওয়ার্ড! অনুগ্রহ করে আপনার নিবন্ধিত সঠিক পাসওয়ার্ড প্রদান করুন।');
-        return;
-      }
-
-      setAdminProfile(matched);
-      localStorage.setItem('recap_admin_profile', JSON.stringify(matched));
-      localStorage.setItem('recap_admin_logged', 'true');
-      setIsAuthenticated(true);
+    if (!matched) {
+      try {
+        const cached = localStorage.getItem('recap_admins');
+        if (cached) {
+          const parsed: AdminProfile[] = JSON.parse(cached);
+          matched = parsed.find(a => a.email.trim().toLowerCase() === cleanEmail) || null;
+        }
+      } catch {}
     }
+
+    if (!matched) {
+      setAuthError('এই ইমেইলে কোনো অ্যাডমিন অ্যাকাউন্ট পাওয়া যায়নি! সাইন-ইন করার পূর্বে অনুগ্রহ করে প্রথমে "নতুন অ্যাডমিন সাইনআপ (Sign Up)" করুন।');
+      return;
+    }
+
+    if (!matched.password || matched.password !== credentials.password.trim()) {
+      setAuthError('ভুল পাসওয়ার্ড! অনুগ্রহ করে আপনার নিবন্ধিত সঠিক পাসওয়ার্ড প্রদান করুন।');
+      return;
+    }
+
+    setAdminProfile(matched);
+    localStorage.setItem('recap_admin_profile', JSON.stringify(matched));
+    localStorage.setItem('recap_admin_logged', 'true');
+    setIsAuthenticated(true);
+  };
+
+  // Unified Admin Sign Up Handler
+  const handleAdminUnifiedSignUp = (data: UnifiedAuthData) => {
+    setAuthError('');
+    const currentSecret = (siteSettings.adminSecretCode || 'ADMIN-RECAP-9824').trim().toUpperCase();
+    const enteredSecret = data.secretCode.trim().toUpperCase();
+
+    if (enteredSecret !== currentSecret && enteredSecret !== 'ADMIN-RECAP-9824' && enteredSecret !== 'ADMIN2026') {
+      setAuthError('অ্যাডমিন সাইনআপের জন্য গোপন কোডটি (Secret Code) ভুল হয়েছে!');
+      return;
+    }
+
+    const cleanEmail = data.email.trim().toLowerCase();
+    if (admins?.some(a => a.email.trim().toLowerCase() === cleanEmail)) {
+      setAuthError('এই ইমেইলে ইতিমধ্যে একটি অ্যাডমিন অ্যাকাউন্ট রয়েছে! দয়া করে সাইন-ইন করুন।');
+      return;
+    }
+
+    const newAdminProfile: AdminProfile = {
+      id: `admin-${Date.now()}`,
+      name: data.name.trim(),
+      email: cleanEmail,
+      designation: 'প্রধান সম্পাদক ও চিফ অ্যাডমিন',
+      password: data.password.trim(),
+      mobile: data.mobile.trim(),
+      secretCodeUsed: data.secretCode.trim(),
+      createdAt: new Date().toISOString()
+    };
+
+    setAdminProfile(newAdminProfile);
+    localStorage.setItem('recap_admin_profile', JSON.stringify(newAdminProfile));
+    if (onUpdateAdmins) {
+      onUpdateAdmins([...(admins || []).filter(a => a.email.toLowerCase() !== cleanEmail), newAdminProfile]);
+    }
+    saveAdminToFirebase(newAdminProfile).catch(() => {});
+
+    localStorage.setItem('recap_admin_logged', 'true');
+    setIsAuthenticated(true);
+    setShowEditAdminModal(true);
+  };
+
+  // Unified Admin Profile Save Handler
+  const handleSaveUnifiedAdminProfile = async (profileData: UnifiedProfileSetupData) => {
+    if (!adminProfile) return;
+
+    const updatedProfile: AdminProfile = {
+      ...adminProfile,
+      name: profileData.name,
+      mobile: profileData.mobile,
+      age: profileData.age,
+      nidNumber: profileData.nidNumber,
+      division: profileData.division,
+      district: profileData.district,
+      thana: profileData.thana,
+      postOffice: profileData.postOffice,
+      postCode: profileData.postCode,
+      address: profileData.address,
+      avatarUrl: profileData.avatarUrl,
+      bio: profileData.bio,
+      designation: profileData.designation || adminProfile.designation || 'প্রধান সম্পাদক ও চিফ অ্যাডমিন'
+    };
+
+    setAdminProfile(updatedProfile);
+    localStorage.setItem('recap_admin_profile', JSON.stringify(updatedProfile));
+
+    try {
+      await saveAdminToFirebase(updatedProfile);
+    } catch (err) {
+      console.warn('Could not save admin profile to Firebase:', err);
+    }
+
+    if (onUpdateAdmins && admins) {
+      const filtered = admins.filter(a => a.id !== updatedProfile.id && a.email.toLowerCase() !== updatedProfile.email.toLowerCase());
+      onUpdateAdmins([...filtered, updatedProfile]);
+    }
+
+    setShowEditAdminModal(false);
+    setAdminProfileSuccessMsg('অ্যাডমিন প্রোফাইল সফলভাবে আপডেট ও ক্লাউডে সংরক্ষণ করা হয়েছে!');
+    setTimeout(() => setAdminProfileSuccessMsg(''), 5000);
   };
 
   const handleLogout = () => {
@@ -916,186 +1001,48 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl space-y-6">
-          <div className="text-center space-y-2">
-            <div className="w-14 h-14 bg-red-600/10 text-red-600 rounded-2xl flex items-center justify-center mx-auto shadow-sm border border-red-500/20">
-              <ShieldCheck className="w-8 h-8" />
-            </div>
-            <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white font-serif">
-              অ্যাডমিন পোর্টাল সাইন-ইন
-            </h2>
-            <p className="text-xs text-slate-500">
-              দ্য রিক্যাপ মিডিয়া কাস্ট লিমিটেড সাইট ও লেখক ব্যবস্থাপনা প্যানেল
-            </p>
-          </div>
+        <UnifiedAuthCard
+          portalTitle="System Admin Portal (সিস্টেম অ্যাডমিন)"
+          portalSubtitle="দ্য রিক্যাপ মিডিয়া কাস্ট সিস্টেম ও সাইট সেটিংস নিয়ন্ত্রণ প্যানেল"
+          portalIcon={<ShieldCheck className="w-8 h-8" />}
+          themeColor="red"
+          secretCodePlaceholder="অ্যাডমিন গোপন কোড লিখুন..."
+          secretCodeHint="চিফ সিস্টেম অ্যাডমিন গোপন রেফার কোড প্রদান করুন।"
+          errorMessage={authError}
+          onLogin={handleAdminUnifiedLogin}
+          onSignUp={handleAdminUnifiedSignUp}
+        />
+      </div>
+    );
+  }
 
-          {/* Mode Switcher */}
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl text-xs font-bold border border-slate-200 dark:border-slate-700">
-            <button
-              onClick={() => { setAuthMode('login'); setAuthError(''); }}
-              className={`flex-1 py-2 rounded-xl transition-all ${
-                authMode === 'login' ? 'bg-red-600 text-white shadow' : 'text-slate-500 hover:text-white'
-              }`}
-            >
-              লগইন (Sign In)
-            </button>
-            <button
-              onClick={() => { setAuthMode('signup'); setAuthError(''); }}
-              className={`flex-1 py-2 rounded-xl transition-all ${
-                authMode === 'signup' ? 'bg-red-600 text-white shadow' : 'text-slate-500 hover:text-white'
-              }`}
-            >
-              নতুন অ্যাডমিন সাইনআপ (Sign Up)
-            </button>
-          </div>
-
-          {authError && (
-            <div className="p-3 bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-900 rounded-xl text-xs text-red-600 dark:text-red-300 font-semibold flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{authError}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleAdminAuth} className="space-y-4">
-            {authMode === 'signup' && (
-              <>
-                {/* Secret Code Input (ALWAYS HIDE IN PASSWORD INPUT) */}
-                <div>
-                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 mb-1">
-                    <Lock className="w-3.5 h-3.5 text-amber-500" />
-                    অ্যাডমিন গোপন কোড (Secret Code) *
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    value={secretCodeInput}
-                    onChange={(e) => setSecretCodeInput(e.target.value)}
-                    placeholder="অ্যাডমিন গোপন কোড টাইপ করুন (Hidden Code)..."
-                    className="w-full px-4 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 font-mono tracking-widest"
-                  />
-                  <span className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5 block">
-                    🔒 এই কোডটি গোপন বক্সে থাকবে এবং লেখার প্যানেল থেকে আলাদা।
-                  </span>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
-                    অ্যাডমিনের পুরো নাম *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={setupName}
-                    onChange={(e) => setSetupName(e.target.value)}
-                    placeholder="আপনার পূর্ণ নাম টাইপ করুন..."
-                    className="w-full px-4 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
-                      মোবাইল নম্বর *
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      value={setupMobile}
-                      onChange={(e) => setSetupMobile(e.target.value)}
-                      placeholder="+8801700..."
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
-                      বয়স
-                    </label>
-                    <input
-                      type="number"
-                      value={setupAge}
-                      onChange={(e) => setSetupAge(e.target.value ? Number(e.target.value) : '')}
-                      placeholder="বয়স (যেমন: 32)"
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
-                    ঠিকানা
-                  </label>
-                  <input
-                    type="text"
-                    value={setupAddress}
-                    onChange={(e) => setSetupAddress(e.target.value)}
-                    placeholder="গুলশান, ঢাকা"
-                    className="w-full px-4 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
-                    প্রোফাইল ফটো (ডিভাইস থেকে ছবি আপলোড বা লিঙ্ক)
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={setupAvatarUrl}
-                      onChange={(e) => setSetupAvatarUrl(e.target.value)}
-                      placeholder="https://..."
-                      className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                    />
-                    <label className="px-3 py-2 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl cursor-pointer hover:bg-slate-300 flex items-center gap-1">
-                      <UploadCloud className="w-3.5 h-3.5" />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleImageFileUpload(e, setSetupAvatarUrl)}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                </div>
-              </>
-            )}
-
-            <div>
-              <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
-                ইমেইল এড্রেস *
-              </label>
-              <input
-                type="email"
-                required
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                placeholder="admin@therecapmedia.com"
-                className="w-full px-4 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
-                পাসওয়ার্ড *
-              </label>
-              <input
-                type="password"
-                required
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-4 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold text-sm rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
-            >
-              <ShieldCheck className="w-4 h-4" />
-              {authMode === 'signup' ? 'অ্যাডমিন অ্যাকাউন্ট তৈরি করুন' : 'অ্যাডমিন প্যানেলে প্রবেশ করুন'}
-            </button>
-          </form>
-        </div>
+  // Render Profile Setup Screen if profile is incomplete or user clicked Edit Profile
+  if (!adminProfile?.nidNumber || showEditAdminModal) {
+    return (
+      <div className="min-h-screen bg-slate-900/50 backdrop-blur-sm p-4 sm:p-8 flex justify-center items-center">
+        <UnifiedProfileSetup
+          title="সিস্টেম অ্যাডমিন প্রোফাইল সেটআপ (Profile Setup)"
+          subtitle="প্রধান সম্পাদক ও চিফ অ্যাডমিন হিসেবে পরিচয় নিশ্চিত করতে সকল তথ্য পূরণ করুন।"
+          panelBadge="চিফ সিস্টেম অ্যাডমিন"
+          initialData={{
+            name: adminProfile?.name || '',
+            email: adminProfile?.email || '',
+            mobile: adminProfile?.mobile || '',
+            age: adminProfile?.age || 32,
+            nidNumber: adminProfile?.nidNumber || '',
+            division: adminProfile?.division || '',
+            district: adminProfile?.district || '',
+            thana: adminProfile?.thana || '',
+            postOffice: adminProfile?.postOffice || '',
+            postCode: adminProfile?.postCode || '',
+            avatarUrl: adminProfile?.avatarUrl || '',
+            bio: adminProfile?.bio || '',
+            designation: adminProfile?.designation || 'প্রধান সম্পাদক ও চিফ অ্যাডমিন'
+          }}
+          onSave={handleSaveUnifiedAdminProfile}
+          onCancel={adminProfile?.nidNumber ? () => setShowEditAdminModal(false) : undefined}
+          isEditing={Boolean(adminProfile?.nidNumber)}
+        />
       </div>
     );
   }
@@ -1218,6 +1165,23 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
           >
             <Building2 className="w-4 h-4 text-blue-400" />
             <span>ম্যানেজারবৃন্দ ({managers.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('messages')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 ${
+              activeTab === 'messages'
+                ? 'bg-emerald-600 text-white shadow-md'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Mail className="w-4 h-4 text-emerald-400" />
+            <span>পাঠক বার্তা / ইনবক্স ({contactMessages.length})</span>
+            {unreadMessagesCount > 0 && (
+              <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full animate-pulse">
+                {unreadMessagesCount}
+              </span>
+            )}
           </button>
 
           <button
@@ -3763,6 +3727,258 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                   </h3>
                 </div>
               </div>
+            </div>
+          );
+        })()}
+
+        {/* TAB: CONTACT MESSAGES INBOX */}
+        {activeTab === 'messages' && (() => {
+          const filteredMsgs = contactMessages.filter((msg) => {
+            if (contactMsgFilter === 'unread' && msg.read) return false;
+            if (contactMsgFilter === 'read' && !msg.read) return false;
+            if (contactMsgSearch.trim()) {
+              const q = contactMsgSearch.toLowerCase();
+              return (
+                msg.name.toLowerCase().includes(q) ||
+                msg.email.toLowerCase().includes(q) ||
+                msg.subject.toLowerCase().includes(q) ||
+                msg.message.toLowerCase().includes(q)
+              );
+            }
+            return true;
+          });
+
+          return (
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-md space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 font-serif">
+                    <Mail className="w-6 h-6 text-emerald-500" />
+                    পাঠক ইনবক্স ও বার্তা ব্যবস্থাপনা ({contactMessages.length})
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    পাঠকদের প্রেরিত মতামত, অভিযোগ ও অনুসন্ধানের তালিকা রিয়েলটাইমে দেখুন।
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900/60 text-amber-700 dark:text-amber-300 rounded-full text-xs font-bold flex items-center gap-1.5">
+                    <span className="w-2 h-2 bg-amber-500 rounded-full animate-ping" />
+                    অপঠিত বার্তা: {unreadMessagesCount}টি
+                  </span>
+                </div>
+              </div>
+
+              {/* Search and Filters */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="relative w-full sm:w-80">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={contactMsgSearch}
+                    onChange={(e) => setContactMsgSearch(e.target.value)}
+                    placeholder="নাম, ইমেইল বা বিষয় লিখে খুঁজুন..."
+                    className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <button
+                    onClick={() => setContactMsgFilter('all')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      contactMsgFilter === 'all'
+                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                    }`}
+                  >
+                    সবগুলা ({contactMessages.length})
+                  </button>
+                  <button
+                    onClick={() => setContactMsgFilter('unread')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      contactMsgFilter === 'unread'
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-slate-100 dark:bg-slate-800 text-amber-600 dark:text-amber-400'
+                    }`}
+                  >
+                    অপঠিত ({unreadMessagesCount})
+                  </button>
+                  <button
+                    onClick={() => setContactMsgFilter('read')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      contactMsgFilter === 'read'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-slate-100 dark:bg-slate-800 text-emerald-600 dark:text-emerald-400'
+                    }`}
+                  >
+                    পঠিত ({contactMessages.length - unreadMessagesCount})
+                  </button>
+                </div>
+              </div>
+
+              {/* Messages Table/List */}
+              <div className="space-y-3">
+                {filteredMsgs.length > 0 ? (
+                  filteredMsgs.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+                        !msg.read
+                          ? 'bg-amber-50/60 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/60 shadow-xs'
+                          : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/60'
+                      }`}
+                    >
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {!msg.read ? (
+                            <span className="px-2 py-0.5 rounded bg-amber-500 text-white text-[10px] font-extrabold uppercase">
+                              নতুন অপঠিত
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold">
+                              পঠিত
+                            </span>
+                          )}
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white font-serif">
+                            {msg.subject}
+                          </h4>
+                        </div>
+
+                        <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
+                          "{msg.message}"
+                        </p>
+
+                        <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 pt-1">
+                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                            প্রেরক: {msg.name} ({msg.email})
+                          </span>
+                          <span>•</span>
+                          <span>
+                            {new Date(msg.createdAt).toLocaleString('bn-BD', {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                        <button
+                          onClick={() => {
+                            setSelectedContactMsg(msg);
+                            if (!msg.read) {
+                              handleToggleMessageRead(msg.id, false);
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> বিস্তারিত দেখুন
+                        </button>
+
+                        <button
+                          onClick={() => handleToggleMessageRead(msg.id, msg.read)}
+                          className={`p-2 rounded-xl text-xs font-bold transition-colors cursor-pointer border ${
+                            msg.read
+                              ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 border-slate-300 dark:border-slate-700 hover:bg-amber-50 dark:hover:bg-amber-950/40'
+                              : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                          }`}
+                          title={msg.read ? 'অপঠিত চিহ্নিত করুন' : 'পঠিত চিহ্নিত করুন'}
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          onClick={() => handleDeleteContactMessage(msg.id)}
+                          className="p-2 bg-red-50 dark:bg-red-950/50 hover:bg-red-100 text-red-600 dark:text-red-400 rounded-xl border border-red-200 dark:border-red-900 transition-colors cursor-pointer"
+                          title="বার্তাটি মুছুন"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-12 text-xs text-slate-400 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                    কোনো বার্তাক্রম পাওয়া যায়নি।
+                  </div>
+                )}
+              </div>
+
+              {/* Message Details Modal */}
+              {selectedContactMsg && (
+                <div className="fixed inset-0 z-[80] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-5 h-5 text-emerald-500" />
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white font-serif">
+                          বার্তা বিস্তারিত
+                        </h3>
+                      </div>
+                      <button
+                        onClick={() => setSelectedContactMsg(null)}
+                        className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl space-y-1">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase block">বিষয়</span>
+                        <h4 className="text-sm font-bold text-slate-900 dark:text-white font-serif">
+                          {selectedContactMsg.subject}
+                        </h4>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase block">প্রেরকের নাম</span>
+                          <span className="text-xs font-bold text-slate-900 dark:text-white">
+                            {selectedContactMsg.name}
+                          </span>
+                        </div>
+                        <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase block">ইমেইল এড্রেস</span>
+                          <a
+                            href={`mailto:${selectedContactMsg.email}`}
+                            className="text-xs font-bold text-emerald-600 hover:underline break-all"
+                          >
+                            {selectedContactMsg.email}
+                          </a>
+                        </div>
+                      </div>
+
+                      <div className="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-xl space-y-1 border border-slate-200 dark:border-slate-700">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase block">সম্পূর্ণ বার্তা</span>
+                        <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-wrap font-sans">
+                          {selectedContactMsg.message}
+                        </p>
+                      </div>
+
+                      <div className="text-[11px] text-slate-400 font-medium text-right">
+                        প্রেরণের তারিখ: {new Date(selectedContactMsg.createdAt).toLocaleString('bn-BD')}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+                      <button
+                        onClick={() => handleDeleteContactMessage(selectedContactMsg.id)}
+                        className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl border border-red-200 transition-colors flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" /> বার্তা মুছুন
+                      </button>
+
+                      <a
+                        href={`mailto:${selectedContactMsg.email}?subject=RE: ${encodeURIComponent(selectedContactMsg.subject)}`}
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow transition-colors flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Mail className="w-4 h-4" /> সরাসরি ইমেইলে উত্তর দিন
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })()}

@@ -16,7 +16,8 @@ import {
   CategoryConfig,
   WithdrawalRequest,
   SystemNotification,
-  UserProfile
+  UserProfile,
+  ContactMessage
 } from '../types';
 
 // ==================== WRITERS (প্রতিবেদকবৃন্দ) ====================
@@ -427,4 +428,82 @@ export async function saveReaderToFirebase(reader: UserProfile): Promise<void> {
     console.warn('Could not save reader to Firestore:', err);
   }
 }
+
+export async function deleteReaderFromFirebase(readerId: string): Promise<void> {
+  try {
+    const docRef = doc(db, READERS_COLLECTION, readerId);
+    await deleteDoc(docRef);
+  } catch (err) {
+    console.warn('Could not delete reader from Firestore:', err);
+  }
+}
+
+// ==================== CONTACT MESSAGES (পাঠক যোগাযোগ ও বার্তা) ====================
+const CONTACT_MESSAGES_COLLECTION = 'contact_messages';
+
+export function subscribeToContactMessages(onUpdate: (messages: ContactMessage[]) => void) {
+  const colRef = collection(db, CONTACT_MESSAGES_COLLECTION);
+  return onSnapshot(
+    colRef,
+    (snapshot) => {
+      const list: ContactMessage[] = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          name: data.name || '',
+          email: data.email || '',
+          subject: data.subject || '',
+          message: data.message || '',
+          createdAt: data.createdAt || new Date().toISOString(),
+          read: Boolean(data.read),
+          replied: Boolean(data.replied)
+        };
+      });
+
+      // Sort newest first
+      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      try {
+        localStorage.setItem('recap_contact_messages', JSON.stringify(list));
+      } catch (e) {}
+
+      onUpdate(list);
+    },
+    (error) => {
+      console.warn('Contact messages subscription note:', error?.message || error);
+      try {
+        const cached = localStorage.getItem('recap_contact_messages');
+        if (cached) onUpdate(JSON.parse(cached));
+      } catch (e) {}
+    }
+  );
+}
+
+export async function saveContactMessageToFirebase(msg: ContactMessage): Promise<void> {
+  try {
+    const docRef = doc(db, CONTACT_MESSAGES_COLLECTION, msg.id);
+    await setDoc(docRef, msg, { merge: true });
+  } catch (err) {
+    console.warn('Could not save contact message to Firestore:', err);
+  }
+}
+
+export async function deleteContactMessageFromFirebase(msgId: string): Promise<void> {
+  try {
+    const docRef = doc(db, CONTACT_MESSAGES_COLLECTION, msgId);
+    await deleteDoc(docRef);
+  } catch (err) {
+    console.warn('Could not delete contact message from Firestore:', err);
+  }
+}
+
+export async function markContactMessageReadInFirebase(msgId: string, read = true): Promise<void> {
+  try {
+    const docRef = doc(db, CONTACT_MESSAGES_COLLECTION, msgId);
+    await updateDoc(docRef, { read });
+  } catch (err) {
+    console.warn('Could not update contact message status in Firestore:', err);
+  }
+}
+
 

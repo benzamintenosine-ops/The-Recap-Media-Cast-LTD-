@@ -112,6 +112,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup');
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
   const [secretCodeInput, setSecretCodeInput] = useState('');
   const [authError, setAuthError] = useState('');
 
@@ -422,8 +423,29 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         setAuthError('আপনার পূর্ণ নাম প্রদান করুন!');
         return;
       }
+      if (!emailInput.trim()) {
+        setAuthError('ইমেইল ঠিকানা প্রদান করুন!');
+        return;
+      }
+      if (!setupMobile.trim()) {
+        setAuthError('মোবাইল নম্বর প্রদান করুন!');
+        return;
+      }
+      const cleanMobile = setupMobile.trim().replace(/\D/g, '');
+      if (cleanMobile.length !== 11) {
+        setAuthError('মোবাইল নম্বরটি অবশ্যই সঠিক ১১ ডিজিটের হতে হবে (যেমন: 01712345678)!');
+        return;
+      }
       if (passwordInput.trim().length < 6) {
         setAuthError('পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে!');
+        return;
+      }
+      if (!confirmPasswordInput.trim()) {
+        setAuthError('কনফার্ম পাসওয়ার্ড প্রদান করুন!');
+        return;
+      }
+      if (passwordInput.trim() !== confirmPasswordInput.trim()) {
+        setAuthError('পাসওয়ার্ড এবং কনফার্ম পাসওয়ার্ড মিলছে না!');
         return;
       }
       if (!secretCodeInput.trim()) {
@@ -469,7 +491,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         email: cleanEmail,
         password: passwordInput.trim(),
         address: '',
-        mobile: '',
+        mobile: cleanMobile,
         age: 25,
         status: 'pending',
         managerId: matchedManager?.id || '',
@@ -629,26 +651,22 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
     const formattedAddress = `পোস্ট অফিস: ${setupPostOffice.trim()}, পোস্ট কোড: ${setupPostCode.trim()}, থানা: ${setupThana.trim()}, জেলা: ${setupDistrict.trim()}, বিভাগ: ${setupDivision.trim()}`;
 
-    // Security & Policy Enforcement:
-    // "কেউ চাইলে প্রোফাইল থেকে ঠিকানা, NID Card এর নম্বর পরিবর্তন করতে পারবে না।"
-    const isProfileUpdate = Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber));
-
     const newProfile: WriterProfile = {
       id: writerProfile?.id || `writer-${Date.now()}`,
       name: setupName.trim(),
       email: emailInput || writerProfile?.email || 'reporter@therecapmedia.com',
-      // Address & NID must NOT be changed if editing existing profile
-      address: isProfileUpdate && writerProfile?.address ? writerProfile.address : formattedAddress,
-      postOffice: isProfileUpdate && writerProfile?.postOffice ? writerProfile.postOffice : setupPostOffice.trim(),
-      postCode: isProfileUpdate && writerProfile?.postCode ? writerProfile.postCode : setupPostCode.trim(),
-      thana: isProfileUpdate && writerProfile?.thana ? writerProfile.thana : setupThana.trim(),
-      district: isProfileUpdate && writerProfile?.district ? writerProfile.district : setupDistrict.trim(),
-      division: isProfileUpdate && writerProfile?.division ? writerProfile.division : setupDivision.trim(),
-      nidNumber: isProfileUpdate && writerProfile?.nidNumber ? writerProfile.nidNumber : nidDigits,
+      address: formattedAddress,
+      postOffice: setupPostOffice.trim(),
+      postCode: setupPostCode.trim(),
+      thana: setupThana.trim(),
+      district: setupDistrict.trim(),
+      division: setupDivision.trim(),
+      nidNumber: nidDigits,
       mobile: setupMobile.trim(),
       age: ageNum,
       avatarUrl: setupAvatarUrl,
-      secretCodeUsed: writerProfile?.secretCodeUsed || '',
+      secretCodeUsed: writerProfile?.secretCodeUsed || secretCodeInput.trim() || '',
+      password: passwordInput || writerProfile?.password,
       createdAt: writerProfile?.createdAt || new Date().toISOString()
     };
 
@@ -979,6 +997,8 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       postType: 'written',
       isBreaking,
       author: authorName,
+      authorId: writerProfile?.id || undefined,
+      authorAvatar: writerProfile?.avatarUrl || undefined,
       authorDistrict: reporterDistrict || undefined,
       publishedAt: new Date().toISOString(),
       viewsCount: 0,
@@ -1140,7 +1160,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           {authMode === 'signup' && (
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                আপনার পূর্ণ নাম (Full Name) *
+                পূর্ণ নাম (Full Name) *
               </label>
               <input
                 type="text"
@@ -1155,7 +1175,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              জিমেইল / ইমেইল এড্রেস (Gmail Address) *
+              ইমেইল (Email) *
             </label>
             <input
               type="email"
@@ -1167,9 +1187,29 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
             />
           </div>
 
+          {authMode === 'signup' && (
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                  মোবাইল নম্বর (Mobile Number) *
+                </label>
+                <span className="text-[10px] text-red-500 font-bold">(সর্বোচ্চ ১১ সংখ্যা)</span>
+              </div>
+              <input
+                type="tel"
+                required
+                maxLength={11}
+                value={setupMobile}
+                onChange={(e) => setSetupMobile(e.target.value)}
+                placeholder="017XXXXXXXX"
+                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+              />
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              পাসওয়ার্ড (Password) *
+              {authMode === 'signup' ? 'পাসওয়ার্ড (Password - কমপক্ষে ৬ অক্ষর) *' : 'পাসওয়ার্ড (Password) *'}
             </label>
             <input
               type="password"
@@ -1184,7 +1224,23 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           {authMode === 'signup' && (
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                ম্যানেজারের গোপন রেফার কোড (Manager Referral Code) *
+                কনফার্ম পাসওয়ার্ড (Confirm Password) *
+              </label>
+              <input
+                type="password"
+                required
+                value={confirmPasswordInput}
+                onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                placeholder="••••••••"
+                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+              />
+            </div>
+          )}
+
+          {authMode === 'signup' && (
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                গোপন রেফার কোড (Secret Referral Code) *
               </label>
               <input
                 type="text"
@@ -1357,41 +1413,19 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           {/* NID Number Input Box */}
           <div>
             <div className="flex justify-between items-center mb-1">
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                {Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber)) && (
-                  <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                )}
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                 জাতীয় পরিচয়পত্র নম্বর (NID Number) *
               </label>
-              {Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber)) ? (
-                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-900">
-                  🔒 অপরিবর্তনযোগ্য (Locked)
-                </span>
-              ) : (
-                <span className="text-[10px] text-red-500 font-bold">(সর্বনিম্ন ১০ বা ১৩ ডিজিটের NID নম্বর)</span>
-              )}
+              <span className="text-[10px] text-red-500 font-bold">(সর্বনিম্ন ১০ বা ১৩ ডিজিটের NID নম্বর)</span>
             </div>
-
-            {Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber)) && (
-              <div className="p-2 mb-2 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300 flex items-center gap-1.5 font-medium">
-                <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span>নিরাপত্তা ও আইনি ভেরিফিকেশন নীতির কারণে প্রোফাইল থেকে NID কার্ডের নম্বর পরিবর্তন করা যাবে না।</span>
-              </div>
-            )}
 
             <input
               type="text"
               required
-              disabled={Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber))}
-              readOnly={Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber))}
               value={setupNidNumber}
               onChange={(e) => setSetupNidNumber(e.target.value)}
               placeholder="১০ বা ১৩ ডিজিটের এনআইডি (NID) নম্বর লিখুন..."
-              className={`w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold ${
-                Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber))
-                  ? 'bg-slate-100 dark:bg-slate-800/60 cursor-not-allowed text-slate-500 opacity-90'
-                  : 'bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-red-500'
-              }`}
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold focus:ring-2 focus:ring-red-500"
             />
           </div>
 
@@ -1399,26 +1433,10 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           <div className="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                {Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber)) ? (
-                  <Lock className="w-4 h-4 text-amber-500" />
-                ) : (
-                  <MapPin className="w-4 h-4 text-red-500" />
-                )}
+                <MapPin className="w-4 h-4 text-red-500" />
                 বর্তমান ঠিকানার বিবরণ (Address Breakdown) *
               </label>
-              {Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber)) && (
-                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-900">
-                  🔒 অপরিবর্তনযোগ্য (Locked)
-                </span>
-              )}
             </div>
-
-            {Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber)) && (
-              <div className="p-2 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300 flex items-center gap-1.5 font-medium">
-                <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span>নিরাপত্তা ও অডিট নিয়মানুযায়ী রেজিস্ট্রেশনের পর প্রোফাইল থেকে স্থায়ী ঠিকানা পরিবর্তন করা যাবে না।</span>
-              </div>
-            )}
 
             <div className="space-y-3">
               {/* 1. বিভাগ (Division) - Top Level */}
@@ -1428,7 +1446,6 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                 </label>
                 <select
                   required
-                  disabled={Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber))}
                   value={setupDivision}
                   onChange={(e) => {
                     setSetupDivision(e.target.value);
@@ -1437,11 +1454,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                     setSetupPostOffice('');
                     setSetupPostCode('');
                   }}
-                  className={`w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-bold ${
-                    Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber))
-                      ? 'bg-slate-100 dark:bg-slate-800/60 cursor-not-allowed opacity-90'
-                      : 'bg-white dark:bg-slate-900 focus:ring-2 focus:ring-red-500'
-                  }`}
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-red-500"
                 >
                   <option value="">-- বিভাগ নির্বাচন করুন --</option>
                   {BANGLADESH_GEO_DATA.map((div) => (
@@ -1461,7 +1474,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                   </label>
                   <select
                     required
-                    disabled={Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber)) || !setupDivision || availableDistricts.length === 0}
+                    disabled={!setupDivision || availableDistricts.length === 0}
                     value={setupDistrict}
                     onChange={(e) => {
                       setSetupDistrict(e.target.value);
@@ -1469,11 +1482,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                       setSetupPostOffice('');
                       setSetupPostCode('');
                     }}
-                    className={`w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white ${
-                      Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber))
-                        ? 'bg-slate-100 dark:bg-slate-800/60 cursor-not-allowed opacity-90'
-                        : 'bg-white dark:bg-slate-900 focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800'
-                    }`}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800"
                   >
                     <option value="">
                       {!setupDivision ? 'প্রথমে বিভাগ সিলেক্ট করুন' : '-- জেলা নির্বাচন করুন --'}
@@ -1493,18 +1502,14 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                   </label>
                   <select
                     required
-                    disabled={Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber)) || !setupDistrict || availableUpazilas.length === 0}
+                    disabled={!setupDistrict || availableUpazilas.length === 0}
                     value={setupThana}
                     onChange={(e) => {
                       setSetupThana(e.target.value);
                       setSetupPostOffice('');
                       setSetupPostCode('');
                     }}
-                    className={`w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white ${
-                      Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber))
-                        ? 'bg-slate-100 dark:bg-slate-800/60 cursor-not-allowed opacity-90'
-                        : 'bg-white dark:bg-slate-900 focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800'
-                    }`}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800"
                   >
                     <option value="">
                       {!setupDistrict ? 'প্রথমে জেলা সিলেক্ট করুন' : '-- থানা/উপজেলা নির্বাচন করুন --'}
@@ -1527,7 +1532,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                   </label>
                   <select
                     required
-                    disabled={Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber)) || !setupThana || availablePostOffices.length === 0}
+                    disabled={!setupThana || availablePostOffices.length === 0}
                     value={setupPostOffice}
                     onChange={(e) => {
                       const poName = e.target.value;
@@ -1537,11 +1542,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                         setSetupPostCode(matched.code);
                       }
                     }}
-                    className={`w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-medium ${
-                      Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber))
-                        ? 'bg-slate-100 dark:bg-slate-800/60 cursor-not-allowed opacity-90'
-                        : 'bg-white dark:bg-slate-900 focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800'
-                    }`}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800"
                   >
                     <option value="">
                       {!setupThana ? 'প্রথমে থানা সিলেক্ট করুন' : '-- পোস্ট অফিস নির্বাচন করুন --'}
@@ -1567,16 +1568,10 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                   <input
                     type="text"
                     required
-                    disabled={Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber))}
-                    readOnly={Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber))}
                     value={setupPostCode}
                     onChange={(e) => setSetupPostCode(e.target.value)}
                     placeholder={setupPostOffice ? 'অটো-ফিল্ড পোস্ট কোড' : 'পোস্ট অফিস সিলেক্ট করুন'}
-                    className={`w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold ${
-                      Boolean(isEditingProfile || (writerProfile && writerProfile.nidNumber))
-                        ? 'bg-slate-100 dark:bg-slate-800/60 cursor-not-allowed text-slate-500 opacity-90'
-                        : 'bg-emerald-50/50 dark:bg-emerald-950/20 focus:ring-2 focus:ring-red-500'
-                    }`}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-emerald-50/50 dark:bg-emerald-950/20 text-slate-900 dark:text-white font-mono font-bold focus:ring-2 focus:ring-red-500"
                   />
                 </div>
               </div>

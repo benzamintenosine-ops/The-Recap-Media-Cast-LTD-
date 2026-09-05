@@ -135,6 +135,49 @@ app.post("/api/upload-cloudinary", async (req, res) => {
   }
 });
 
+// POST delete image from Cloudinary (when user updates profile avatar or removes image)
+app.post("/api/delete-cloudinary-image", async (req, res) => {
+  try {
+    const { url, publicId } = req.body;
+    let pid = publicId;
+
+    if (!pid && url && typeof url === "string") {
+      // Extract Cloudinary public_id from secure_url (e.g. .../upload/v12345/the_recap_media/sample.jpg -> the_recap_media/sample)
+      try {
+        const urlObj = new URL(url);
+        const parts = urlObj.pathname.split("/");
+        const uploadIdx = parts.indexOf("upload");
+        if (uploadIdx !== -1) {
+          const afterUpload = parts.slice(uploadIdx + 1);
+          // remove version prefix if present (e.g. v12345678)
+          if (afterUpload[0] && afterUpload[0].startsWith("v") && /^\d+$/.test(afterUpload[0].slice(1))) {
+            afterUpload.shift();
+          }
+          const fullPath = afterUpload.join("/");
+          // strip extension like .jpg, .png, .webp
+          pid = fullPath.replace(/\.[^/.]+$/, "");
+        }
+      } catch (parseErr) {
+        console.warn("Could not parse image URL for public_id:", parseErr);
+      }
+    }
+
+    if (!pid) {
+      return res.json({ success: false, message: "No valid Cloudinary public ID found for image" });
+    }
+
+    const result = await cloudinary.uploader.destroy(pid);
+    console.log(`Cloudinary image deleted successfully: ${pid}`, result);
+    return res.json({ success: true, result });
+  } catch (error: any) {
+    console.warn("Cloudinary image delete error:", error?.message || error);
+    return res.status(500).json({
+      success: false,
+      error: error?.message || "Failed to delete Cloudinary image",
+    });
+  }
+});
+
 // POST send email verification code for Reporter Sign-Up
 app.post("/api/send-email-verification", async (req, res) => {
   try {

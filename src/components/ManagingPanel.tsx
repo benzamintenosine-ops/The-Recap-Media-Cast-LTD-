@@ -38,6 +38,8 @@ import { renderFormattedContent } from '../utils/formatContent';
 import { formatReporterName } from '../utils/authorHelper';
 import { uploadImageToCloudinary } from '../services/cloudinaryService';
 import { saveManagerToFirebase } from '../services/firebaseDataService';
+import { UnifiedProfileSetup, UnifiedProfileSetupData } from './UnifiedProfileSetup';
+import { UnifiedAuthCard, UnifiedAuthData } from './UnifiedAuthCard';
 
 interface ManagingPanelProps {
   articles: NewsArticle[];
@@ -331,96 +333,110 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
     }
   }, [managerProfile]);
 
-  // Handle Authentication
-  const handleAuthSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Unified Login Handler
+  const handleUnifiedLogin = (credentials: { email: string; password: string }) => {
+    setAuthError('');
+    const cleanEmail = credentials.email.trim().toLowerCase();
+    let matched = managers?.find(m => m.email.trim().toLowerCase() === cleanEmail);
+
+    if (!matched) {
+      try {
+        const cached = localStorage.getItem('recap_managers');
+        if (cached) {
+          const parsed: ManagerProfile[] = JSON.parse(cached);
+          matched = parsed.find(m => m.email.trim().toLowerCase() === cleanEmail) || null;
+        }
+      } catch {}
+    }
+
+    if (!matched) {
+      setAuthError('এই ইমেইলে কোনো ম্যানেজার অ্যাকাউন্ট পাওয়া যায়নি! সাইন-ইন করার পূর্বে অনুগ্রহ করে প্রথমে "সাইন-আপ (Sign Up)" করুন।');
+      return;
+    }
+
+    if (!matched.password || matched.password !== credentials.password.trim()) {
+      setAuthError('ভুল পাসওয়ার্ড! অনুগ্রহ করে আপনার নিবন্ধিত সঠিক পাসওয়ার্ড প্রদান করুন।');
+      return;
+    }
+
+    setManagerProfile(matched);
+    localStorage.setItem('recap_manager_profile', JSON.stringify(matched));
+    localStorage.setItem('recap_manager_logged', 'true');
+    setIsAuthenticated(true);
+  };
+
+  // Unified Sign Up Handler
+  const handleUnifiedSignUp = (data: UnifiedAuthData) => {
     setAuthError('');
 
     const targetSecret = (siteSettings.managingSecretCode || 'MANAGING2026').trim().toUpperCase();
-    const enteredSecret = secretCodeInput.trim().toUpperCase();
+    const enteredSecret = data.secretCode.trim().toUpperCase();
 
-    if (authMode === 'signup') {
-      if (enteredSecret !== targetSecret && enteredSecret !== 'MANAGING2026') {
-        setAuthError('ম্যানাজিং প্যানেল সাইনআপের জন্য গোপন রেফার কোড (Secret Code) টি ভুল হয়েছে!');
-        return;
-      }
-
-      if (!setupName.trim() || !emailInput.trim() || !setupMobile.trim()) {
-        setAuthError('অনুগ্রহ করে নাম, ইমেইল ও মোবাইল নম্বর পূরণ করুন।');
-        return;
-      }
-
-      if (passwordInput.trim().length < 6) {
-        setAuthError('পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে!');
-        return;
-      }
-
-      const cleanMobile = setupMobile.trim().replace(/\D/g, '');
-      if (cleanMobile.length !== 11) {
-        setAuthError('মোবাইল নম্বরটি অবশ্যই সঠিক ১১ ডিজিটের হতে হবে (যেমন: 01712345678)!');
-        return;
-      }
-
-      const cleanEmail = emailInput.trim().toLowerCase();
-      if (managers?.some(m => m.email.trim().toLowerCase() === cleanEmail)) {
-        setAuthError('এই ইমেইলে ইতিমধ্যে একটি ম্যানেজার অ্যাকাউন্ট রয়েছে! অনুগ্রহ করে লগইন করুন।');
-        return;
-      }
-
-      const newProfile: ManagerProfile = {
-        id: `manager-${Date.now()}`,
-        name: setupName.trim(),
-        email: cleanEmail,
-        password: passwordInput.trim(),
-        mobile: setupMobile.trim(),
-        designation: 'ব্যবস্থাপনা পরিচালক',
-        secretCodeUsed: secretCodeInput.trim(),
-        createdAt: new Date().toISOString()
-      };
-
-      setManagerProfile(newProfile);
-      const updatedManagers = [...managers.filter(m => m.email.toLowerCase() !== cleanEmail), newProfile];
-      onUpdateManagers(updatedManagers);
-      saveManagerToFirebase(newProfile).catch(() => {});
-
-      localStorage.setItem('recap_manager_profile', JSON.stringify(newProfile));
-      localStorage.setItem('recap_manager_logged', 'true');
-      setIsAuthenticated(true);
-    } else {
-      if (!emailInput.trim() || !passwordInput.trim()) {
-        setAuthError('অনুগ্রহ করে ইমেইল ও পাসওয়ার্ড প্রদান করুন।');
-        return;
-      }
-
-      const cleanEmail = emailInput.trim().toLowerCase();
-      let matched = managers.find(m => m.email.trim().toLowerCase() === cleanEmail);
-
-      if (!matched) {
-        try {
-          const cached = localStorage.getItem('recap_managers');
-          if (cached) {
-            const parsed: ManagerProfile[] = JSON.parse(cached);
-            matched = parsed.find(m => m.email.trim().toLowerCase() === cleanEmail) || null;
-          }
-        } catch {}
-      }
-
-      if (!matched) {
-        setAuthError('এই ইমেইলে কোনো ম্যানেজার অ্যাকাউন্ট পাওয়া যায়নি! সাইন-ইন করার পূর্বে অনুগ্রহ করে প্রথমে "সাইন-আপ (Sign Up)" করুন।');
-        return;
-      }
-
-      // Password verification - strictly require registered password
-      if (!matched.password || matched.password !== passwordInput.trim()) {
-        setAuthError('ভুল পাসওয়ার্ড! অনুগ্রহ করে আপনার নিবন্ধিত সঠিক পাসওয়ার্ড প্রদান করুন।');
-        return;
-      }
-
-      setManagerProfile(matched);
-      localStorage.setItem('recap_manager_profile', JSON.stringify(matched));
-      localStorage.setItem('recap_manager_logged', 'true');
-      setIsAuthenticated(true);
+    if (enteredSecret !== targetSecret && enteredSecret !== 'MANAGING2026') {
+      setAuthError('ম্যানাজিং প্যানেল সাইনআপের জন্য গোপন রেফার কোড (Secret Code) টি ভুল হয়েছে!');
+      return;
     }
+
+    const cleanEmail = data.email.trim().toLowerCase();
+    if (managers?.some(m => m.email.trim().toLowerCase() === cleanEmail)) {
+      setAuthError('এই ইমেইলে ইতিমধ্যে একটি ম্যানেজার অ্যাকাউন্ট রয়েছে! অনুগ্রহ করে লগইন করুন।');
+      return;
+    }
+
+    const newProfile: ManagerProfile = {
+      id: `manager-${Date.now()}`,
+      name: data.name.trim(),
+      email: cleanEmail,
+      password: data.password.trim(),
+      mobile: data.mobile.trim(),
+      designation: 'ব্যবস্থাপনা পরিচালক',
+      secretCodeUsed: data.secretCode.trim(),
+      createdAt: new Date().toISOString()
+    };
+
+    setManagerProfile(newProfile);
+    const updatedManagers = [...managers.filter(m => m.email.toLowerCase() !== cleanEmail), newProfile];
+    onUpdateManagers(updatedManagers);
+    saveManagerToFirebase(newProfile).catch(() => {});
+
+    localStorage.setItem('recap_manager_profile', JSON.stringify(newProfile));
+    localStorage.setItem('recap_manager_logged', 'true');
+    setIsAuthenticated(true);
+    setShowEditProfileModal(true);
+  };
+
+  // Unified Profile Setup Save Handler
+  const handleSaveUnifiedProfile = (profileData: UnifiedProfileSetupData) => {
+    if (!managerProfile) return;
+
+    const updated: ManagerProfile = {
+      ...managerProfile,
+      name: profileData.name,
+      mobile: profileData.mobile,
+      age: profileData.age,
+      nidNumber: profileData.nidNumber,
+      division: profileData.division,
+      district: profileData.district,
+      thana: profileData.thana,
+      postOffice: profileData.postOffice,
+      postCode: profileData.postCode,
+      address: profileData.address,
+      avatarUrl: profileData.avatarUrl,
+      bio: profileData.bio,
+      designation: profileData.designation || managerProfile.designation || 'ব্যবস্থাপনা পরিচালক'
+    };
+
+    setManagerProfile(updated);
+    localStorage.setItem('recap_manager_profile', JSON.stringify(updated));
+    const updatedList = managers.map(m => m.id === updated.id ? updated : m);
+    if (!updatedList.some(m => m.id === updated.id)) {
+      updatedList.push(updated);
+    }
+    onUpdateManagers(updatedList);
+    saveManagerToFirebase(updated).catch((err) => console.warn('Firebase save manager error:', err));
+    setProfileSuccessMsg('আপনার ম্যানেজার প্রোফাইল সফলভাবে আপডেট ও ক্লাউডে সংরক্ষিত হয়েছে!');
+    setTimeout(() => setProfileSuccessMsg(''), 5000);
+    setShowEditProfileModal(false);
   };
 
   const handleLogout = () => {
@@ -656,135 +672,48 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
   if (!isAuthenticated) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6">
-          <div className="text-center space-y-2">
-            <div className="w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl mx-auto flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
-              <Building2 className="w-7 h-7" />
-            </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white font-serif">
-              Managing Panel (ব্যবস্থাপনা প্যানেল)
-            </h2>
-            <p className="text-xs text-slate-500">
-              প্রতিবেদক ও সংবাদ কন্টেন্ট নিয়ন্ত্রণ প্যানেলে প্রবেশ করুন।
-            </p>
-          </div>
+        <UnifiedAuthCard
+          portalTitle="Managing Panel (ব্যবস্থাপনা প্যানেল)"
+          portalSubtitle="প্রতিবেদক ও সংবাদ কন্টেন্ট নিয়ন্ত্রণ প্যানেলে প্রবেশ করুন।"
+          portalIcon={<Building2 className="w-7 h-7" />}
+          themeColor="blue"
+          secretCodePlaceholder="ম্যানেজিং গোপন রেফার কোড লিখুন..."
+          secretCodeHint="ম্যানেজিং প্যানেল রেফার কোড প্রদান করুন।"
+          errorMessage={authError}
+          onLogin={handleUnifiedLogin}
+          onSignUp={handleUnifiedSignUp}
+        />
+      </div>
+    );
+  }
 
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-            <button
-              onClick={() => { setAuthMode('login'); setAuthError(''); }}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                authMode === 'login'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-slate-600 dark:text-slate-400'
-              }`}
-            >
-              সাইন ইন (Sign In)
-            </button>
-            <button
-              onClick={() => { setAuthMode('signup'); setAuthError(''); }}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                authMode === 'signup'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-slate-600 dark:text-slate-400'
-              }`}
-            >
-              রেজিস্টার সাইনআপ (Sign Up)
-            </button>
-          </div>
-
-          {authError && (
-            <div className="p-3 bg-red-50 dark:bg-red-950/70 text-red-700 dark:text-red-300 text-xs font-bold rounded-xl border border-red-200 dark:border-red-900 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
-              <span>{authError}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleAuthSubmit} className="space-y-4">
-            {authMode === 'signup' && (
-              <>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    ব্যবস্থাপক পূর্ণ নাম (Manager Name) *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={setupName}
-                    onChange={(e) => setSetupName(e.target.value)}
-                    placeholder="যেমন: এস কে চৌধুরী"
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    মোবাইল নম্বর (Mobile) *
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={setupMobile}
-                    onChange={(e) => setSetupMobile(e.target.value)}
-                    placeholder="017XXXXXXXX"
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </>
-            )}
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                ইমেইল ঠিকানা (Email) *
-              </label>
-              <input
-                type="email"
-                required
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                placeholder="manager@therecapmedia.com"
-                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                {authMode === 'signup' ? 'পাসওয়ার্ড নির্ধারণ করুন (Password - কমপক্ষে ৬ অক্ষর) *' : 'পাসওয়ার্ড (Password) *'}
-              </label>
-              <input
-                type="password"
-                required
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {authMode === 'signup' && (
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  ম্যানাজিং গোপন রেফার কোড (Managing Secret Code) *
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={secretCodeInput}
-                  onChange={(e) => setSecretCodeInput(e.target.value)}
-                  placeholder="রেফার সিক্রেট কোড লিখুন..."
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 font-mono"
-                />
-              </div>
-            )}
-
-            <button
-              type="submit"
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
-            >
-              <Lock className="w-4 h-4" />
-              {authMode === 'signup' ? 'রেজিস্ট্রেশন জমা দিন' : 'ম্যানাজিং প্যানেলে লগইন করুন'}
-            </button>
-          </form>
-        </div>
+  // Render Profile Setup Screen if profile is incomplete or user clicked Edit Profile
+  if (!managerProfile?.nidNumber || showEditProfileModal) {
+    return (
+      <div className="min-h-[80vh] px-4 py-8">
+        <UnifiedProfileSetup
+          title="ম্যানেজার প্রোফাইল সেটআপ (Profile Setup)"
+          subtitle="ব্যবস্থাপনা পরিচালক হিসেবে পরিচয় নিশ্চিত করতে সকল তথ্য সঠিক ও নির্ভুলভাবে পূরণ করুন।"
+          panelBadge="ব্যবস্থাপনা পরিচালক"
+          initialData={{
+            name: managerProfile?.name || '',
+            email: managerProfile?.email || '',
+            mobile: managerProfile?.mobile || '',
+            age: managerProfile?.age || 28,
+            nidNumber: managerProfile?.nidNumber || '',
+            division: managerProfile?.division || '',
+            district: managerProfile?.district || '',
+            thana: managerProfile?.thana || '',
+            postOffice: managerProfile?.postOffice || '',
+            postCode: managerProfile?.postCode || '',
+            avatarUrl: managerProfile?.avatarUrl || '',
+            bio: managerProfile?.bio || '',
+            designation: managerProfile?.designation || 'ব্যবস্থাপনা পরিচালক'
+          }}
+          onSave={handleSaveUnifiedProfile}
+          onCancel={managerProfile?.nidNumber ? () => setShowEditProfileModal(false) : undefined}
+          isEditing={Boolean(managerProfile?.nidNumber)}
+        />
       </div>
     );
   }

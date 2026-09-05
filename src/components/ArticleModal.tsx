@@ -18,13 +18,17 @@ import {
   Volume2,
   Globe,
   Lock,
-  ShieldCheck
+  ShieldCheck,
+  MapPin,
+  ArrowRight,
+  ExternalLink
 } from 'lucide-react';
-import { NewsArticle, Language, SiteSettings, UserProfile } from '../types';
+import { NewsArticle, Language, SiteSettings, UserProfile, WriterProfile } from '../types';
 import { getTranslation } from '../utils/i18n';
 import { renderFormattedContent } from '../utils/formatContent';
 import { formatReporterName } from '../utils/authorHelper';
 import { AdPanel } from './AdPanel';
+import { ReporterPublicProfileModal } from './ReporterPublicProfileModal';
 
 interface ArticleModalProps {
   article: NewsArticle | null;
@@ -41,6 +45,8 @@ interface ArticleModalProps {
   user?: UserProfile | null;
   onRequireLogin?: () => void;
   onValidView?: (articleId: string, stats: { durationSeconds: number; scrollDepthPercent: number; sessionId: string }) => void;
+  writers?: WriterProfile[];
+  allArticles?: NewsArticle[];
 }
 
 export const ArticleModal: React.FC<ArticleModalProps> = ({
@@ -57,13 +63,16 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
   siteSettings,
   user,
   onRequireLogin,
-  onValidView
+  onValidView,
+  writers = [],
+  allArticles = []
 }) => {
   if (!article) return null;
 
   const [commentText, setCommentText] = useState('');
   const [copied, setCopied] = useState(false);
   const [artLang, setArtLang] = useState<Language>(currentLang);
+  const [showReporterModal, setShowReporterModal] = useState(false);
 
   // Anti-Fraud View Tracking state (15s active visibility + 30% scroll depth)
   const [activeSeconds, setActiveSeconds] = useState(0);
@@ -74,6 +83,22 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
   const maxScrollDepthRef = useRef(0);
   const hasTriggeredViewRef = useRef(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-resolve Reporter's Profile, District, Avatar & Success Count
+  const matchedWriter = writers.find((w) => {
+    if (article.authorId && w.id === article.authorId) return true;
+    if (article.author && w.name) {
+      const wName = w.name.trim().toLowerCase();
+      const aName = article.author.trim().toLowerCase();
+      return wName === aName || aName.includes(wName);
+    }
+    return false;
+  }) || null;
+
+  const cleanReporterName = matchedWriter?.name || article.author || 'সম্মানিত প্রতিবেদক';
+  const reporterDistrict = matchedWriter?.district?.trim() || article.authorDistrict?.trim() || '';
+  const reporterAvatar = article.authorAvatar || matchedWriter?.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanReporterName)}`;
+  const formattedAuthor = formatReporterName(cleanReporterName, reporterDistrict);
 
   // 1. Page Visibility API & Active Time Counter (Must be on active tab for >= 15s)
   useEffect(() => {
@@ -167,8 +192,6 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
   const title = artLang === 'en' && article.titleEn ? article.titleEn : article.title;
   const summary = artLang === 'en' && article.summaryEn ? article.summaryEn : article.summary;
   const content = artLang === 'en' && article.contentEn ? article.contentEn : article.content;
-
-  const formattedAuthor = formatReporterName(article.author, article.authorDistrict);
 
   const shareUrl = window.location.href;
 
@@ -302,10 +325,27 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
           {/* Metadata Bar with Anti-Fraud Validation Status */}
           <div className="flex flex-wrap items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400 py-3 border-y border-slate-100 dark:border-slate-800">
             <div className="flex flex-wrap items-center gap-4">
-              <span className="flex items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-200">
-                <User className="w-4 h-4 text-red-600" />
-                {formattedAuthor}
-              </span>
+              {/* Reporter Profile Click Button */}
+              <button
+                type="button"
+                onClick={() => setShowReporterModal(true)}
+                className="flex items-center gap-2 group text-left hover:opacity-90 transition-opacity cursor-pointer bg-slate-50 dark:bg-slate-800/80 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700"
+                title="প্রতিবেদকের প্রোফাইল দেখতে ক্লিক করুন"
+              >
+                <img
+                  src={reporterAvatar}
+                  alt={cleanReporterName}
+                  className="w-5 h-5 rounded-full object-cover border border-red-500 shrink-0 group-hover:scale-105 transition-transform"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanReporterName)}`;
+                  }}
+                />
+                <span className="font-bold text-slate-900 dark:text-white group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                  {formattedAuthor}
+                </span>
+                <ExternalLink className="w-3 h-3 text-slate-400 group-hover:text-red-500" />
+              </button>
+
               {article.source && (
                 <span className="flex items-center gap-1 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 rounded-lg text-xs font-medium border border-blue-200 dark:border-blue-800/60 shadow-xs">
                   <Globe className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
@@ -394,28 +434,45 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
             {renderFormattedContent(content)}
           </div>
 
-          {/* Reporter Byline Box Above Tag List */}
+          {/* Reporter Byline Box Above Tag List (Clickable to view full reporter profile) */}
           <div className="pt-5 mt-4 border-t border-slate-200 dark:border-slate-800">
-            <div className="flex items-center justify-between flex-wrap gap-3 p-4 bg-slate-50 dark:bg-[#121212] rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 to-amber-600 text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
-                  <User className="w-5 h-5" />
+            <div 
+              onClick={() => setShowReporterModal(true)}
+              className="flex items-center justify-between flex-wrap gap-3 p-4 bg-slate-50 dark:bg-[#121212] hover:bg-red-50/40 dark:hover:bg-red-950/20 rounded-2xl border border-slate-200 dark:border-white/10 hover:border-red-300 dark:hover:border-red-900 shadow-xs cursor-pointer transition-all group"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="relative">
+                  <img
+                    src={reporterAvatar}
+                    alt={cleanReporterName}
+                    className="w-12 h-12 rounded-2xl object-cover border-2 border-red-500 shadow-sm shrink-0 group-hover:scale-105 transition-transform"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanReporterName)}`;
+                    }}
+                  />
+                  <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900" />
                 </div>
                 <div>
-                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider">
-                    প্রতিবেদক
+                  <span className="text-[11px] font-bold text-red-600 dark:text-red-400 block uppercase tracking-wider">
+                    সংবাদ প্রতিবেদক • প্রোফাইল দেখতে ক্লিক করুন
                   </span>
-                  <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-1.5 font-serif">
+                  <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2 font-serif group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
                     {formattedAuthor}
                   </h4>
                 </div>
               </div>
 
-              {article.source && (
-                <span className="text-xs text-slate-600 dark:text-slate-400 bg-white dark:bg-white/5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 shadow-xs">
-                  তথ্যসূত্র: <strong className="text-slate-800 dark:text-slate-200">{article.source}</strong>
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {article.source && (
+                  <span className="text-xs text-slate-600 dark:text-slate-400 bg-white dark:bg-white/5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 shadow-xs">
+                    তথ্যসূত্র: <strong className="text-slate-800 dark:text-slate-200">{article.source}</strong>
+                  </span>
+                )}
+                <div className="flex items-center gap-1 text-xs font-bold text-red-600 dark:text-red-400 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-red-200 dark:border-red-900 shadow-xs group-hover:bg-red-600 group-hover:text-white transition-all">
+                  <span>প্রোফাইল দেখুন</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -562,6 +619,21 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
 
         </div>
       </div>
+
+      {/* Reporter Public Profile Modal */}
+      <ReporterPublicProfileModal
+        isOpen={showReporterModal}
+        onClose={() => setShowReporterModal(false)}
+        reporterName={cleanReporterName}
+        reporterDistrict={reporterDistrict}
+        reporterAvatar={reporterAvatar}
+        writerProfile={matchedWriter}
+        allArticles={allArticles.length > 0 ? allArticles : relatedArticles}
+        onSelectArticle={(art) => {
+          setShowReporterModal(false);
+          onSelectRelated(art);
+        }}
+      />
     </div>
   );
 };

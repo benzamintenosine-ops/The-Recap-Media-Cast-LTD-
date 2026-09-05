@@ -18,7 +18,8 @@ import {
   Edit3,
   ExternalLink
 } from 'lucide-react';
-import { Language, SiteSettings } from '../types';
+import { Language, SiteSettings, ContactMessage } from '../types';
+import { saveContactMessageToFirebase } from '../services/firebaseDataService';
 
 interface InfoModalsProps {
   activeModal: 'about' | 'privacy' | 'contact' | null;
@@ -234,9 +235,32 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
   };
 
   // Reader contact form submission
-  const handleContactSubmit = (e: React.FormEvent) => {
+  const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!contactName.trim() || !contactEmail.trim() || !contactMessage.trim()) return;
+    
+    const newMsg: ContactMessage = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      name: contactName.trim(),
+      email: contactEmail.trim(),
+      subject: contactSubject.trim() || 'সাধারণ বার্তা / অনুসন্ধান',
+      message: contactMessage.trim(),
+      createdAt: new Date().toISOString(),
+      read: false,
+      replied: false
+    };
+
+    // Save to Firestore
+    saveContactMessageToFirebase(newMsg).catch((err) => {
+      console.warn('Could not save contact message to Firebase:', err);
+    });
+
+    // Save to localStorage
+    try {
+      const existing: ContactMessage[] = JSON.parse(localStorage.getItem('recap_contact_messages') || '[]');
+      localStorage.setItem('recap_contact_messages', JSON.stringify([newMsg, ...existing]));
+    } catch (e) {}
+
     setContactSubmitted(true);
     setTimeout(() => {
       setContactSubmitted(false);

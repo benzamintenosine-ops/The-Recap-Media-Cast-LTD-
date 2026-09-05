@@ -45,6 +45,8 @@ export interface NewsArticle {
   videoUrl?: string;
   hasVideo?: boolean;
   author: string;
+  authorId?: string;
+  authorAvatar?: string;
   authorDistrict?: string;
   source?: string; // তথ্যসূত্র / Reference source
   publishedAt: string;
@@ -88,6 +90,15 @@ export interface UserProfile {
   role: 'admin' | 'viewer';
   avatar?: string;
   bio?: string;
+  age?: number;
+  nidNumber?: string;
+  address?: string;
+  postOffice?: string;
+  postCode?: string;
+  thana?: string;
+  district?: string;
+  division?: string;
+  secretCodeUsed?: string;
   bookmarks: string[]; // article IDs
   offlineSaved: string[]; // article IDs saved for offline reading
   joinedAt: string;
@@ -123,7 +134,7 @@ export interface AdminProfile {
   id: string;
   name: string;
   email: string;
-  address: string;
+  address?: string;
   designation?: string;
   bio?: string;
   password?: string;
@@ -134,7 +145,7 @@ export interface AdminProfile {
   division?: string;
   nidNumber?: string;
   mobile: string;
-  age: number;
+  age?: number;
   avatarUrl?: string;
   secretCodeUsed: string;
   createdAt: string;
@@ -147,6 +158,12 @@ export interface ManagerProfile {
   mobile: string;
   avatarUrl?: string;
   address?: string;
+  postOffice?: string;
+  postCode?: string;
+  thana?: string;
+  district?: string;
+  division?: string;
+  nidNumber?: string;
   designation?: string;
   password?: string;
   age?: number;
@@ -330,3 +347,15 @@ export interface ArticleAuthenticityResult {
   wordCount?: number;
   canProceedWithAffirmation?: boolean;
 }
+
+export interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  subject?: string;
+  message: string;
+  createdAt: string;
+  read?: boolean;
+  replied?: boolean;
+}
+
