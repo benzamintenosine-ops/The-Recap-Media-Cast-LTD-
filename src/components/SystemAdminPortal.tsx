@@ -59,7 +59,7 @@ import {
   DynamicAdSettings
 } from '../types';
 import { RichContentEditor } from './BloggerRichEditor';
-import { uploadImageToCloudinary } from '../services/cloudinaryService';
+import { uploadImageToCloudinary, compressImageClientSide } from '../services/cloudinaryService';
 import { saveAdminToFirebase } from '../services/firebaseDataService';
 import { InfoModals } from './InfoModals';
 
@@ -242,10 +242,11 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
       name: editAdminName.trim() || adminProfile.name,
       designation: editAdminDesignation.trim() || 'প্রধান সম্পাদক ও চিফ অ্যাডমিন',
       mobile: editAdminMobile.trim(),
-      address: editAdminAddress.trim(),
+      // Security & Policy Enforcement: "কেউ চাইলে প্রোফাইল থেকে ঠিকানা, NID Card এর নম্বর পরিবর্তন করতে পারবে না"
+      address: adminProfile.address ? adminProfile.address : editAdminAddress.trim(),
       age: Number(editAdminAge) || 32,
       bio: editAdminBio.trim(),
-      nidNumber: editAdminNid.trim(),
+      nidNumber: adminProfile.nidNumber ? adminProfile.nidNumber : editAdminNid.trim(),
       avatarUrl: editAdminAvatarUrl.trim() || adminProfile.avatarUrl,
       password: editAdminNewPassword.trim() ? editAdminNewPassword.trim() : (adminProfile.password || '')
     };
@@ -274,7 +275,7 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
     setQuickPasswordMsg(null);
     if (!adminProfile) return;
 
-    const currentSecret = siteSettings.adminSecretCode || 'ADMIN2026';
+    const currentSecret = siteSettings.adminSecretCode || 'ADMIN-RECAP-9824';
     if (adminProfile.password && quickOldPassword.trim() !== adminProfile.password && quickOldPassword.trim() !== currentSecret) {
       setQuickPasswordMsg({ type: 'error', text: 'বর্তমান পাসওয়ার্ডটি সঠিক নয়!' });
       return;
@@ -342,7 +343,7 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
   const [editContactPhone, setEditContactPhone] = useState(siteSettings.contactPhone || '+880 9612-888999');
   const [editWriterSecret, setEditWriterSecret] = useState(siteSettings.writerSecretCode || 'RECAP2026');
   const [editManagingSecret, setEditManagingSecret] = useState(siteSettings.managingSecretCode || 'MANAGING2026');
-  const [editAdminSecret, setEditAdminSecret] = useState(siteSettings.adminSecretCode || 'ADMIN2026');
+  const [editAdminSecret, setEditAdminSecret] = useState(siteSettings.adminSecretCode || 'ADMIN-RECAP-9824');
   const [editTelegramReferralUrl, setEditTelegramReferralUrl] = useState(siteSettings.telegramReferralUrl || 'https://t.me/TheRecapMediaCast');
 
   // Category Management State
@@ -462,7 +463,7 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
     setEditContactPhone(siteSettings.contactPhone || '+880 9612-888999');
     setEditWriterSecret(siteSettings.writerSecretCode || 'RECAP2026');
     setEditManagingSecret(siteSettings.managingSecretCode || 'MANAGING2026');
-    setEditAdminSecret(siteSettings.adminSecretCode || 'ADMIN2026');
+    setEditAdminSecret(siteSettings.adminSecretCode || 'ADMIN-RECAP-9824');
     setEditTelegramReferralUrl(siteSettings.telegramReferralUrl || 'https://t.me/TheRecapMediaCast');
     setAboutHtml(siteSettings.aboutUsHtml || '');
     setPrivacyHtml(siteSettings.privacyPolicyHtml || '');
@@ -474,7 +475,7 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
     e.preventDefault();
     setAuthError('');
 
-    const currentSecret = siteSettings.adminSecretCode || 'ADMIN2026';
+    const currentSecret = siteSettings.adminSecretCode || 'ADMIN-RECAP-9824';
 
     if (authMode === 'signup') {
       // Validate secret code (must match siteSettings.adminSecretCode)
@@ -581,26 +582,31 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
     setAuthError('');
   };
 
-  // Image File Upload Helper with Cloudinary
+  // Image File Upload Helper with Cloudinary and Client Compression
   const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, setter: (url: string) => void) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      alert('ছবি ১০MB এর বড় হওয়া যাবে না!');
+    if (file.size > 15 * 1024 * 1024) {
+      alert('ছবি ১৫MB এর বড় হওয়া যাবে না!');
       return;
     }
 
     try {
-      const url = await uploadImageToCloudinary(file, 'system_admin');
+      const url = await uploadImageToCloudinary(file, 'system_admin', 800, 800, 0.75);
       setter(url);
     } catch (err) {
-      console.warn('Cloudinary upload fallback to data URL:', err);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setter(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      console.warn('Cloudinary upload fallback to optimized local storage:', err);
+      try {
+        const compressed = await compressImageClientSide(file, 600, 600, 0.72);
+        setter(compressed);
+      } catch {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setter(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -2113,7 +2119,7 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                       required
                       value={editAdminSecret}
                       onChange={(e) => setEditAdminSecret(e.target.value)}
-                      placeholder="ADMIN2026"
+                      placeholder="ADMIN-RECAP-9824"
                       className="w-full px-4 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold tracking-wider uppercase"
                     />
                   </div>
@@ -4196,29 +4202,69 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
 
               {/* NID Number */}
               <div>
-                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
-                  জাতীয় পরিচয়পত্র (NID) নম্বর
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                    {adminProfile.nidNumber && <Lock className="w-3.5 h-3.5 text-amber-500" />}
+                    জাতীয় পরিচয়পত্র (NID) নম্বর
+                  </label>
+                  {adminProfile.nidNumber && (
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-900">
+                      🔒 অপরিবর্তনযোগ্য (Locked)
+                    </span>
+                  )}
+                </div>
+                {adminProfile.nidNumber && (
+                  <div className="p-2 mb-2 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300 flex items-center gap-1.5 font-medium">
+                    <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span>নিরাপত্তা ও ভেরিফিকেশন নীতির কারণে প্রোফাইল থেকে NID কার্ডের নম্বর পরিবর্তন করা যাবে না।</span>
+                  </div>
+                )}
                 <input
                   type="text"
+                  disabled={Boolean(adminProfile.nidNumber)}
+                  readOnly={Boolean(adminProfile.nidNumber)}
                   value={editAdminNid}
                   onChange={(e) => setEditAdminNid(e.target.value)}
                   placeholder="NID নম্বর..."
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 font-mono"
+                  className={`w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono ${
+                    adminProfile.nidNumber
+                      ? 'bg-slate-100 dark:bg-slate-800/60 cursor-not-allowed text-slate-500 opacity-90'
+                      : 'bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-red-500'
+                  }`}
                 />
               </div>
 
               {/* Address */}
               <div>
-                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
-                  ঠিকানা (অফিস বা স্থায়ী ঠিকানা)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                    {adminProfile.address && <Lock className="w-3.5 h-3.5 text-amber-500" />}
+                    ঠিকানা (অফিস বা স্থায়ী ঠিকানা)
+                  </label>
+                  {adminProfile.address && (
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-900">
+                      🔒 অপরিবর্তনযোগ্য (Locked)
+                    </span>
+                  )}
+                </div>
+                {adminProfile.address && (
+                  <div className="p-2 mb-2 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300 flex items-center gap-1.5 font-medium">
+                    <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span>নিরাপত্তা ও অডিট নিয়মানুযায়ী প্রোফাইল থেকে স্থায়ী ঠিকানা পরিবর্তন করা যাবে না।</span>
+                  </div>
+                )}
                 <input
                   type="text"
+                  disabled={Boolean(adminProfile.address)}
+                  readOnly={Boolean(adminProfile.address)}
                   value={editAdminAddress}
                   onChange={(e) => setEditAdminAddress(e.target.value)}
                   placeholder="গুলশান-২, ঢাকা, বাংলাদেশ"
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                  className={`w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white ${
+                    adminProfile.address
+                      ? 'bg-slate-100 dark:bg-slate-800/60 cursor-not-allowed text-slate-500 opacity-90'
+                      : 'bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-red-500'
+                  }`}
                 />
               </div>
 

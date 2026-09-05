@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ShieldAlert, RefreshCw, Smartphone, Settings, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ShieldAlert, RefreshCw, Smartphone, Settings, AlertTriangle, CheckCircle2, X } from 'lucide-react';
 
 interface AdBlockerDetectorProps {
   onStatusChange?: (detected: boolean) => void;
@@ -13,6 +13,7 @@ export const AdBlockerDetector: React.FC<AdBlockerDetectorProps> = ({ onStatusCh
   const isDismissed = () => {
     try {
       if (sessionStorage.getItem('recap_adblock_dismissed') === 'true') return true;
+      if (localStorage.getItem('recap_adblock_dismissed') === 'true') return true;
       // Do not block admin, manager, or writer operations
       const isEditorActive =
         localStorage.getItem('recap_writer_logged') === 'true' ||
@@ -86,6 +87,7 @@ export const AdBlockerDetector: React.FC<AdBlockerDetectorProps> = ({ onStatusCh
   const handleDismiss = () => {
     try {
       sessionStorage.setItem('recap_adblock_dismissed', 'true');
+      localStorage.setItem('recap_adblock_dismissed', 'true');
     } catch {}
     setIsAdBlockerDetected(false);
     if (onStatusChange) onStatusChange(false);
@@ -119,6 +121,15 @@ export const AdBlockerDetector: React.FC<AdBlockerDetectorProps> = ({ onStatusCh
       }}
     >
       <div className="max-w-lg w-full bg-slate-900/95 border-2 border-red-500/50 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-red-950/60 text-center space-y-6 text-white relative overflow-hidden">
+        {/* Close Button */}
+        <button
+          onClick={handleDismiss}
+          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-full bg-slate-800/80 hover:bg-slate-700 transition-colors z-20 cursor-pointer"
+          title="বন্ধ করে সংবাদ পড়ুন"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
         {/* Glow Accent */}
         <div className="absolute -top-24 -left-24 w-48 h-48 bg-red-600/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-amber-600/20 rounded-full blur-3xl pointer-events-none" />

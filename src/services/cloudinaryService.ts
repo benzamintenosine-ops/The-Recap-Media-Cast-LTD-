@@ -76,7 +76,10 @@ export async function compressImageClientSide(
 
 export async function uploadImageToCloudinary(
   imageInput: File | string,
-  folder = 'the_recap_media'
+  folder = 'the_recap_media',
+  maxWidth = 1280,
+  maxHeight = 1280,
+  quality = 0.78
 ): Promise<string> {
   // If it's already an http/https Cloudinary URL or remote CDN image, return immediately
   if (typeof imageInput === 'string' && (imageInput.startsWith('http://') || imageInput.startsWith('https://'))) {
@@ -88,7 +91,7 @@ export async function uploadImageToCloudinary(
   // Compress image client-side before sending to prevent heavy network payloads & timeouts
   let compressedBase64 = '';
   try {
-    compressedBase64 = await compressImageClientSide(imageInput, 1600, 1600, 0.82);
+    compressedBase64 = await compressImageClientSide(imageInput, maxWidth, maxHeight, quality);
   } catch {
     if (typeof imageInput === 'string') compressedBase64 = imageInput;
   }
@@ -97,10 +100,10 @@ export async function uploadImageToCloudinary(
     throw new Error('কোনো বৈধ ছবি পাওয়া যায়নি!');
   }
 
-  // Attempt Cloudinary upload with a strict 15s timeout
+  // Attempt Cloudinary upload with a strict 10s timeout
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     const response = await fetch('/api/upload-cloudinary', {
       method: 'POST',
@@ -126,7 +129,7 @@ export async function uploadImageToCloudinary(
     console.warn('Cloudinary upload timed out or encountered network issue, falling back to optimized local storage:', netErr);
   }
 
-  // Safe fallback: Return the compact compressed data URL (<250KB) so the user's action never fails or halts loading
+  // Safe fallback: Return the compact compressed data URL (<150KB) so the user's action never fails or halts loading
   return compressedBase64;
 }
 

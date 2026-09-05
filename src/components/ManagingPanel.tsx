@@ -446,7 +446,8 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
       name: editManagerName.trim() || managerProfile.name,
       mobile: editManagerMobile.trim() || managerProfile.mobile,
       designation: editManagerDesignation.trim() || 'ব্যবস্থাপনা পরিচালক',
-      address: editManagerAddress.trim(),
+      // Security & Policy Enforcement: "কেউ চাইলে প্রোফাইল থেকে ঠিকানা পরিবর্তন করতে পারবে না"
+      address: managerProfile.address ? managerProfile.address : editManagerAddress.trim(),
       age: ageNum,
       bio: editManagerBio.trim(),
       avatarUrl: editManagerAvatar
@@ -2220,15 +2221,35 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    ঠিকানা (Address)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                      {managerProfile.address && <Lock className="w-3.5 h-3.5 text-amber-500" />}
+                      ঠিকানা (Address)
+                    </label>
+                    {managerProfile.address && (
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-900">
+                        🔒 অপরিবর্তনযোগ্য (Locked)
+                      </span>
+                    )}
+                  </div>
+                  {managerProfile.address && (
+                    <div className="p-2 mb-2 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300 flex items-center gap-1.5 font-medium">
+                      <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>নিরাপত্তা ও অডিট নিয়মানুযায়ী প্রোফাইল থেকে স্থায়ী ঠিকানা পরিবর্তন করা যাবে না।</span>
+                    </div>
+                  )}
                   <input
                     type="text"
+                    disabled={Boolean(managerProfile.address)}
+                    readOnly={Boolean(managerProfile.address)}
                     value={editManagerAddress}
                     onChange={(e) => setEditManagerAddress(e.target.value)}
                     placeholder="যেমন: ধানমন্ডি, ঢাকা"
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                    className={`w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white ${
+                      managerProfile.address
+                        ? 'bg-slate-100 dark:bg-slate-800/60 cursor-not-allowed text-slate-500 opacity-90'
+                        : 'bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500'
+                    }`}
                   />
                 </div>
                 <div>

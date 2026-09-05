@@ -24,6 +24,10 @@ export function triggerPopunder(scriptUrl?: string) {
     script.type = 'text/javascript';
     script.src = url;
     script.async = true;
+    script.onerror = () => {
+      // Silently handle if blocked by client or network
+      script.remove();
+    };
     document.body.appendChild(script);
   } catch (err) {
     console.warn('Popunder trigger notice:', err);
@@ -57,6 +61,9 @@ export const SocialBarController: React.FC<{
         script.type = 'text/javascript';
         script.src = scriptUrl;
         script.async = true;
+        script.onerror = () => {
+          script.remove();
+        };
         document.body.appendChild(script);
       } catch (err) {
         console.warn('Social Bar load notice:', err);
@@ -126,6 +133,9 @@ export const NativeBannerAd: React.FC<NativeBannerAdProps> = ({
       script.async = true;
       script.setAttribute('data-cfasync', 'false');
       script.src = scriptUrl;
+      script.onerror = () => {
+        script.remove();
+      };
       
       containerRef.current.appendChild(script);
       scriptInjectedRef.current = true;

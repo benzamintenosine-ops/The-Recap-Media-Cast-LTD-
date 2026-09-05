@@ -22,6 +22,7 @@ import {
   DEFAULT_SITE_SETTINGS,
   DEFAULT_DYNAMIC_ADS
 } from './services/firebaseInitialSync';
+import { safeLocalStorageSet, safeLocalStorageGet, safeLocalStorageRemove } from './utils/safeStorage';
 import { INITIAL_NEWS } from './data/initialNews';
 import { getTranslation } from './utils/i18n';
 import {
@@ -537,25 +538,25 @@ export default function App() {
   // Persistence effects - Protected against empty cache overwrites on initial boot
   useEffect(() => {
     if (isCloudLoaded || siteSettings !== DEFAULT_SITE_SETTINGS) {
-      localStorage.setItem('recap_site_settings', JSON.stringify(siteSettings));
+      safeLocalStorageSet('recap_site_settings', siteSettings);
     }
   }, [siteSettings, isCloudLoaded]);
 
   useEffect(() => {
     if (isCloudLoaded || writers.length > 0) {
-      localStorage.setItem('recap_writers', JSON.stringify(writers));
+      safeLocalStorageSet('recap_writers', writers);
     }
   }, [writers, isCloudLoaded]);
 
   useEffect(() => {
     if (isCloudLoaded || withdrawals.length > 0) {
-      localStorage.setItem('recap_withdrawals', JSON.stringify(withdrawals));
+      safeLocalStorageSet('recap_withdrawals', withdrawals);
     }
   }, [withdrawals, isCloudLoaded]);
 
   useEffect(() => {
     if (isCloudLoaded || notifications.length > 0) {
-      localStorage.setItem('recap_notifications', JSON.stringify(notifications));
+      safeLocalStorageSet('recap_notifications', notifications);
     }
   }, [notifications, isCloudLoaded]);
 

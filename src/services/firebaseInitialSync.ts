@@ -65,7 +65,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   contactPhone: '+880 9612-888999',
   officeAddress: 'রেকাপ মিডিয়া কাস্ট লিমিটেড টাওয়ার, গুলশান-২, ঢাকা-১২১২।',
   writerSecretCode: 'RECAP2026',
-  adminSecretCode: 'ADMIN2026',
+  adminSecretCode: 'ADMIN-RECAP-9824',
   managingSecretCode: 'MANAGING2026',
   telegramReferralUrl: 'https://t.me/TheRecapMediaCast',
   adBanners: [
@@ -101,7 +101,7 @@ export interface InitialCloudState {
   notifications: SystemNotification[];
 }
 
-function withCloudTimeout<T>(promise: Promise<T>, timeoutMs = 3500): Promise<T> {
+function withCloudTimeout<T>(promise: Promise<T>, timeoutMs = 2000): Promise<T> {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Cloud fetch timeout')), timeoutMs))
@@ -110,247 +110,266 @@ function withCloudTimeout<T>(promise: Promise<T>, timeoutMs = 3500): Promise<T> 
 
 /**
  * Robust initial state fetch from Firebase Firestore.
- * Executed when component mounts to guarantee state is correctly restored
- * even if LocalStorage is empty or stale after a deployment.
+ * Executed in parallel with Promise.allSettled to guarantee the website loads instantly
+ * without blocking or hanging on sequential network roundtrips.
  */
 export async function fetchInitialStateFromFirestore(): Promise<InitialCloudState> {
-  console.log('[Firestore] Fetching initial cloud state on mount...');
+  console.log('[Firestore] Fetching initial cloud state in parallel...');
 
-  // 1. ARTICLES
-  let resolvedArticles: NewsArticle[] = [];
+  // Pre-load from localStorage cache if available for instantaneous rendering
+  let resolvedArticles: NewsArticle[] = INITIAL_NEWS;
+  let resolvedSettings: SiteSettings = DEFAULT_SITE_SETTINGS;
+  let resolvedCategories: CategoryConfig[] = DEFAULT_CATEGORIES;
+  let resolvedWriters: WriterProfile[] = [];
+  let resolvedManagers: ManagerProfile[] = [];
+  let resolvedWithdrawals: WithdrawalRequest[] = [];
+  let resolvedNotifications: SystemNotification[] = [];
+
   try {
-    const articlesCol = collection(db, 'articles');
-    const q = query(articlesCol, orderBy('publishedAt', 'desc'));
-    const snap = await withCloudTimeout(getDocs(q).catch(() => getDocs(articlesCol)));
+    const cachedArticles = localStorage.getItem('recap_news_cache');
+    if (cachedArticles) resolvedArticles = JSON.parse(cachedArticles);
+  } catch {}
 
-    if (!snap.empty) {
-      resolvedArticles = snap.docs.map((docSnap) => {
-        const data = docSnap.data();
-        return {
-          id: docSnap.id,
-          title: data.title || '',
-          titleEn: data.titleEn || '',
-          summary: data.summary || '',
-          summaryEn: data.summaryEn || '',
-          content: data.content || '',
-          contentEn: data.contentEn || '',
-          category: data.category || 'জাতীয়',
-          tags: Array.isArray(data.tags) ? data.tags : [],
-          imageUrl: data.imageUrl || 'https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=1200&q=80',
-          videoUrl: data.videoUrl || '',
-          author: data.author || 'THE RECAP MEDIA',
-          source: data.source || '',
-          publishedAt: data.publishedAt || new Date().toISOString(),
-          isBreaking: !!data.isBreaking,
-          isTrending: !!data.isTrending,
-          viewsCount: typeof data.viewsCount === 'number' ? data.viewsCount : 0,
-          readTimeMinutes: typeof data.readTimeMinutes === 'number' ? data.readTimeMinutes : 3,
-          comments: Array.isArray(data.comments) ? data.comments : [],
-          isAiGenerated: !!data.isAiGenerated,
-          postType: data.postType || 'written',
-          hasVideo: !!data.hasVideo,
-          aiFlagged: !!data.aiFlagged,
-          aiIssues: Array.isArray(data.aiIssues) ? data.aiIssues : [],
-          aiCredibilityScore: typeof data.aiCredibilityScore === 'number' ? data.aiCredibilityScore : undefined,
-          aiOffensiveReason: data.aiOffensiveReason || '',
-          isUnpublished: !!data.isUnpublished,
-          unpublishReason: data.unpublishReason || '',
-          seoMeta: data.seoMeta || undefined,
-        } as NewsArticle;
-      });
-    }
+  try {
+    const cachedSettings = localStorage.getItem('recap_site_settings');
+    if (cachedSettings) resolvedSettings = { ...DEFAULT_SITE_SETTINGS, ...JSON.parse(cachedSettings) };
+  } catch {}
 
-    // If Firestore has no articles, persist and seed INITIAL_NEWS immediately
-    if (resolvedArticles.length === 0) {
-      resolvedArticles = INITIAL_NEWS;
-      // Seed to Firestore asynchronously so future sessions/tabs find them in cloud
-      for (const art of INITIAL_NEWS) {
-        setDoc(doc(db, 'articles', art.id), art).catch(() => {});
+  try {
+    const cachedCategories = localStorage.getItem('recap_categories');
+    if (cachedCategories) resolvedCategories = JSON.parse(cachedCategories);
+  } catch {}
+
+  try {
+    const cachedWriters = localStorage.getItem('recap_writers');
+    if (cachedWriters) resolvedWriters = JSON.parse(cachedWriters);
+  } catch {}
+
+  try {
+    const cachedManagers = localStorage.getItem('recap_managers');
+    if (cachedManagers) resolvedManagers = JSON.parse(cachedManagers);
+  } catch {}
+
+  try {
+    const cachedWithdrawals = localStorage.getItem('recap_withdrawals');
+    if (cachedWithdrawals) resolvedWithdrawals = JSON.parse(cachedWithdrawals);
+  } catch {}
+
+  try {
+    const cachedNotifications = localStorage.getItem('recap_notifications');
+    if (cachedNotifications) resolvedNotifications = JSON.parse(cachedNotifications);
+  } catch {}
+
+  // Fetch all 7 Firestore collections in parallel
+  const [
+    articlesResult,
+    settingsResult,
+    categoriesResult,
+    writersResult,
+    managersResult,
+    withdrawalsResult,
+    notificationsResult
+  ] = await Promise.allSettled([
+    // 1. Articles
+    (async () => {
+      const articlesCol = collection(db, 'articles');
+      const q = query(articlesCol, orderBy('publishedAt', 'desc'));
+      const snap = await withCloudTimeout(getDocs(q).catch(() => getDocs(articlesCol)));
+      if (!snap.empty) {
+        return snap.docs.map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            title: data.title || '',
+            titleEn: data.titleEn || '',
+            summary: data.summary || '',
+            summaryEn: data.summaryEn || '',
+            content: data.content || '',
+            contentEn: data.contentEn || '',
+            category: data.category || 'জাতীয়',
+            tags: Array.isArray(data.tags) ? data.tags : [],
+            imageUrl: data.imageUrl || 'https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=1200&q=80',
+            videoUrl: data.videoUrl || '',
+            author: data.author || 'THE RECAP MEDIA',
+            source: data.source || '',
+            publishedAt: data.publishedAt || new Date().toISOString(),
+            isBreaking: !!data.isBreaking,
+            isTrending: !!data.isTrending,
+            viewsCount: typeof data.viewsCount === 'number' ? data.viewsCount : 0,
+            readTimeMinutes: typeof data.readTimeMinutes === 'number' ? data.readTimeMinutes : 3,
+            comments: Array.isArray(data.comments) ? data.comments : [],
+            isAiGenerated: !!data.isAiGenerated,
+            postType: data.postType || 'written',
+            hasVideo: !!data.hasVideo,
+            aiFlagged: !!data.aiFlagged,
+            aiIssues: Array.isArray(data.aiIssues) ? data.aiIssues : [],
+            aiCredibilityScore: typeof data.aiCredibilityScore === 'number' ? data.aiCredibilityScore : undefined,
+            aiOffensiveReason: data.aiOffensiveReason || '',
+            isUnpublished: !!data.isUnpublished,
+            unpublishReason: data.unpublishReason || '',
+            seoMeta: data.seoMeta || undefined,
+          } as NewsArticle;
+        });
       }
-    }
+      return [];
+    })(),
 
+    // 2. Settings
+    (async () => {
+      const settingsDocRef = doc(db, 'settings', 'site_settings');
+      const settingsSnap = await withCloudTimeout(getDoc(settingsDocRef));
+      if (settingsSnap.exists()) {
+        const data = settingsSnap.data();
+        return {
+          ...DEFAULT_SITE_SETTINGS,
+          ...data,
+          dynamicAds: {
+            popunder: {
+              ...DEFAULT_DYNAMIC_ADS.popunder,
+              ...(data.dynamicAds?.popunder || {})
+            },
+            socialBar: {
+              ...DEFAULT_DYNAMIC_ADS.socialBar,
+              ...(data.dynamicAds?.socialBar || {})
+            },
+            nativeBanner: {
+              ...DEFAULT_DYNAMIC_ADS.nativeBanner,
+              ...(data.dynamicAds?.nativeBanner || {})
+            }
+          },
+          socialWidgets: Array.isArray(data.socialWidgets) && data.socialWidgets.length > 0
+            ? data.socialWidgets
+            : DEFAULT_SITE_SETTINGS.socialWidgets,
+          adBanners: Array.isArray(data.adBanners) && data.adBanners.length > 0
+            ? data.adBanners
+            : DEFAULT_SITE_SETTINGS.adBanners
+        };
+      }
+      return null;
+    })(),
+
+    // 3. Categories
+    (async () => {
+      const catDocRef = doc(db, 'settings', 'categories_list');
+      const catSnap = await withCloudTimeout(getDoc(catDocRef));
+      if (catSnap.exists() && Array.isArray(catSnap.data()?.items) && catSnap.data().items.length > 0) {
+        return catSnap.data().items as CategoryConfig[];
+      }
+      return [];
+    })(),
+
+    // 4. Writers
+    (async () => {
+      const writersSnap = await withCloudTimeout(getDocs(collection(db, 'writers')));
+      if (!writersSnap.empty) {
+        return writersSnap.docs.map((d) => ({
+          id: d.id,
+          ...d.data()
+        })) as WriterProfile[];
+      }
+      return [];
+    })(),
+
+    // 5. Managers
+    (async () => {
+      const managersSnap = await withCloudTimeout(getDocs(collection(db, 'managers')));
+      if (!managersSnap.empty) {
+        return managersSnap.docs.map((d) => ({
+          id: d.id,
+          ...d.data()
+        })) as ManagerProfile[];
+      }
+      return [];
+    })(),
+
+    // 6. Withdrawals
+    (async () => {
+      const wdCol = collection(db, 'withdrawals');
+      const wdQuery = query(wdCol, orderBy('createdAt', 'desc'));
+      const wdSnap = await withCloudTimeout(getDocs(wdQuery).catch(() => getDocs(wdCol)));
+      if (!wdSnap.empty) {
+        return wdSnap.docs.map((d) => ({
+          id: d.id,
+          ...d.data()
+        })) as WithdrawalRequest[];
+      }
+      return [];
+    })(),
+
+    // 7. Notifications
+    (async () => {
+      const notifCol = collection(db, 'notifications');
+      const notifQuery = query(notifCol, orderBy('createdAt', 'desc'));
+      const notifSnap = await withCloudTimeout(getDocs(notifQuery).catch(() => getDocs(notifCol)));
+      if (!notifSnap.empty) {
+        return notifSnap.docs.map((d) => ({
+          id: d.id,
+          ...d.data()
+        })) as SystemNotification[];
+      }
+      return [];
+    })()
+  ]);
+
+  // Process Articles result
+  if (articlesResult.status === 'fulfilled' && articlesResult.value && articlesResult.value.length > 0) {
+    resolvedArticles = articlesResult.value;
     try {
       localStorage.setItem('recap_news_cache', JSON.stringify(resolvedArticles));
     } catch {}
-  } catch (err) {
-    console.warn('[Firestore] Articles initial fetch note:', err);
-    try {
-      const cached = localStorage.getItem('recap_news_cache');
-      if (cached) resolvedArticles = JSON.parse(cached);
-    } catch {}
-    if (!resolvedArticles || resolvedArticles.length === 0) {
-      resolvedArticles = INITIAL_NEWS;
-    }
+  } else if (!resolvedArticles || resolvedArticles.length === 0) {
+    resolvedArticles = INITIAL_NEWS;
   }
 
-  // 2. SITE SETTINGS
-  let resolvedSettings: SiteSettings = DEFAULT_SITE_SETTINGS;
-  try {
-    const settingsDocRef = doc(db, 'settings', 'site_settings');
-    const settingsSnap = await withCloudTimeout(getDoc(settingsDocRef));
-    if (settingsSnap.exists()) {
-      const data = settingsSnap.data();
-      resolvedSettings = {
-        ...DEFAULT_SITE_SETTINGS,
-        ...data,
-        dynamicAds: {
-          popunder: {
-            ...DEFAULT_DYNAMIC_ADS.popunder,
-            ...(data.dynamicAds?.popunder || {})
-          },
-          socialBar: {
-            ...DEFAULT_DYNAMIC_ADS.socialBar,
-            ...(data.dynamicAds?.socialBar || {})
-          },
-          nativeBanner: {
-            ...DEFAULT_DYNAMIC_ADS.nativeBanner,
-            ...(data.dynamicAds?.nativeBanner || {})
-          }
-        },
-        socialWidgets: Array.isArray(data.socialWidgets) && data.socialWidgets.length > 0
-          ? data.socialWidgets
-          : DEFAULT_SITE_SETTINGS.socialWidgets,
-        adBanners: Array.isArray(data.adBanners) && data.adBanners.length > 0
-          ? data.adBanners
-          : DEFAULT_SITE_SETTINGS.adBanners
-      };
-    } else {
-      // Seed default settings to Firestore
-      setDoc(settingsDocRef, DEFAULT_SITE_SETTINGS).catch(() => {});
-    }
+  // Process Settings result
+  if (settingsResult.status === 'fulfilled' && settingsResult.value) {
+    resolvedSettings = settingsResult.value;
     try {
       localStorage.setItem('recap_site_settings', JSON.stringify(resolvedSettings));
     } catch {}
-  } catch (err) {
-    console.warn('[Firestore] Site settings initial fetch note:', err);
   }
 
-  // 3. CATEGORIES
-  let resolvedCategories: CategoryConfig[] = DEFAULT_CATEGORIES;
-  try {
-    const catDocRef = doc(db, 'settings', 'categories_list');
-    const catSnap = await withCloudTimeout(getDoc(catDocRef));
-    if (catSnap.exists() && Array.isArray(catSnap.data()?.items) && catSnap.data().items.length > 0) {
-      resolvedCategories = catSnap.data().items;
-    } else {
-      // Seed default categories to Firestore
-      setDoc(catDocRef, { items: DEFAULT_CATEGORIES }).catch(() => {});
-    }
+  // Process Categories result
+  if (categoriesResult.status === 'fulfilled' && categoriesResult.value && categoriesResult.value.length > 0) {
+    resolvedCategories = categoriesResult.value;
     try {
       localStorage.setItem('recap_categories', JSON.stringify(resolvedCategories));
     } catch {}
-  } catch (err) {
-    console.warn('[Firestore] Categories initial fetch note:', err);
   }
 
-  // 4. WRITERS
-  let resolvedWriters: WriterProfile[] = [];
-  try {
-    const writersSnap = await withCloudTimeout(getDocs(collection(db, 'writers')));
-    if (!writersSnap.empty) {
-      resolvedWriters = writersSnap.docs.map((d) => ({
-        id: d.id,
-        ...d.data()
-      })) as WriterProfile[];
-      try {
-        localStorage.setItem('recap_writers', JSON.stringify(resolvedWriters));
-      } catch {}
-    } else {
-      // If Firestore is empty, check if localStorage had any previously registered writers and sync them up
-      try {
-        const saved = localStorage.getItem('recap_writers');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            resolvedWriters = parsed;
-            for (const w of parsed) {
-              setDoc(doc(db, 'writers', w.id), w).catch(() => {});
-            }
-          }
-        }
-      } catch {}
-    }
-  } catch (err) {
-    console.warn('[Firestore] Writers initial fetch note:', err);
+  // Process Writers result
+  if (writersResult.status === 'fulfilled' && writersResult.value && writersResult.value.length > 0) {
+    resolvedWriters = writersResult.value;
     try {
-      const saved = localStorage.getItem('recap_writers');
-      if (saved) resolvedWriters = JSON.parse(saved);
+      localStorage.setItem('recap_writers', JSON.stringify(resolvedWriters));
     } catch {}
   }
 
-  // 5. MANAGERS
-  let resolvedManagers: ManagerProfile[] = [];
-  try {
-    const managersSnap = await withCloudTimeout(getDocs(collection(db, 'managers')));
-    if (!managersSnap.empty) {
-      resolvedManagers = managersSnap.docs.map((d) => ({
-        id: d.id,
-        ...d.data()
-      })) as ManagerProfile[];
-      try {
-        localStorage.setItem('recap_managers', JSON.stringify(resolvedManagers));
-      } catch {}
-    } else {
-      try {
-        const saved = localStorage.getItem('recap_managers');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            resolvedManagers = parsed;
-            for (const m of parsed) {
-              setDoc(doc(db, 'managers', m.id), m).catch(() => {});
-            }
-          }
-        }
-      } catch {}
-    }
-  } catch (err) {
-    console.warn('[Firestore] Managers initial fetch note:', err);
+  // Process Managers result
+  if (managersResult.status === 'fulfilled' && managersResult.value && managersResult.value.length > 0) {
+    resolvedManagers = managersResult.value;
     try {
-      const saved = localStorage.getItem('recap_managers');
-      if (saved) resolvedManagers = JSON.parse(saved);
+      localStorage.setItem('recap_managers', JSON.stringify(resolvedManagers));
     } catch {}
   }
 
-  // 6. WITHDRAWALS
-  let resolvedWithdrawals: WithdrawalRequest[] = [];
-  try {
-    const wdCol = collection(db, 'withdrawals');
-    const wdQuery = query(wdCol, orderBy('createdAt', 'desc'));
-    const wdSnap = await withCloudTimeout(getDocs(wdQuery).catch(() => getDocs(wdCol)));
-    if (!wdSnap.empty) {
-      resolvedWithdrawals = wdSnap.docs.map((d) => ({
-        id: d.id,
-        ...d.data()
-      })) as WithdrawalRequest[];
-      try {
-        localStorage.setItem('recap_withdrawals', JSON.stringify(resolvedWithdrawals));
-      } catch {}
-    }
-  } catch (err) {
-    console.warn('[Firestore] Withdrawals initial fetch note:', err);
+  // Process Withdrawals result
+  if (withdrawalsResult.status === 'fulfilled' && withdrawalsResult.value && withdrawalsResult.value.length > 0) {
+    resolvedWithdrawals = withdrawalsResult.value;
     try {
-      const saved = localStorage.getItem('recap_withdrawals');
-      if (saved) resolvedWithdrawals = JSON.parse(saved);
+      localStorage.setItem('recap_withdrawals', JSON.stringify(resolvedWithdrawals));
     } catch {}
   }
 
-  // 7. NOTIFICATIONS
-  let resolvedNotifications: SystemNotification[] = [];
-  try {
-    const notifCol = collection(db, 'notifications');
-    const notifQuery = query(notifCol, orderBy('createdAt', 'desc'));
-    const notifSnap = await withCloudTimeout(getDocs(notifQuery).catch(() => getDocs(notifCol)));
-    if (!notifSnap.empty) {
-      resolvedNotifications = notifSnap.docs.map((d) => ({
-        id: d.id,
-        ...d.data()
-      })) as SystemNotification[];
-      try {
-        localStorage.setItem('recap_notifications', JSON.stringify(resolvedNotifications));
-      } catch {}
-    } else {
-      const defaultNotif: SystemNotification = {
+  // Process Notifications result
+  if (notificationsResult.status === 'fulfilled' && notificationsResult.value && notificationsResult.value.length > 0) {
+    resolvedNotifications = notificationsResult.value;
+    try {
+      localStorage.setItem('recap_notifications', JSON.stringify(resolvedNotifications));
+    } catch {}
+  } else if (!resolvedNotifications || resolvedNotifications.length === 0) {
+    resolvedNotifications = [
+      {
         id: 'notif-1',
         title: 'অফিশিয়াল প্রতিবেদক প্যানেলে স্বাগতম',
         message: 'The Recap Media Cast LTD-এর প্রতিবেদক প্যানেলে সংবাদ প্রকাশ শুরু করুন। বস্তুনিষ্ঠ সংবাদ প্রকাশে আমরা অঙ্গীকারবদ্ধ।',
@@ -358,19 +377,8 @@ export async function fetchInitialStateFromFirestore(): Promise<InitialCloudStat
         recipientWriterId: 'ALL',
         createdAt: new Date().toISOString(),
         read: false
-      };
-      resolvedNotifications = [defaultNotif];
-      setDoc(doc(db, 'notifications', defaultNotif.id), defaultNotif).catch(() => {});
-      try {
-        localStorage.setItem('recap_notifications', JSON.stringify(resolvedNotifications));
-      } catch {}
-    }
-  } catch (err) {
-    console.warn('[Firestore] Notifications initial fetch note:', err);
-    try {
-      const saved = localStorage.getItem('recap_notifications');
-      if (saved) resolvedNotifications = JSON.parse(saved);
-    } catch {}
+      }
+    ];
   }
 
   console.log('[Firestore] Initial cloud state successfully synchronized:', {
