@@ -726,10 +726,14 @@ app.post("/api/verify-human-photo", async (req, res) => {
       },
     };
 
-    const prompt = `Analyze this image carefully. Is this image a clear photo/portrait of a real human person or human face?
+    const prompt = `Analyze this profile photo carefully according to these 3 strict rules:
+1. NO TEXT OR WATERMARKS: The image MUST NOT contain any text, letters, numbers, captions, overlay titles, slogans, or watermarks anywhere.
+2. FULL FACE VISIBLE: The photo MUST clearly show a real human's full face (both eyes, nose, and mouth clearly visible; NOT a partial face, masked face, back of head, side profile, animal, anime, cartoon, object, or illustration).
+3. CLEAR AND SHARP: The image MUST be clear, well-lit, and in-focus (NOT blurry, pixelated, dark, obscure, or distorted).
+
 Answer strictly in JSON format with two fields:
-- "isHuman": boolean (MUST be true ONLY if the image contains a real human person or human face. Set to false if it's an animal, inanimate object, landscape, logo, anime, cartoon, artificial graphic, or non-human entity).
-- "reason": concise explanation in Bengali (বাংলা) explaining why it's accepted or rejected.`;
+- "isHuman": boolean (set to true ONLY if ALL 3 rules above are strictly satisfied. Set to false if text is found, full face is not visible, image is blurry/obscure, or it is not a real human person).
+- "reason": concise explanation in Bengali (বাংলা) stating specifically why it failed (e.g., "ছবিতে লেখা রয়েছে, কোনো লেখা থাকা যাবে না।", "ছবিতে সম্পূর্ণ মুখমণ্ডল (Full Face) স্পষ্ট দেখা যাচ্ছে না।", "ছবিটি অস্পষ্ট বা ঝাপসা, পরিষ্কার ছবি দিন।", "মানুষের ছবি পাওয়া যায়নি।") or success message ("ছবিটি সঠিকভাবে যাচাইকৃত হয়েছে।").`;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",

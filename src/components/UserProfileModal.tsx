@@ -114,10 +114,19 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const handleUnifiedSignUp = (data: UnifiedAuthData) => {
     setAuthError('');
     const cleanEmail = data.email.trim().toLowerCase();
+    let alreadyExists = registeredReaders.some((r) => r.email.trim().toLowerCase() === cleanEmail);
+    if (!alreadyExists) {
+      try {
+        const saved = localStorage.getItem('recap_registered_readers');
+        if (saved) {
+          const parsed: UserProfile[] = JSON.parse(saved);
+          alreadyExists = parsed.some((r) => r.email.trim().toLowerCase() === cleanEmail);
+        }
+      } catch {}
+    }
 
-    const alreadyExists = registeredReaders.some((r) => r.email.trim().toLowerCase() === cleanEmail);
     if (alreadyExists) {
-      setAuthError('এই ইমেইলে ইতিমধ্যে একটি পাঠক অ্যাকাউন্ট রয়েছে! অনুগ্রহ করে সাইন-ইন (Sign In) করুন।');
+      setAuthError('এই ইমেইলে ইতোমধ্যে একটি পাঠক অ্যাকাউন্ট রয়েছে! একটি ইমেইল দিয়ে কেবল একটিমাত্র সাইন-আপ অনুমোদিত।');
       return;
     }
 

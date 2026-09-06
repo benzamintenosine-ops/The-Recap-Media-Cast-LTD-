@@ -9,7 +9,8 @@ import {
   ArrowRight,
   ShieldCheck,
   UserCheck,
-  Award
+  Award,
+  GraduationCap
 } from 'lucide-react';
 import { NewsArticle, WriterProfile } from '../types';
 import { formatReporterName } from '../utils/authorHelper';
@@ -130,6 +131,22 @@ export const ReporterPublicProfileModal: React.FC<ReporterPublicProfileModalProp
               </span>
             </div>
           </div>
+
+          {/* Educational Qualification & Institution (Publicly visible to readers) */}
+          {(writerProfile?.educationLevel || writerProfile?.institutionName) && (
+            <div className="p-3 bg-indigo-50/80 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900/40 text-xs text-indigo-900 dark:text-indigo-200 flex items-center gap-2">
+              <GraduationCap className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <div className="leading-tight">
+                <span className="font-bold text-indigo-700 dark:text-indigo-300">শিক্ষাগত যোগ্যতা: </span>
+                <span className="font-semibold">{writerProfile.educationLevel || 'N/A'}</span>
+                {writerProfile.institutionName && (
+                  <span className="text-slate-600 dark:text-slate-400 ml-1">
+                    ({writerProfile.institutionName})
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Stats Bar (সফল প্রতিবেদন সংখ্যা & মোট পাঠক ভিউ) */}
           <div className="grid grid-cols-2 gap-3">

@@ -454,21 +454,40 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       }
 
       const cleanEmail = emailInput.trim().toLowerCase();
-      if (writers?.some(w => w.email.trim().toLowerCase() === cleanEmail)) {
-        setAuthError('এই ইমেইলে ইতিমধ্যে একটি অ্যাকাউন্ট রয়েছে! অনুগ্রহ করে লগইন করুন।');
+      let existingWriter = writers?.some(w => w.email.trim().toLowerCase() === cleanEmail);
+      if (!existingWriter) {
+        try {
+          const cached = localStorage.getItem('recap_writers');
+          if (cached) {
+            const parsed: WriterProfile[] = JSON.parse(cached);
+            existingWriter = parsed.some(w => w.email.trim().toLowerCase() === cleanEmail);
+          }
+        } catch {}
+      }
+
+      if (existingWriter) {
+        setAuthError('এই ইমেইলে ইতোমধ্যে একটি প্রতিবেদক অ্যাকাউন্ট রয়েছে! একটি ইমেইল দিয়ে কেবল একটিমাত্র সাইন-আপ অনুমোদিত।');
         return;
       }
 
       const enteredCode = secretCodeInput.trim().toUpperCase();
+      const managerPanelCode = (siteSettings?.managerSecretCode || 'MANAGING2026').trim().toUpperCase();
+      const adminPanelCode = (siteSettings?.systemAdminSecretCode || 'ADMIN2026').trim().toUpperCase();
+      const defaultWriterCode = (writerSecretCode || 'RECAP2026').trim().toUpperCase();
+
+      // Check if user entered code from a different panel
+      if (enteredCode === managerPanelCode || enteredCode === 'MANAGING2026' || enteredCode === adminPanelCode || enteredCode === 'ADMIN2026') {
+        setAuthError('এই কোডটি অন্য প্যানেলের! প্রতিবেদক প্যানেলে এটি অকার্যকর। অনুগ্রহ করে আপনার সংশ্লিষ্ট সংবাদের ম্যানেজারের নিজস্ব রেফার কোড ব্যবহার করুন।');
+        return;
+      }
+
       const matchedManager = managers?.find(m => 
         (m.referralCode && m.referralCode.trim().toUpperCase() === enteredCode) ||
-        (m.secretCodeUsed && m.secretCodeUsed.trim().toUpperCase() === enteredCode) ||
-        enteredCode === 'MANAGING2026' ||
-        enteredCode === (writerSecretCode || 'RECAP2026').toUpperCase()
+        (m.secretCodeUsed && m.secretCodeUsed.trim().toUpperCase() === enteredCode)
       );
 
-      if (!matchedManager && enteredCode !== 'MANAGING2026' && enteredCode !== (writerSecretCode || 'RECAP2026').toUpperCase()) {
-        setAuthError('ভুল ম্যানেজার রেফার কোড! আপনার সংশ্লিষ্ট ম্যানেজারের কাছ থেকে সঠিক রেফার কোড সংগ্রহ করুন।');
+      if (!matchedManager && enteredCode !== defaultWriterCode) {
+        setAuthError('ভুল ম্যানেজার রেফার কোড! আপনার সংবাদের ম্যানেজারের কাছ থেকে সঠিক রেফার কোড সংগ্রহ করে চেষ্টা করুন।');
         return;
       }
 

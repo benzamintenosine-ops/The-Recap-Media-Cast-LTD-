@@ -22,6 +22,9 @@ export interface UnifiedProfileSetupData {
   email: string;
   mobile: string;
   age: number;
+  gender?: string;
+  educationLevel?: string;
+  institutionName?: string;
   nidNumber?: string;
   division: string;
   district: string;
@@ -59,6 +62,9 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
   const [email] = useState(initialData.email || '');
   const [mobile, setMobile] = useState(initialData.mobile || '');
   const [age, setAge] = useState<number | ''>(initialData.age || 25);
+  const [gender, setGender] = useState(initialData.gender || 'পুরুষ');
+  const [educationLevel, setEducationLevel] = useState(initialData.educationLevel || 'Bachelor');
+  const [institutionName, setInstitutionName] = useState(initialData.institutionName || '');
   const [nidNumber, setNidNumber] = useState(initialData.nidNumber || '');
   const [division, setDivision] = useState(initialData.division || '');
   const [district, setDistrict] = useState(initialData.district || '');
@@ -80,6 +86,9 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
     if (initialData.name) setName(initialData.name);
     if (initialData.mobile) setMobile(initialData.mobile);
     if (initialData.age) setAge(initialData.age);
+    if (initialData.gender) setGender(initialData.gender);
+    if (initialData.educationLevel) setEducationLevel(initialData.educationLevel);
+    if (initialData.institutionName) setInstitutionName(initialData.institutionName);
     if (initialData.nidNumber) setNidNumber(initialData.nidNumber);
     if (initialData.division) setDivision(initialData.division);
     if (initialData.district) setDistrict(initialData.district);
@@ -235,6 +244,9 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
       email: email.trim(),
       mobile: cleanMobile,
       age: ageNum,
+      gender: gender || 'পুরুষ',
+      educationLevel: educationLevel || 'Bachelor',
+      institutionName: institutionName.trim(),
       nidNumber: isNidRequired ? nidDigits : undefined,
       division: division.trim(),
       district: district.trim(),
@@ -328,6 +340,18 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
               </span>
             )}
           </div>
+
+          {/* AI Photo Rules Hint Card */}
+          <div className="mt-3 p-3 bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-xl text-left w-full space-y-1">
+            <p className="text-[11px] font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" /> AI দিয়ে ছবি যাচাইয়ের ৩টি বিশেষ নিয়ম:
+            </p>
+            <ul className="list-disc list-inside space-y-0.5 text-[10.5px] text-amber-700 dark:text-amber-400 font-medium">
+              <li>ছবিতে কোনো ধরনের লেখা, সিল বা ওয়াটারমার্ক থাকতে পারবে না।</li>
+              <li>ছবিতে স্পষ্ট ফুল ফেইস (Full Face) দেখা যেতে হবে।</li>
+              <li>কোনো ঝাপসা, অস্পষ্ট বা অন্ধকার ছবি গ্রহণ করা হবে না।</li>
+            </ul>
+          </div>
         </div>
 
         {/* Full Name & Email */}
@@ -394,6 +418,59 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
               onChange={(e) => setAge(e.target.value === '' ? '' : parseInt(e.target.value))}
               placeholder="যেমন: 25"
               className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+            />
+          </div>
+        </div>
+
+        {/* Gender, Education Level & Institution Name */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              লিঙ্গ (Gender) *
+            </label>
+            <select
+              value={gender}
+              onChange={(e) => setGender(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-red-500"
+            >
+              <option value="পুরুষ">পুরুষ</option>
+              <option value="নারী">নারী</option>
+              <option value="অন্যান্য">অন্যান্য</option>
+            </select>
+          </div>
+
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                শিক্ষাগত যোগ্যতা *
+              </label>
+              <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">(পাঠক দেখতে পারবে)</span>
+            </div>
+            <select
+              value={educationLevel}
+              onChange={(e) => setEducationLevel(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-red-500"
+            >
+              <option value="SSC">SSC / সমমান (মাধ্যমিক)</option>
+              <option value="HSC">HSC / সমমান (উচ্চ মাধ্যমিক)</option>
+              <option value="Bachelor">Bachelor / স্নাতক (Honours/Degree)</option>
+              <option value="Master">Master / স্নাতকোত্তর</option>
+              <option value="PhD">PhD / গবেষণা</option>
+              <option value="Diploma">ডিপ্লোমা (Diploma)</option>
+              <option value="অন্যান্য">অন্যান্য</option>
+            </select>
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              পঠিত শিক্ষা প্রতিষ্ঠানের নাম (স্কুল/কলেজ/বিশ্ববিদ্যালয়)
+            </label>
+            <input
+              type="text"
+              value={institutionName}
+              onChange={(e) => setInstitutionName(e.target.value)}
+              placeholder="যেমন: ঢাকা বিশ্ববিদ্যালয় / ঢাকা কলেজ / জেলা মাধ্যমিক বিদ্যালয়"
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 font-medium"
             />
           </div>
         </div>

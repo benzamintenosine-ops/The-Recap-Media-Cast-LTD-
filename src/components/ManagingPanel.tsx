@@ -378,8 +378,19 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
     }
 
     const cleanEmail = data.email.trim().toLowerCase();
-    if (managers?.some(m => m.email.trim().toLowerCase() === cleanEmail)) {
-      setAuthError('এই ইমেইলে ইতিমধ্যে একটি ম্যানেজার অ্যাকাউন্ট রয়েছে! অনুগ্রহ করে লগইন করুন।');
+    let existingManager = managers?.some(m => m.email.trim().toLowerCase() === cleanEmail);
+    if (!existingManager) {
+      try {
+        const cached = localStorage.getItem('recap_managers');
+        if (cached) {
+          const parsed: ManagerProfile[] = JSON.parse(cached);
+          existingManager = parsed.some(m => m.email.trim().toLowerCase() === cleanEmail);
+        }
+      } catch {}
+    }
+
+    if (existingManager) {
+      setAuthError('এই ইমেইলে ইতোমধ্যে একটি ম্যানেজার অ্যাকাউন্ট রয়েছে! একটি ইমেইল দিয়ে কেবল একটিমাত্র সাইন-আপ অনুমোদিত।');
       return;
     }
 
@@ -629,8 +640,35 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
     return sum + Math.round((a.views || 0) * 0.05);
   }, 0);
 
+  // Helper to check if a reporter is assigned to the currently logged-in Manager
+  const isWriterAssignedToCurrentManager = (writer: WriterProfile): boolean => {
+    if (!managerProfile) return true;
+
+    // 1. Direct match on managerId
+    if (writer.managerId) {
+      return writer.managerId === managerProfile.id;
+    }
+
+    // 2. Match on secretCodeUsed vs manager's referralCode or secretCodeUsed
+    const codeUsed = (writer.secretCodeUsed || '').trim().toUpperCase();
+    const mgrRef = (managerProfile.referralCode || '').trim().toUpperCase();
+    const mgrSecret = (managerProfile.secretCodeUsed || '').trim().toUpperCase();
+
+    if (codeUsed && mgrRef && codeUsed === mgrRef) return true;
+    if (codeUsed && mgrSecret && codeUsed === mgrSecret) return true;
+
+    // 3. Match by managerName
+    if (writer.managerName && writer.managerName === managerProfile.name) return true;
+
+    // 4. Default reporter code (RECAP2026) or first manager
+    if (codeUsed === 'RECAP2026' || !codeUsed) return true;
+
+    return false;
+  };
+
   // Filtered Reporters List
   const filteredWriters = writers.filter((w) => {
+    if (!isWriterAssignedToCurrentManager(w)) return false;
     const q = writerSearchQuery.toLowerCase();
     return (
       w.name.toLowerCase().includes(q) ||
@@ -913,7 +951,7 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
             </p>
           </div>
 
-          {writers.filter(w => w.status === 'pending').length === 0 ? (
+          {writers.filter(w => w.status === 'pending' && isWriterAssignedToCurrentManager(w)).length === 0 ? (
             <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-3">
               <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto" />
               <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
@@ -925,7 +963,7 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {writers.filter(w => w.status === 'pending').map((writer) => (
+              {writers.filter(w => w.status === 'pending' && isWriterAssignedToCurrentManager(w)).map((writer) => (
                 <div key={writer.id} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border-2 border-amber-300 dark:border-amber-900/60 shadow-lg space-y-4 relative overflow-hidden">
                   <div className="flex items-start gap-4">
                     <img
@@ -1100,69 +1138,6 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
       {/* TAB 1: REPORTERS CONTROL */}
       {activeTab === 'writers' && (
         <div className="space-y-6">
-          {/* REPORTER SECRET REFERRAL CODE & TELEGRAM CONTROLLER CARD */}
-          <div className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white p-6 rounded-3xl border border-indigo-800/60 shadow-xl space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-indigo-800/40 pb-3">
-              <div>
-                <h3 className="text-base font-extrabold flex items-center gap-2 text-amber-400 font-serif">
-                  <Lock className="w-5 h-5" /> প্রতিবেদক গোপন রেফার কোড ও টেলিগ্রাম ইনবক্স নিয়ন্ত্রণ
-                </h3>
-                <p className="text-xs text-slate-300 mt-0.5">
-                  নতুন প্রতিবেদক সাইনআপের গোপন রেফার কোড পরিবর্তন এবং টেলিগ্রাম ইনবক্স লিঙ্ক সেট করুন।
-                </p>
-              </div>
-              <div className="px-3 py-1 bg-indigo-900/80 border border-indigo-600 rounded-full text-xs font-mono font-bold text-amber-300">
-                বর্তমান কোড: {siteSettings?.writerSecretCode || 'RECAP2026'}
-              </div>
-            </div>
-
-            {codeSaveSuccess && (
-              <div className="p-3 bg-emerald-950/80 border border-emerald-700 text-emerald-300 text-xs font-bold rounded-xl flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-400" />
-                <span>{codeSaveSuccess}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSaveReporterSecretSettings} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-              <div>
-                <label className="block text-xs font-bold text-slate-200 mb-1">
-                  গোপন রেফার কোড (Secret Referral Code) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={reporterSecretInput}
-                  onChange={(e) => setReporterSecretInput(e.target.value)}
-                  placeholder="যেমন: RECAP2026"
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-indigo-700 bg-slate-900 text-amber-300 font-mono font-bold uppercase tracking-wider focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-200 mb-1">
-                  টেলিগ্রাম ইনবক্স লিংক (Telegram URL) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={telegramUrlInput}
-                  onChange={(e) => setTelegramUrlInput(e.target.value)}
-                  placeholder="https://t.me/TheRecapMediaCast"
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-indigo-700 bg-slate-900 text-white focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-
-              <div>
-                <button
-                  type="submit"
-                  className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  <span>কোড ও লিংক সংরক্ষণ করুন</span>
-                </button>
-              </div>
-            </form>
-          </div>
 
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div>

@@ -96,6 +96,7 @@ interface NativeBannerAdProps {
   settings?: DynamicAdSettings['nativeBanner'];
   isPostWriting?: boolean;
   panelLabel?: string;
+  panelType?: 'writer' | 'manager' | 'viewer' | 'admin';
   className?: string;
 }
 
@@ -103,6 +104,7 @@ export const NativeBannerAd: React.FC<NativeBannerAdProps> = ({
   settings,
   isPostWriting = false,
   panelLabel = 'প্যানেল',
+  panelType,
   className = ''
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -111,9 +113,28 @@ export const NativeBannerAd: React.FC<NativeBannerAdProps> = ({
   const isEnabled = settings?.enabled ?? true;
   const hideDuringPost = settings?.hideDuringPostCreation ?? true;
 
-  // If disabled globally or currently composing post, do not render
-  if (!isEnabled) return null;
+  // Filter active custom banners for this panel
+  const customBannersForPanel = (settings?.customBanners || []).filter(
+    (b) => b.enabled && (!panelType || b.panel === panelType)
+  );
+
+  // Check if this panel type is allowed to show network ad
+  const isNetworkAdAllowedForPanel = () => {
+    if (!panelType) return true;
+    if (panelType === 'writer') return settings?.showInWriterPanel ?? true;
+    if (panelType === 'manager') return settings?.showInManagingPanel ?? true;
+    if (panelType === 'viewer') return settings?.showInViewerPanel ?? true;
+    if (panelType === 'admin') return settings?.showInAdminPanel ?? true;
+    return true;
+  };
+
+  const showNetworkBanner = isEnabled && isNetworkAdAllowedForPanel();
+
+  // If writing post and hide option is on, hide everything
   if (isPostWriting && hideDuringPost) return null;
+
+  // If neither network ad nor custom banner is available/enabled, return null
+  if (!showNetworkBanner && customBannersForPanel.length === 0) return null;
 
   const scriptUrl =
     settings?.scriptUrl ||
@@ -124,7 +145,7 @@ export const NativeBannerAd: React.FC<NativeBannerAdProps> = ({
   const customMinHeight = settings?.minHeight || '90px';
 
   useEffect(() => {
-    if (!containerRef.current || scriptInjectedRef.current) return;
+    if (!showNetworkBanner || !containerRef.current || scriptInjectedRef.current) return;
 
     try {
       // Create and mount external ad invoke script
@@ -142,31 +163,65 @@ export const NativeBannerAd: React.FC<NativeBannerAdProps> = ({
     } catch (err) {
       console.warn('Native banner script inject notice:', err);
     }
-  }, [scriptUrl, containerId]);
+  }, [showNetworkBanner, scriptUrl, containerId]);
 
   return (
-    <div
-      className={`w-full overflow-hidden my-4 p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all ${className}`}
-    >
-      <div className="flex items-center justify-between mb-2 px-1">
-        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          নেটিভ ব্যানার স্পন্সর • {panelLabel}
-        </span>
-        <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded font-mono font-bold">
-          NATIVE ADS
-        </span>
-      </div>
+    <div className={`w-full space-y-3 my-4 ${className}`}>
+      {/* Custom Image Banners for this panel */}
+      {customBannersForPanel.map((banner) => (
+        <div
+          key={banner.id}
+          className="w-full overflow-hidden p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all"
+        >
+          <div className="flex items-center justify-between mb-2 px-1">
+            <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+              {banner.title || 'স্পন্সরড নেটিভ ব্যানার'} • {panelLabel}
+            </span>
+            <span className="text-[9px] bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded font-mono font-bold">
+              OFFICIAL SPONSOR
+            </span>
+          </div>
 
-      <div
-        ref={containerRef}
-        id={containerId}
-        style={{
-          width: customWidth,
-          minHeight: customMinHeight
-        }}
-        className="w-full overflow-hidden flex items-center justify-center rounded-xl bg-slate-50/60 dark:bg-slate-800/40 p-1"
-      />
+          <a
+            href={banner.targetUrl || '#'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block group overflow-hidden rounded-xl border border-slate-100 dark:border-slate-800 transition-all hover:opacity-95"
+          >
+            <img
+              src={banner.imageUrl}
+              alt={banner.title || 'Native Banner'}
+              className="w-full max-h-48 object-cover rounded-xl transition-transform duration-300 group-hover:scale-[1.01]"
+            />
+          </a>
+        </div>
+      ))}
+
+      {/* Network Script Native Banner */}
+      {showNetworkBanner && (
+        <div className="w-full overflow-hidden p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              নেটিভ নেটওয়ার্ক ব্যানার • {panelLabel}
+            </span>
+            <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded font-mono font-bold">
+              NATIVE ADS
+            </span>
+          </div>
+
+          <div
+            ref={containerRef}
+            id={containerId}
+            style={{
+              width: customWidth,
+              minHeight: customMinHeight
+            }}
+            className="w-full overflow-hidden flex items-center justify-center rounded-xl bg-slate-50/60 dark:bg-slate-800/40 p-1"
+          />
+        </div>
+      )}
     </div>
   );
 };

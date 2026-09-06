@@ -91,6 +91,9 @@ export interface UserProfile {
   avatar?: string;
   bio?: string;
   age?: number;
+  gender?: string;
+  educationLevel?: string;
+  institutionName?: string;
   nidNumber?: string;
   address?: string;
   postOffice?: string;
@@ -117,6 +120,9 @@ export interface WriterProfile {
   nidNumber?: string;
   mobile: string;
   age: number;
+  gender?: string;
+  educationLevel?: string;
+  institutionName?: string;
   avatarUrl?: string;
   password?: string;
   secretCodeUsed: string;
@@ -146,6 +152,9 @@ export interface AdminProfile {
   nidNumber?: string;
   mobile: string;
   age?: number;
+  gender?: string;
+  educationLevel?: string;
+  institutionName?: string;
   avatarUrl?: string;
   secretCodeUsed: string;
   createdAt: string;
@@ -167,6 +176,9 @@ export interface ManagerProfile {
   designation?: string;
   password?: string;
   age?: number;
+  gender?: string;
+  educationLevel?: string;
+  institutionName?: string;
   bio?: string;
   secretCodeUsed: string;
   referralCode?: string; // Manager's unique referral code for their reporters
@@ -182,6 +194,16 @@ export interface SocialWidget {
   platform: 'facebook' | 'instagram' | 'youtube' | 'twitter' | 'whatsapp' | 'telegram' | 'tiktok' | 'custom';
   color?: string;
   isActive?: boolean;
+}
+
+export interface CustomNativeBanner {
+  id: string;
+  panel: 'writer' | 'manager' | 'viewer' | 'admin';
+  title?: string;
+  imageUrl: string;
+  targetUrl: string;
+  enabled: boolean;
+  createdAt?: string;
 }
 
 export interface DynamicAdSettings {
@@ -206,7 +228,10 @@ export interface DynamicAdSettings {
     minHeight?: string;
     showInWriterPanel: boolean;
     showInManagingPanel: boolean;
+    showInViewerPanel?: boolean;
+    showInAdminPanel?: boolean;
     hideDuringPostCreation: boolean;
+    customBanners?: CustomNativeBanner[];
   };
 }
 
