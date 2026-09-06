@@ -194,14 +194,11 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
       !thana.trim() ||
       !district.trim() ||
       !division.trim() ||
-      (isNidRequired && !nidNumber.trim()) ||
       !mobile.trim() ||
       age === ''
     ) {
       setErrorMsg(
-        isNidRequired
-          ? 'সকল ক্ষেত্র (নাম, পোস্ট অফিস, পোস্ট কোড, থানা, জেলা, বিভাগ, NID নম্বর, মোবাইল নম্বর, বয়স, ছবি) পূরণ করা বাধ্যতামূলক!'
-          : 'সকল ক্ষেত্র (নাম, পোস্ট অফিস, পোস্ট কোড, থানা, জেলা, বিভাগ, মোবাইল নম্বর, বয়স, ছবি) পূরণ করা বাধ্যতামূলক!'
+        'সকল আবশ্যক ক্ষেত্র (নাম, পোস্ট অফিস, পোস্ট কোড, থানা, জেলা, বিভাগ, মোবাইল নম্বর, বয়স, ছবি) পূরণ করা বাধ্যতামূলক!'
       );
       return;
     }
@@ -219,10 +216,10 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
     }
 
     let nidDigits = '';
-    if (isNidRequired) {
+    if (nidNumber.trim()) {
       nidDigits = nidNumber.trim().replace(/\D/g, '');
       if (nidDigits.length < 10) {
-        setErrorMsg('NID নম্বরটি সঠিক নয়! সর্বনিম্ন ১০ বা ১৩ ডিজিটের জাতীয় পরিচয়পত্র (NID) নম্বর লিখুন।');
+        setErrorMsg('যদি NID নম্বর লিখেন, তবে তা অবশ্যই সঠিক সর্বনিম্ন ১০ বা ১৩ ডিজিটের হতে হবে!');
         return;
       }
     }
@@ -475,21 +472,20 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
           </div>
         </div>
 
-        {/* NID Number (UNLOCKED & FULLY EDITABLE - Hidden for Reader profiles) */}
+        {/* NID Number (OPTIONAL) */}
         {isNidRequired && (
           <div>
             <div className="flex justify-between items-center mb-1">
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                জাতীয় পরিচয়পত্র নম্বর (NID Number) *
+                জাতীয় পরিচয়পত্র নম্বর (NID Number) <span className="text-slate-500 font-normal">(ঐচ্ছিক)</span>
               </label>
-              <span className="text-[10px] text-red-500 font-bold">(সর্বনিম্ন ১০ বা ১৩ ডিজিটের NID নম্বর)</span>
+              <span className="text-[10px] text-slate-500 font-medium">(ঐচ্ছিক - দিলে ১০ বা ১৩ ডিজিটের NID নম্বর লিখুন)</span>
             </div>
             <input
               type="text"
-              required
               value={nidNumber}
               onChange={(e) => setNidNumber(e.target.value)}
-              placeholder="১০ বা ১৩ ডিজিটের এনআইডি (NID) নম্বর লিখুন..."
+              placeholder="১০ বা ১৩ ডিজিটের এনআইডি (NID) নম্বর (ঐচ্ছিক)..."
               className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold focus:ring-2 focus:ring-red-500"
             />
           </div>
