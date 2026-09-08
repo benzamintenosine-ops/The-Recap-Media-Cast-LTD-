@@ -791,6 +791,8 @@ export default function App() {
           currentLang={currentLang}
           bookmarksCount={bookmarks.length}
           offlineCount={offlineSaved.length}
+          siteSettings={siteSettings}
+          managers={managers}
           onOpenBookmarks={() => {
             setShowBookmarksOnly(true);
             setShowOfflineOnly(false);

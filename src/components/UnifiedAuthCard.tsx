@@ -29,6 +29,7 @@ interface UnifiedAuthCardProps {
   secretCodePlaceholder?: string;
   secretCodeHint?: string;
   errorMessage?: string;
+  isSecretCodeOptional?: boolean;
   onLogin: (credentials: { email: string; password: string }) => void;
   onSignUp: (data: UnifiedAuthData) => void;
 }
@@ -42,6 +43,7 @@ export const UnifiedAuthCard: React.FC<UnifiedAuthCardProps> = ({
   secretCodePlaceholder = 'গোপন রেফার কোড লিখুন...',
   secretCodeHint = 'সংশ্লিষ্ট প্যানেল থেকে সংগৃহীত গোপন রেফার কোড প্রদান করুন।',
   errorMessage = '',
+  isSecretCodeOptional = false,
   onLogin,
   onSignUp
 }) => {
@@ -102,7 +104,7 @@ export const UnifiedAuthCard: React.FC<UnifiedAuthCardProps> = ({
       return;
     }
 
-    if (!secretCode.trim()) {
+    if (!isSecretCodeOptional && !secretCode.trim()) {
       setLocalError('গোপন রেফার কোড প্রদান করা বাধ্যতামূলক!');
       return;
     }
@@ -281,11 +283,11 @@ export const UnifiedAuthCard: React.FC<UnifiedAuthCardProps> = ({
         {authMode === 'signup' && (
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              গোপন রেফার কোড (Secret Referral Code) *
+              {isSecretCodeOptional ? 'রেফার কোড (Referral Code) (ঐচ্ছিক)' : 'গোপন রেফার কোড (Secret Referral Code) *'}
             </label>
             <input
               type="text"
-              required
+              required={!isSecretCodeOptional}
               value={secretCode}
               onChange={(e) => setSecretCode(e.target.value)}
               placeholder={secretCodePlaceholder}

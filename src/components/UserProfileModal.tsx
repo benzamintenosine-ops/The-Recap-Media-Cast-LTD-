@@ -11,7 +11,7 @@ import {
   CheckCircle,
   MapPin
 } from 'lucide-react';
-import { UserProfile, Language } from '../types';
+import { UserProfile, Language, SiteSettings, ManagerProfile } from '../types';
 import { subscribeToReaders, saveReaderToFirebase } from '../services/firebaseDataService';
 import { UnifiedAuthCard, UnifiedAuthData } from './UnifiedAuthCard';
 import { UnifiedProfileSetup, UnifiedProfileSetupData } from './UnifiedProfileSetup';
@@ -26,6 +26,8 @@ interface UserProfileModalProps {
   offlineCount: number;
   onOpenBookmarks: () => void;
   onOpenOffline: () => void;
+  siteSettings?: SiteSettings;
+  managers?: ManagerProfile[];
 }
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({
@@ -37,7 +39,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   bookmarksCount,
   offlineCount,
   onOpenBookmarks,
-  onOpenOffline
+  onOpenOffline,
+  siteSettings,
+  managers
 }) => {
   const [authError, setAuthError] = useState('');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -127,6 +131,27 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
     if (alreadyExists) {
       setAuthError('এই ইমেইলে ইতোমধ্যে একটি পাঠক অ্যাকাউন্ট রয়েছে! একটি ইমেইল দিয়ে কেবল একটিমাত্র সাইন-আপ অনুমোদিত।');
+      return;
+    }
+
+    // Check if entered code belongs to another panel (Admin or Manager)
+    const enteredSecret = (data.secretCode || '').trim().toUpperCase();
+    const adminCode1 = (siteSettings?.adminSecretCode || 'ADMIN-RECAP-9824').trim().toUpperCase();
+    const adminCode2 = (siteSettings?.systemAdminSecretCode || 'ADMIN2026').trim().toUpperCase();
+    const managingCode1 = (siteSettings?.managingSecretCode || 'MANAGING2026').trim().toUpperCase();
+    const managingCode2 = (siteSettings?.managerSecretCode || 'MANAGING2026').trim().toUpperCase();
+
+    if (
+      enteredSecret &&
+      (enteredSecret === adminCode1 ||
+       enteredSecret === adminCode2 ||
+       enteredSecret === 'ADMIN2026' ||
+       enteredSecret === 'ADMIN-RECAP-9824' ||
+       enteredSecret === managingCode1 ||
+       enteredSecret === managingCode2 ||
+       enteredSecret === 'MANAGING2026')
+    ) {
+      setAuthError('এই কোডটি অন্য প্যানেলের (ম্যানেজার বা অ্যাডমিন প্যানেলের)! এক প্যানেলের জন্য নির্ধারিত রেফার কোড দিয়ে অন্য প্যানেলে সাইন-আপ করা সম্পূর্ণ নিষিদ্ধ। পাঠক হিসেবে আপনি কোনো কোড ছাড়াই সরাসরি সাইন-আপ সম্পন্ন করতে পারবেন।');
       return;
     }
 
@@ -335,8 +360,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             portalSubtitle="নিয়মিত পাঠক হিসেবে যুক্ত হতে সাইন-ইন বা সাইন-আপ করুন"
             portalIcon={<User className="w-8 h-8" />}
             themeColor="red"
-            secretCodePlaceholder="রেফার কোড (RECAP2026 বা ফাঁকা রাখুন)..."
+            secretCodePlaceholder="রেফার কোড (ঐচ্ছিক - ফাঁকা রাখতে পারেন)..."
             secretCodeHint="ঐচ্ছিক রেফার কোড (যদি থাকে)"
+            isSecretCodeOptional={true}
             errorMessage={authError}
             onLogin={handleUnifiedLogin}
             onSignUp={handleUnifiedSignUp}

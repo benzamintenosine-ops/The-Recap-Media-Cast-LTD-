@@ -59,7 +59,8 @@ import {
   SocialWidget,
   CategoryConfig,
   DynamicAdSettings,
-  ContactMessage
+  ContactMessage,
+  CustomNativeBanner
 } from '../types';
 import { RichContentEditor } from './BloggerRichEditor';
 import { uploadImageToCloudinary, compressImageClientSide } from '../services/cloudinaryService';
@@ -666,11 +667,32 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
   // Unified Admin Sign Up Handler
   const handleAdminUnifiedSignUp = (data: UnifiedAuthData) => {
     setAuthError('');
-    const currentSecret = (siteSettings.adminSecretCode || 'ADMIN-RECAP-9824').trim().toUpperCase();
+    const currentSecret1 = (siteSettings.adminSecretCode || 'ADMIN-RECAP-9824').trim().toUpperCase();
+    const currentSecret2 = (siteSettings.systemAdminSecretCode || 'ADMIN2026').trim().toUpperCase();
     const enteredSecret = data.secretCode.trim().toUpperCase();
 
-    if (enteredSecret !== currentSecret && enteredSecret !== 'ADMIN-RECAP-9824' && enteredSecret !== 'ADMIN2026') {
-      setAuthError('অ্যাডমিন সাইনআপের জন্য গোপন কোডটি (Secret Code) ভুল হয়েছে!');
+    const managingCode1 = (siteSettings.managingSecretCode || 'MANAGING2026').trim().toUpperCase();
+    const managingCode2 = (siteSettings.managerSecretCode || 'MANAGING2026').trim().toUpperCase();
+    const writerCode = (siteSettings.writerSecretCode || 'RECAP2026').trim().toUpperCase();
+
+    // Check if user entered code meant for another panel (Manager or Reporter)
+    const isManagingCode = 
+      enteredSecret === managingCode1 || 
+      enteredSecret === managingCode2 || 
+      enteredSecret === 'MANAGING2026';
+
+    const isReporterCode = 
+      enteredSecret === writerCode || 
+      enteredSecret === 'RECAP2026' || 
+      Boolean(managers && managers.some(m => (m.referralCode && m.referralCode.trim().toUpperCase() === enteredSecret) || (m.secretCodeUsed && m.secretCodeUsed.trim().toUpperCase() === enteredSecret)));
+
+    if (isManagingCode || isReporterCode) {
+      setAuthError('এই কোডটি অন্য প্যানেলের (ম্যানেজার বা প্রতিবেদক প্যানেলের)! এক প্যানেলের জন্য নির্ধারিত রেফার কোড দিয়ে অন্য প্যানেলে সাইন-আপ করা সম্পূর্ণ নিষিদ্ধ। অনুগ্রহ করে অ্যাডমিন প্যানেলের নিজস্ব সিক্রেট কোড ব্যবহার করুন।');
+      return;
+    }
+
+    if (enteredSecret !== currentSecret1 && enteredSecret !== currentSecret2 && enteredSecret !== 'ADMIN-RECAP-9824' && enteredSecret !== 'ADMIN2026') {
+      setAuthError('ভুল অ্যাডমিন সিক্রেট কোড! এক প্যানেলের জন্য নির্ধারিত রেফার কোড দিয়ে অন্য প্যানেলে সাইন-আপ করা যাবে না। অ্যাডমিন প্যানেলের সঠিক সিক্রেট কোড প্রদান করুন।');
       return;
     }
 

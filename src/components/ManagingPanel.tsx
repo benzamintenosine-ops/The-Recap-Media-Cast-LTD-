@@ -369,11 +369,33 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
   const handleUnifiedSignUp = (data: UnifiedAuthData) => {
     setAuthError('');
 
-    const targetSecret = (siteSettings.managingSecretCode || 'MANAGING2026').trim().toUpperCase();
+    const targetSecret1 = (siteSettings.managingSecretCode || 'MANAGING2026').trim().toUpperCase();
+    const targetSecret2 = (siteSettings.managerSecretCode || 'MANAGING2026').trim().toUpperCase();
     const enteredSecret = data.secretCode.trim().toUpperCase();
 
-    if (enteredSecret !== targetSecret && enteredSecret !== 'MANAGING2026') {
-      setAuthError('ম্যানাজিং প্যানেল সাইনআপের জন্য গোপন রেফার কোড (Secret Code) টি ভুল হয়েছে!');
+    const adminCode1 = (siteSettings.adminSecretCode || 'ADMIN-RECAP-9824').trim().toUpperCase();
+    const adminCode2 = (siteSettings.systemAdminSecretCode || 'ADMIN2026').trim().toUpperCase();
+    const writerCode = (siteSettings.writerSecretCode || 'RECAP2026').trim().toUpperCase();
+
+    // Check if the code belongs to another panel (Writer/Reporter or Admin)
+    const isReporterCode = 
+      enteredSecret === writerCode || 
+      enteredSecret === 'RECAP2026' || 
+      Boolean(managers && managers.some(m => (m.referralCode && m.referralCode.trim().toUpperCase() === enteredSecret) || (m.secretCodeUsed && m.secretCodeUsed.trim().toUpperCase() === enteredSecret)));
+
+    const isAdminCode = 
+      enteredSecret === adminCode1 || 
+      enteredSecret === adminCode2 || 
+      enteredSecret === 'ADMIN-RECAP-9824' || 
+      enteredSecret === 'ADMIN2026';
+
+    if (isReporterCode || isAdminCode) {
+      setAuthError('এই কোডটি অন্য প্যানেলের (প্রতিবেদক বা অ্যাডমিন প্যানেলের)! এক প্যানেলের জন্য নির্ধারিত রেফার কোড দিয়ে অন্য প্যানেলে সাইন-আপ করা সম্পূর্ণ নিষিদ্ধ। অনুগ্রহ করে ম্যানেজার প্যানেলের নির্ধারিত সিক্রেট কোড ব্যবহার করুন।');
+      return;
+    }
+
+    if (enteredSecret !== targetSecret1 && enteredSecret !== targetSecret2 && enteredSecret !== 'MANAGING2026') {
+      setAuthError('ভুল সিক্রেট কোড! এক প্যানেলের জন্য নির্ধারিত রেফার কোড দিয়ে অন্য প্যানেলে সাইন-আপ করা যাবে না। ম্যানেজার প্যানেলের সঠিক সিক্রেট কোড প্রদান করুন।');
       return;
     }
 
