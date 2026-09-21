@@ -321,7 +321,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
               className={getDropdownBtnStyle(showHeadingType)}
               title="শিরোনামের ধরন (Paragraph Format)"
             >
-              <Type className="w-3.5 h-3.5 text-red-600" />
+              <Type className="w-3.5 h-3.5 text-slate-700 dark:text-slate-300" />
               <span className="hidden sm:inline">শিরোনাম/লেখা</span>
               <ChevronDown className="w-3 h-3 opacity-60" />
             </button>
@@ -407,7 +407,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
             >
               <div className="flex flex-col items-center">
                 <span className="font-black text-xs leading-none">A</span>
-                <span className="w-3 h-0.5 bg-red-600 mt-0.5 rounded-full" />
+                <span className="w-3 h-0.5 bg-slate-800 dark:bg-slate-200 mt-0.5 rounded-full" />
               </div>
               <ChevronDown className="w-2.5 h-2.5 opacity-60" />
             </button>
@@ -444,7 +444,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
               className={getDropdownBtnStyle(showBgColor)}
               title="হাইলাইট কালার (Background Highlight)"
             >
-              <Highlighter className="w-3.5 h-3.5 text-amber-500" />
+              <Highlighter className="w-3.5 h-3.5 text-slate-700 dark:text-slate-300" />
               <ChevronDown className="w-2.5 h-2.5 opacity-60" />
             </button>
             {showBgColor && (
@@ -669,7 +669,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
         }}
         onFocus={() => setIsFocused(true)}
         style={{ minHeight }}
-        className={`w-full p-4 sm:p-6 text-sm sm:text-base text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 focus:outline-none font-sans leading-relaxed overflow-y-auto cursor-text select-text [&_h1]:text-2xl [&_h1]:font-black [&_h1]:my-4 [&_h1]:text-slate-900 [&_h1]:dark:text-white [&_h2]:text-xl [&_h2]:font-bold [&_h2]:my-3 [&_h2]:text-slate-900 [&_h2]:dark:text-white [&_h2]:border-b [&_h2]:border-red-600/30 [&_h2]:pb-1 [&_h3]:text-lg [&_h3]:font-bold [&_h3]:my-2 [&_h4]:text-base [&_h4]:font-semibold [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:ml-6 [&_ol]:my-2 [&_blockquote]:border-l-4 [&_blockquote]:border-red-600 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-3 [&_blockquote]:bg-slate-50 [&_blockquote]:dark:bg-slate-800/50 [&_blockquote]:py-2 ${
+        className={`w-full p-4 sm:p-6 text-sm sm:text-base text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 focus:outline-none font-sans leading-relaxed overflow-y-auto cursor-text select-text [&_h1]:text-2xl [&_h1]:font-black [&_h1]:my-4 [&_h1]:text-slate-900 [&_h1]:dark:text-white [&_h2]:text-xl [&_h2]:font-bold [&_h2]:my-3 [&_h2]:text-slate-900 [&_h2]:dark:text-white [&_h2]:border-b [&_h2]:border-slate-300 dark:[&_h2]:border-slate-700 [&_h2]:pb-1 [&_h3]:text-lg [&_h3]:font-bold [&_h3]:my-2 [&_h4]:text-base [&_h4]:font-semibold [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:ml-6 [&_ol]:my-2 [&_blockquote]:border-l-4 [&_blockquote]:border-slate-800 dark:[&_blockquote]:border-slate-400 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-3 [&_blockquote]:bg-slate-50 [&_blockquote]:dark:bg-slate-800/50 [&_blockquote]:py-2 ${
           !value && !isFocused ? 'before:content-[attr(data-placeholder)] before:text-slate-400 before:pointer-events-none' : ''
         }`}
         data-placeholder="এখানে আপনার সংবাদের বিবরণ ভিজ্যুয়ালি লিখুন (যেমন: সিলেক্ট করে ওপরের টুলবার থেকে বোল্ড, কালার, লিংক বা ছবি যুক্ত করুন)..."
@@ -681,7 +681,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 max-w-md w-full shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                <LinkIcon className="w-4 h-4 text-blue-600" /> হাইপারলিঙ্ক যুক্ত করুন
+                <LinkIcon className="w-4 h-4 text-slate-700 dark:text-slate-300" /> হাইপারলিঙ্ক যুক্ত করুন
               </h3>
               <button
                 type="button"
@@ -702,7 +702,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
                   value={linkUrl}
                   onChange={(e) => setLinkUrl(e.target.value)}
                   placeholder="https://example.com"
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-500"
                 />
               </div>
               <div>
@@ -714,7 +714,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
                   value={linkText}
                   onChange={(e) => setLinkText(e.target.value)}
                   placeholder="এখানে ক্লিক করুন"
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-500"
                 />
               </div>
               <div className="flex justify-end gap-2 pt-2">
@@ -727,7 +727,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md"
+                  className="px-4 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-md"
                 >
                   যুক্ত করুন
                 </button>
@@ -743,7 +743,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 max-w-md w-full shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                <ImageIcon className="w-4 h-4 text-emerald-600" /> লেখার মাঝে ছবি যুক্ত করুন
+                <ImageIcon className="w-4 h-4 text-slate-700 dark:text-slate-300" /> লেখার মাঝে ছবি যুক্ত করুন
               </h3>
               <button
                 type="button"
@@ -765,13 +765,13 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}
                   placeholder="https://images.unsplash.com/photo-..."
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-500"
                 />
               </div>
               <button
                 type="submit"
                 disabled={!imageUrl.trim()}
-                className="w-full py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-xl shadow-md"
+                className="w-full py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 rounded-xl shadow-md cursor-pointer"
               >
                 ইউআরএল থেকে ছবি সন্নিবেশ করুন
               </button>
@@ -785,7 +785,7 @@ export const RichContentEditor: React.FC<RichTextEditorProps> = ({
 
             {/* Option B: Local File Upload */}
             <div>
-              <label className="w-full py-3 px-4 border-2 border-dashed border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-emerald-700 dark:text-emerald-300 transition-colors">
+              <label className="w-full py-3 px-4 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors">
                 <Plus className="w-4 h-4" /> ডিভাইস থেকে ছবি ফাইল সিলেক্ট করুন
                 <input
                   type="file"

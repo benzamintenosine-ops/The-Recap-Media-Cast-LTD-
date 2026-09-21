@@ -448,11 +448,6 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         setAuthError('পাসওয়ার্ড এবং কনফার্ম পাসওয়ার্ড মিলছে না!');
         return;
       }
-      if (!secretCodeInput.trim()) {
-        setAuthError('ম্যানেজারের গোপন রেফার কোড দেওয়া বাধ্যতামূলক!');
-        return;
-      }
-
       const cleanEmail = emailInput.trim().toLowerCase();
       let existingWriter = writers?.some(w => w.email.trim().toLowerCase() === cleanEmail);
       if (!existingWriter) {
@@ -470,50 +465,6 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         return;
       }
 
-      const enteredCode = secretCodeInput.trim().toUpperCase();
-      const managerPanelCode1 = (siteSettings?.managingSecretCode || 'MANAGING2026').trim().toUpperCase();
-      const managerPanelCode2 = (siteSettings?.managerSecretCode || 'MANAGING2026').trim().toUpperCase();
-      const adminPanelCode1 = (siteSettings?.systemAdminSecretCode || 'ADMIN2026').trim().toUpperCase();
-      const adminPanelCode2 = (siteSettings?.adminSecretCode || 'ADMIN-RECAP-9824').trim().toUpperCase();
-      const defaultWriterCode = (writerSecretCode || siteSettings?.writerSecretCode || 'RECAP2026').trim().toUpperCase();
-
-      // Strictly block codes designated for other panels (Managing Panel or Admin Panel)
-      if (
-        enteredCode === managerPanelCode1 || 
-        enteredCode === managerPanelCode2 || 
-        enteredCode === 'MANAGING2026' || 
-        enteredCode === adminPanelCode1 || 
-        enteredCode === adminPanelCode2 || 
-        enteredCode === 'ADMIN2026' || 
-        enteredCode === 'ADMIN-RECAP-9824'
-      ) {
-        setAuthError('এই কোডটি অন্য প্যানেলের (ম্যানেজার বা অ্যাডমিন প্যানেলের)! এক প্যানেলের জন্য নির্ধারিত রেফার কোড দিয়ে অন্য প্যানেলে সাইন-আপ করা সম্পূর্ণ নিষিদ্ধ। অনুগ্রহ করে আপনার সংবাদের ম্যানেজারের নিজস্ব রেফার কোড ব্যবহার করুন।');
-        return;
-      }
-
-      const matchedManager = managers?.find(m => 
-        (m.referralCode && m.referralCode.trim().toUpperCase() === enteredCode) ||
-        (m.secretCodeUsed && m.secretCodeUsed.trim().toUpperCase() === enteredCode)
-      );
-
-      if (!matchedManager && enteredCode !== defaultWriterCode) {
-        setAuthError('ভুল ম্যানেজার রেফার কোড! এক প্যানেলের জন্য নির্ধারিত রেফার কোড দিয়ে অন্য প্যানেলে সাইন-আপ করা যাবে না। আপনার সংবাদের ম্যানেজারের নিজস্ব রেফার কোড সংগ্রহ করে চেষ্টা করুন।');
-        return;
-      }
-
-      // Enforce 10 reporter limit per manager
-      if (matchedManager) {
-        const managerApprovedCount = (writers || []).filter(w => 
-          (w.managerId === matchedManager.id || (matchedManager.referralCode && w.secretCodeUsed?.toUpperCase() === matchedManager.referralCode.toUpperCase())) &&
-          w.status !== 'pending' && !w.isBanned
-        ).length;
-
-        if (managerApprovedCount >= (matchedManager.maxReportersLimit || 10)) {
-          setAuthError(`ব্যবস্থাপক "${matchedManager.name}"-এর অধীনে সর্বোচ্চ ১০ জন প্রতিবেদকের কোটা ইতিমধ্যে পূর্ণ হয়ে গেছে! অন্য কোনো ম্যানেজারের রেফার কোড ব্যবহার করুন।`);
-          return;
-        }
-      }
-
       const initialProfile: WriterProfile = {
         id: `writer-${Date.now()}`,
         name: setupName.trim(),
@@ -523,9 +474,9 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         mobile: cleanMobile,
         age: 25,
         status: 'pending',
-        managerId: matchedManager?.id || '',
-        managerName: matchedManager?.name || 'প্রধান ব্যবস্থাপনা প্যানেল',
-        secretCodeUsed: enteredCode,
+        managerId: '',
+        managerName: 'কেন্দ্রীয় ব্যবস্থাপনা প্যানেল',
+        secretCodeUsed: 'DIRECT_SIGNUP',
         createdAt: new Date().toISOString()
       };
 
@@ -701,17 +652,13 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
     setWriterProfile(newProfile);
     setIsEditingProfile(false);
-
-    // If already has secret code verified (or editing existing profile), save directly
-    if (newProfile.secretCodeUsed && newProfile.secretCodeUsed.trim().length > 0 && newProfile.secretCodeUsed !== 'DIRECT_SIGNUP') {
-      localStorage.setItem('recap_writer_profile', JSON.stringify(newProfile));
-      if (onRegisterWriter) {
-        onRegisterWriter(newProfile);
-      }
-    } else {
-      // Open Screen 3: Secret Referral Code Window
-      setShowReferralWindow(true);
+    localStorage.setItem('recap_writer_profile', JSON.stringify(newProfile));
+    if (onRegisterWriter) {
+      onRegisterWriter(newProfile);
     }
+    setShowReferralWindow(false);
+    setIsAuthenticated(true);
+    localStorage.setItem('recap_writer_logged', 'true');
   };
 
   // Dedicated Secret Referral Code Verification Handler
@@ -1165,7 +1112,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     setPostTags(postTags.filter(t => t !== tagToRemove));
   };
 
-  // SCREEN 1: Authentication Screen (Sign In / Sign Up with Manager Referral Code)
+  // SCREEN 1: Authentication Screen (Sign In / Sign Up)
   if (!isAuthenticated) {
     return (
       <div className="max-w-md mx-auto my-12 p-8 bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 space-y-6">
@@ -1178,7 +1125,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
           </h2>
           <p className="text-xs text-slate-500">
             {authMode === 'signup' 
-              ? 'নতুন প্রতিবেদক হিসেবে অ্যাকাউন্টের আবেদন করতে তথ্য ও আপনার ম্যানেজারের রেফার কোড প্রদান করুন'
+              ? 'নতুন প্রতিবেদক হিসেবে সরাসরি অ্যাকাউন্টের আবেদন করতে প্রয়োজনীয় তথ্য প্রদান করুন (রেফার কোড ছাড়াই আবেদন উন্মুক্ত)'
               : 'প্রতিবেদক প্যানেলে প্রবেশের জন্য আপনার অ্যাকাউন্ট সাইন ইন করুন'}
           </p>
         </div>
@@ -1289,25 +1236,6 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
             </div>
           )}
 
-          {authMode === 'signup' && (
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                গোপন রেফার কোড (Secret Referral Code) *
-              </label>
-              <input
-                type="text"
-                required
-                value={secretCodeInput}
-                onChange={(e) => setSecretCodeInput(e.target.value)}
-                placeholder="ম্যানেজারের নিকট থেকে সংগৃহীত গোপন রেফার কোড"
-                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-950/30 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 font-mono font-bold tracking-wider uppercase"
-              />
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                নির্দেশনা: আপনার অ্যাকাউন্টটি যে ম্যানেজারের অধীনে পরিচালনা করা হবে, তার রেফার কোড এখানে দিন।
-              </p>
-            </div>
-          )}
-
           <button
             type="submit"
             className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-red-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
@@ -1315,72 +1243,6 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
             <ShieldCheck className="w-4 h-4" />
             <span>{authMode === 'signup' ? 'রেজিস্ট্রেশন করুন ও প্রোফাইল সাজান' : 'প্রতিবেদক প্যানেলে সাইন ইন করুন'}</span>
           </button>
-        </form>
-      </div>
-    );
-  }
-
-  // SCREEN 3: Dedicated Secret Referral Code Verification Window (After Profile Setup)
-  if (showReferralWindow || (!isAuthenticated && isEmailVerified && writerProfile && (!writerProfile.secretCodeUsed || writerProfile.secretCodeUsed === ''))) {
-    return (
-      <div className="max-w-md mx-auto my-12 p-8 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 space-y-6">
-        <div className="text-center space-y-2">
-          <div className="w-14 h-14 bg-gradient-to-br from-red-600 to-amber-600 rounded-2xl text-white flex items-center justify-center mx-auto shadow-lg shadow-red-600/20">
-            <Lock className="w-7 h-7" />
-          </div>
-          <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white font-serif">
-            গোপন রেফার কোড যাচাই
-          </h2>
-          <p className="text-xs text-slate-500">
-            আপনার প্রতিবেদক অ্যাকাউন্ট সক্রিয় করতে ম্যানেজমেন্ট কর্তৃক প্রদত্ত গোপন রেফার কোডটি লিখুন।
-          </p>
-        </div>
-
-        {referralSecretError && (
-          <div className="p-3.5 bg-red-50 dark:bg-red-950/70 text-red-700 dark:text-red-300 text-xs font-bold rounded-xl border border-red-200 dark:border-red-900 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
-            <span>{referralSecretError}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleReferralCodeSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              গোপন রেফার কোড (Secret Referral Code) *
-            </label>
-            <input
-              type="text"
-              required
-              value={referralSecretInput}
-              onChange={(e) => setReferralSecretInput(e.target.value)}
-              placeholder="রেফার কোড লিখুন..."
-              className="w-full px-4 py-3 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold uppercase tracking-wider focus:ring-2 focus:ring-red-500"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-red-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <CheckCircle className="w-4 h-4" />
-            <span>রেফার কোড যাচাই ও অ্যাকাউন্ট সক্রিয় করুন</span>
-          </button>
-
-          {/* Telegram Referral Contact Link / Widget */}
-          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 text-center space-y-2.5">
-            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-              রেফার কোডের জন্য ইনবক্স করুন
-            </p>
-            <a
-              href={siteSettings?.telegramReferralUrl || 'https://t.me/TheRecapMediaCast'}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
-            >
-              <Globe className="w-4 h-4" />
-              <span>টেলিগ্রাম ইনবক্স: The Recap Media Cast</span>
-            </a>
-          </div>
         </form>
       </div>
     );
@@ -1738,7 +1600,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
               <CheckCircle className="w-4 h-4" />
               {isEditingProfile
                 ? 'প্রোফাইল আপডেট সংরক্ষণ করুন'
-                : 'প্রোফাইল সংরক্ষণ ও পরবর্তী ধাপ (গোপন কোড যাচাই) →'}
+                : 'প্রোফাইল সংরক্ষণ ও আবেদন সম্পন্ন করুন'}
             </button>
           </div>
         </form>
@@ -1748,43 +1610,43 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
   // SCREEN 3: Reporters Panel Main Control Room
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8">
+    <div className="max-w-7xl mx-auto px-3 sm:px-5 py-3 sm:py-4 space-y-4">
       {/* Top Banner & Profile Overview */}
-      <div className="bg-slate-900 dark:bg-[#0a0a0a] text-white rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-xl relative overflow-hidden border border-slate-800 dark:border-white/10">
-        <div className="absolute top-0 right-0 translate-x-1/4 -translate-y-1/4 w-96 h-96 bg-red-600/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="bg-slate-900 dark:bg-[#0a0a0a] text-white rounded-xl p-3.5 sm:p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-sm relative overflow-hidden border border-slate-800 dark:border-white/10">
+        <div className="absolute top-0 right-0 translate-x-1/4 -translate-y-1/4 w-44 h-44 bg-red-600/10 rounded-full blur-2xl pointer-events-none"></div>
 
-        <div className="space-y-3 z-10">
+        <div className="space-y-1.5 z-10">
           <div className="flex items-center gap-2">
-            <span className="px-3 py-1 bg-red-600 text-white text-[10px] font-bold rounded-md uppercase tracking-widest shadow">
-              REPORTERS PANEL / প্রতিবেদক প্যানেল
+            <span className="px-2 py-0.5 bg-red-600 text-white text-[9px] font-bold rounded uppercase tracking-wider shadow-xs">
+              প্রতিবেদক প্যানেল
             </span>
             {writerProfile.status === 'pending' ? (
-              <span className="text-xs text-amber-400 font-semibold flex items-center gap-1 font-mono bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/30">
-                <AlertTriangle className="w-3.5 h-3.5" /> আবেদন পেন্ডিং (Pending Approval)
+              <span className="text-xs text-amber-400 font-semibold flex items-center gap-1 font-mono bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30 text-[10px]">
+                <AlertTriangle className="w-3 h-3" /> আবেদন পেন্ডিং
               </span>
             ) : (
-              <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1 font-mono">
-                <CheckCircle className="w-3.5 h-3.5" /> অনুমোদিত প্রতিবেদক
+              <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1 font-mono text-[10px]">
+                <CheckCircle className="w-3 h-3" /> অনুমোদিত প্রতিবেদক
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2.5">
             <img
               src={writerProfile.avatarUrl}
               alt={writerProfile.name}
-              className="w-14 h-14 rounded-2xl object-cover border-2 border-red-500 shadow-md"
+              className="w-10 h-10 rounded-lg object-cover border-2 border-red-500 shadow-xs"
             />
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold uppercase tracking-tight text-white font-serif flex items-center gap-2">
+              <h1 className="text-base sm:text-lg font-bold uppercase tracking-tight text-white font-serif flex items-center gap-2">
                 {writerProfile.name}
               </h1>
-              <p className="text-xs text-gray-300 flex flex-wrap items-center gap-3">
-                <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-red-500" /> {writerProfile.address}</span>
-                <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-amber-400" /> {writerProfile.mobile}</span>
-                <span className="bg-white/10 px-2 py-0.5 rounded text-[10px] font-mono">বয়স: {writerProfile.age} বছর</span>
+              <p className="text-[11px] text-gray-300 flex flex-wrap items-center gap-2">
+                <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-red-500" /> {writerProfile.address}</span>
+                <span className="flex items-center gap-1"><Phone className="w-3 h-3 text-amber-400" /> {writerProfile.mobile}</span>
+                <span className="bg-white/10 px-1.5 py-0.5 rounded text-[9px] font-mono">বয়স: {writerProfile.age}</span>
                 {writerProfile.managerName && (
-                  <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded text-[10px] font-bold border border-amber-500/30">
+                  <span className="bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded text-[9px] font-bold border border-amber-500/30">
                     ম্যানেজার: {writerProfile.managerName}
                   </span>
                 )}
@@ -1794,16 +1656,16 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         </div>
 
         {/* Action Controls */}
-        <div className="z-10 flex items-center gap-3">
+        <div className="z-10 flex items-center gap-2">
           <button
             onClick={() => setIsEditingProfile(true)}
-            className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/10 transition-colors flex items-center gap-1.5"
+            className="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg border border-white/10 transition-colors flex items-center gap-1.5"
           >
-            <Edit3 className="w-3.5 h-3.5 text-amber-300" /> প্রোফাইল এডিট
+            <Edit3 className="w-3.5 h-3.5 text-amber-300" /> প্রোফাইল
           </button>
           <button
             onClick={handleLogout}
-            className="px-3.5 py-2 bg-red-600/30 hover:bg-red-600/50 text-red-200 text-xs font-bold rounded-xl border border-red-500/30 transition-colors flex items-center gap-1.5"
+            className="px-2.5 py-1 bg-red-600/30 hover:bg-red-600/50 text-red-200 text-xs font-bold rounded-lg border border-red-500/30 transition-colors flex items-center gap-1.5"
           >
             <LogOut className="w-3.5 h-3.5" /> লগআউট
           </button>
@@ -1812,87 +1674,87 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
       {/* Pending Account Notice Banner */}
       {writerProfile.status === 'pending' && (
-        <div className="p-4 sm:p-5 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/5 border-2 border-amber-500/40 rounded-3xl flex items-start gap-4 text-amber-200 text-xs shadow-lg">
-          <div className="w-10 h-10 rounded-2xl bg-amber-500/20 flex items-center justify-center shrink-0 border border-amber-500/40">
-            <AlertTriangle className="w-5 h-5 text-amber-400" />
+        <div className="p-3 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/5 border border-amber-500/40 rounded-xl flex items-start gap-2.5 text-amber-200 text-xs shadow-xs">
+          <div className="w-7 h-7 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0 border border-amber-500/40">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
           </div>
-          <div className="space-y-1.5 flex-1">
-            <h3 className="font-black text-amber-300 text-sm flex items-center gap-2 font-serif">
-              ⏳ আপনার অ্যাকাউন্ট অনুমোদনের অপেক্ষায় রয়েছে (Pending Manager Approval)
+          <div className="space-y-0.5 flex-1">
+            <h3 className="font-bold text-amber-300 text-xs flex items-center gap-1 font-serif">
+              ⏳ আপনার অ্যাকাউন্ট অনুমোদনের অপেক্ষায় রয়েছে (Pending Approval)
             </h3>
-            <p className="text-amber-100/90 leading-relaxed">
-              আপনার আবেদনপত্রটি আপনার দায়িত্বপ্রাপ্ত ম্যানেজার <strong>"{writerProfile.managerName || 'ব্যবস্থাপনা কর্তৃপক্ষ'}"</strong>-এর নিকট প্রেরিত হয়েছে। ম্যানেজার কর্তৃক আপনার অ্যাকাউন্টটি অনুমোদিত (Approve) না হওয়া পর্যন্ত নতুন পোস্ট লেখা, পোস্ট নিয়ন্ত্রণ ও টাকা উত্তোলন বন্ধ থাকবে। এই সময় আপনি কেবল আপনার <strong>প্রোফাইল তথ্য এডিট</strong> করতে ও <strong>নীতিমালা ও নিয়মাবলি</strong> পাঠ করতে পারবেন।
+            <p className="text-[11px] text-amber-100/90 leading-relaxed">
+              আপনার আবেদনপত্রটি ম্যানেজার <strong>"{writerProfile.managerName || 'ব্যবস্থাপনা কর্তৃপক্ষ'}"</strong>-এর নিকট প্রেরিত হয়েছে। অনুমোদিত হওয়ার পর সংবাদ প্রকাশ ও টাকা উত্তোলন সক্রিয় হবে।
             </p>
           </div>
         </div>
       )}
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none border-b border-slate-200 dark:border-white/10">
+      <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none border-b border-slate-200 dark:border-white/10">
         <button
           onClick={() => setActiveTab('create')}
-          className={`px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2 transition-all ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5 transition-all ${
             activeTab === 'create'
-              ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
+              ? 'bg-red-600 text-white shadow-xs'
               : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <PenTool className="w-4 h-4 text-amber-300" /> নতুন পোস্ট লিখুন (Create Post)
+          <PenTool className="w-3.5 h-3.5 text-amber-300" /> নতুন পোস্ট
         </button>
 
         <button
           onClick={() => setActiveTab('analytics')}
-          className={`px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2 transition-all ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5 transition-all ${
             activeTab === 'analytics'
-              ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
+              ? 'bg-red-600 text-white shadow-xs'
               : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <BarChart3 className="w-4 h-4" /> {t('realtimeAnalytics')}
+          <BarChart3 className="w-3.5 h-3.5" /> {t('realtimeAnalytics')}
         </button>
 
         <button
           onClick={() => setActiveTab('manage')}
-          className={`px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2 transition-all ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5 transition-all ${
             activeTab === 'manage'
-              ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
+              ? 'bg-red-600 text-white shadow-xs'
               : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <FileText className="w-4 h-4" /> {t('managePosts')} ({articles.length})
+          <FileText className="w-3.5 h-3.5" /> সংবাদ তালিকা ({articles.length})
         </button>
 
         <button
           onClick={() => setActiveTab('withdraw')}
-          className={`px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2 transition-all ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5 transition-all ${
             activeTab === 'withdraw'
-              ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
+              ? 'bg-red-600 text-white shadow-xs'
               : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <DollarSign className="w-4 h-4 text-emerald-400" /> টাকা উত্তোলন (Withdraw)
+          <DollarSign className="w-3.5 h-3.5 text-emerald-400" /> উত্তোলন
         </button>
 
         <button
           onClick={() => setActiveTab('rules')}
-          className={`px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2 transition-all ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5 transition-all ${
             activeTab === 'rules'
-              ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
+              ? 'bg-red-600 text-white shadow-xs'
               : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <ShieldCheck className="w-4 h-4 text-emerald-400" /> কাজ ও নিয়মাবলি (Rules)
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> নিয়মাবলি
         </button>
 
         <button
           onClick={() => setActiveTab('notifications')}
-          className={`px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2 transition-all ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5 transition-all ${
             activeTab === 'notifications'
-              ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
+              ? 'bg-red-600 text-white shadow-xs'
               : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <Bell className="w-4 h-4 text-amber-400" /> নোটিফিকেশন
+          <Bell className="w-3.5 h-3.5 text-amber-400" /> নোটিফিকেশন
           {notifications.filter(n => n.recipientWriterId === writerProfile?.id || n.recipientWriterId === 'ALL').length > 0 && (
             <span className="bg-amber-400 text-slate-950 text-[10px] font-bold px-1.5 py-0.2 rounded-full">
               {notifications.filter(n => n.recipientWriterId === writerProfile?.id || n.recipientWriterId === 'ALL').length}
@@ -1902,13 +1764,13 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
         <button
           onClick={() => setActiveTab('profile')}
-          className={`px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2 transition-all ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5 transition-all ${
             activeTab === 'profile'
-              ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
+              ? 'bg-red-600 text-white shadow-xs'
               : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <User className="w-4 h-4 text-emerald-400" /> আমার প্রোফাইল
+          <User className="w-3.5 h-3.5 text-emerald-400" /> প্রোফাইল
         </button>
       </div>
 
@@ -2008,7 +1870,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
                 💼 ৩. ম্যানেজার আনুকূল্য ও জবাবদিহিতা
               </h3>
               <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-2 list-disc list-inside leading-relaxed">
-                <li>প্রতিটি প্রতিবেদক একজন নির্দিষ্ট ম্যানেজারের রেফার কোডের অধীনে যুক্ত থাকবেন।</li>
+                <li>প্রতিবেদকগণ সরাসরি উন্মুক্তভাবে সাইন-আপ করতে পারবেন এবং কেন্দ্রীয় বা সংশ্লিষ্ট ম্যানেজারের তত্ত্বাবধানে থাকবেন।</li>
                 <li>ম্যানেজারের সিদ্ধান্ত অনুযায়ী অ্যাকাউন্টের অ্যাক্টিভিটি পর্যবেক্ষণ করা হবে।</li>
                 <li>ভুল বা ভুয়া তথ্য প্রদান করলে ম্যানেজার আপনার অ্যাকাউন্টে লিমিট আরোপ করতে পারবেন।</li>
               </ul>
@@ -2080,7 +1942,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
           {/* STEP 1: Main Content Editor Canvas */}
           {createStep === 1 && (
-            <div className="p-6 sm:p-8 space-y-6">
+            <div className="p-4 sm:p-5 space-y-4">
               {/* Edit Mode Notice Banner */}
               {editingArticleId && (
                 <div className="p-4 bg-amber-50 dark:bg-amber-950/70 border-2 border-amber-300 dark:border-amber-700 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
@@ -2259,7 +2121,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
           {/* STEP 2: Publishing Details, Keywords & Reporter Attribution */}
           {createStep === 2 && (
-            <form onSubmit={handlePublishPost} className="p-6 sm:p-8 space-y-6">
+            <form onSubmit={handlePublishPost} className="p-4 sm:p-5 space-y-4">
               {/* Category & Summary */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -2575,82 +2437,82 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         const myTotalEarnings = Math.floor(myReportedWidgetViews / 257);
 
         return (
-          <div className="space-y-6">
-            <div className="p-4 bg-slate-900 text-white rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-red-600/20 text-red-500 border border-red-500/30 flex items-center justify-center font-bold">
-                  <BarChart3 className="w-5 h-5" />
+          <div className="space-y-4">
+            <div className="p-3.5 bg-slate-900 text-white rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-red-600/20 text-red-500 border border-red-500/30 flex items-center justify-center font-bold">
+                  <BarChart3 className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    {writerProfile?.name}-এর নিজস্ব সংবাদের অ্যানালিটিক্স ও পারফরম্যান্স
+                  <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
+                    {writerProfile?.name}-এর নিজস্ব সংবাদের পারফরম্যান্স
                   </h3>
-                  <p className="text-[11px] text-gray-400">
-                    এখানে শুধুমাত্র আপনার প্রকাশিত নিজস্ব সংবাদসমূহের মোট ভিউ, অর্জিত আয় ও পাঠক ট্রাফিকের রিয়েল-টাইম ডাটা।
+                  <p className="text-[10px] text-gray-400">
+                    এখানে আপনার প্রকাশিত সংবাদের মোট ভিউ, অর্জিত আয় ও লাইভ ট্রাফিক ডাটা।
                   </p>
                 </div>
               </div>
 
               {myArticles.length > 0 && (
-                <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-xs font-mono font-bold rounded-xl border border-emerald-500/20 flex items-center gap-1.5 shrink-0">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[11px] font-mono font-bold rounded-lg border border-emerald-500/20 flex items-center gap-1.5 shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
                   সক্রিয় রিডার: {myActiveLiveVisitors} জন
                 </span>
               )}
             </div>
 
             {/* Writer Stats Grid - includes My Earning / আমার আয় Widget */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5 sm:gap-3">
               {/* My Earning Widget */}
-              <div className="p-5 bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-2xl shadow-lg shadow-emerald-600/20 space-y-1 col-span-2 sm:col-span-1">
-                <span className="text-[11px] text-emerald-100 font-extrabold uppercase tracking-wider flex items-center gap-1">
-                  <Wallet className="w-4 h-4 text-emerald-200" /> My Earning / আমার আয়
+              <div className="p-3.5 bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-xl shadow-xs space-y-0.5 col-span-2 sm:col-span-1">
+                <span className="text-[10px] text-emerald-100 font-extrabold uppercase tracking-wider flex items-center gap-1">
+                  <Wallet className="w-3.5 h-3.5 text-emerald-200" /> আমার আয়
                 </span>
-                <div className="text-2xl sm:text-3xl font-mono font-black text-white">
+                <div className="text-xl sm:text-2xl font-mono font-black text-white">
                   ৳ {myTotalEarnings.toLocaleString()}
                 </div>
-                <span className="text-[10px] text-emerald-200 font-bold block">
+                <span className="text-[9px] text-emerald-200 font-bold block">
                   প্রতি ২৫৭ ভিউ = ১ টাকা
                 </span>
               </div>
 
-              <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
-                <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">আমার সংবাদের মোট ভিউ</span>
-                <div className="text-2xl sm:text-3xl font-mono font-bold text-slate-900 dark:text-white">
+              <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-0.5">
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">মোট ভিউ</span>
+                <div className="text-xl sm:text-2xl font-mono font-bold text-slate-900 dark:text-white">
                   {myReportedWidgetViews.toLocaleString()}
                 </div>
-                <span className="text-[10px] text-emerald-500 font-semibold flex items-center gap-1 font-mono">
-                  <TrendingUp className="w-3 h-3" /> রিয়েল-টাইম লাইভ ভিউ
+                <span className="text-[9px] text-emerald-500 font-semibold flex items-center gap-1 font-mono">
+                  <TrendingUp className="w-3 h-3" /> লাইভ ভিউ
                 </span>
               </div>
 
-              <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
-                <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">আমার সংবাদের পাঠক রিচ</span>
-                <div className="text-2xl sm:text-3xl font-mono font-bold text-slate-900 dark:text-white">
+              <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-0.5">
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">পাঠক রিচ</span>
+                <div className="text-xl sm:text-2xl font-mono font-bold text-slate-900 dark:text-white">
                   {myEstimatedReach.toLocaleString()}
                 </div>
-                <span className="text-[10px] text-amber-500 font-semibold flex items-center gap-1 font-mono">
-                  <Eye className="w-3 h-3" /> আনুমানিক পাঠক ইম্প্রেশন
+                <span className="text-[9px] text-amber-500 font-semibold flex items-center gap-1 font-mono">
+                  <Eye className="w-3 h-3" /> পাঠক ইম্প্রেশন
                 </span>
               </div>
 
-              <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
-                <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">আমার প্রকাশিত সংবাদ</span>
-                <div className="text-2xl sm:text-3xl font-mono font-bold text-slate-900 dark:text-white">
+              <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-0.5">
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">প্রকাশিত সংবাদ</span>
+                <div className="text-xl sm:text-2xl font-mono font-bold text-slate-900 dark:text-white">
                   {myArticles.length}
                 </div>
-                <span className="text-[10px] text-red-500 font-semibold uppercase tracking-wider">
-                  নিজস্ব সংবাদ নিবন্ধ
+                <span className="text-[9px] text-red-500 font-semibold uppercase tracking-wider">
+                  নিজস্ব সংবাদ
                 </span>
               </div>
 
-              <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
-                <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">আমার পোস্টে মোট কমেন্ট</span>
-                <div className="text-2xl sm:text-3xl font-mono font-bold text-slate-900 dark:text-white">
+              <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-0.5">
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">মোট কমেন্ট</span>
+                <div className="text-xl sm:text-2xl font-mono font-bold text-slate-900 dark:text-white">
                   {myTotalComments}
                 </div>
-                <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
-                  পাঠকদের রেসপন্স
+                <span className="text-[9px] text-gray-400 font-semibold uppercase tracking-wider">
+                  পাঠক রেসপন্স
                 </span>
               </div>
             </div>
@@ -2712,7 +2574,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
       {/* TAB 3: Manage Posts */}
       {activeTab === 'manage' && (
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3">
             প্রকাশিত সকল সংবাদ নিবন্ধ তালিকা ({articles.length})
           </h3>
@@ -2775,8 +2637,8 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         const canWithdraw = currentBalance >= 500;
 
         return (
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
-            <div className="border-b border-slate-100 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+            <div className="border-b border-slate-100 dark:border-slate-800 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 font-serif">
                   <DollarSign className="w-5 h-5 text-emerald-500" />
@@ -2925,8 +2787,8 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         const myNotifications = notifications.filter(n => n.recipientWriterId === writerProfile?.id || n.recipientWriterId === 'ALL');
 
         return (
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
-            <div className="border-b border-slate-100 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+            <div className="border-b border-slate-100 dark:border-slate-800 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 font-serif">
                   <Bell className="w-5 h-5 text-amber-500" />
@@ -3281,7 +3143,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
       {/* TAB 4: Writer Profile Details */}
       {activeTab === 'profile' && (
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <User className="w-5 h-5 text-emerald-500" />

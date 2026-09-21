@@ -65,8 +65,8 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   contactPhone: '+880 9612-888999',
   officeAddress: 'রেকাপ মিডিয়া কাস্ট লিমিটেড টাওয়ার, গুলশান-২, ঢাকা-১২১২।',
   writerSecretCode: 'RECAP2026',
-  adminSecretCode: 'ADMIN-RECAP-9824',
-  managingSecretCode: 'MANAGING2026',
+  adminSecretCode: 'ADMIN-RECAP-2026',
+  managingSecretCode: 'MGR-RECAP-2026',
   telegramReferralUrl: 'https://t.me/TheRecapMediaCast',
   adBanners: [
     {
@@ -77,6 +77,13 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
       position: 'header',
       isActive: true
     }
+  ],
+  emergencyNotices: [
+    'বিশেষ জরুরি আবহাওয়া নির্দেশনা: উপকূলীয় ও নদী অববাহিকা অঞ্চলগুলোতে সম্ভাব্য ঝড়ো হাওয়া ও ভারী বৃষ্টির পূর্বাভাসে নিরাপদ আশ্রয়ে থাকুন।',
+    'জরুরি নিরাপত্তা বার্তা: সামাজিক যোগাযোগ মাধ্যমে ছড়ানো কোনো ধরনের গুজবে কান না দিয়ে সরকারি ও নির্ভরযোগ্য সূত্রের খবর যাচাই করুন।',
+    'অনলাইন আর্থিক জালিয়াতি সতর্কতা: লটারি বা উপহারের নামে কোনো ওটিপি (OTP) বা গোপন পিন কারো সাথে শেয়ার করবেন না।',
+    'জরুরি স্বাস্থ্য নির্দেশনা: ঋতু পরিবর্তনজনিত ফ্লু ও ডেঙ্গু প্রতিরোধে বাড়ির আশপাশ পরিচ্ছন্ন রাখুন এবং জমে থাকা পানি অপসারণ করুন।',
+    'জাতীয় জরুরি সেবা নম্বর: যেকোনো সংকটকালে ৯৯৯ (জাতীয় জরুরি সেবা) ও ৩৩৩ (তথ্য বাতায়ন)-এ যোগাযোগ করুন।'
   ],
   dynamicAds: DEFAULT_DYNAMIC_ADS,
   socialWidgets: [
@@ -220,9 +227,21 @@ export async function fetchInitialStateFromFirestore(): Promise<InitialCloudStat
       const settingsSnap = await withCloudTimeout(getDoc(settingsDocRef));
       if (settingsSnap.exists()) {
         const data = settingsSnap.data();
-        return {
+        // Format legacy codes if present
+        let adminSecret = data.adminSecretCode;
+        if (!adminSecret || adminSecret === 'ADMIN-RECAP-9824' || adminSecret === 'ADMIN2026') {
+          adminSecret = 'ADMIN-RECAP-2026';
+        }
+        let managingSecret = data.managingSecretCode;
+        if (!managingSecret || managingSecret === 'MANAGING2026') {
+          managingSecret = 'MGR-RECAP-2026';
+        }
+
+        const mergedSettings = {
           ...DEFAULT_SITE_SETTINGS,
           ...data,
+          adminSecretCode: adminSecret,
+          managingSecretCode: managingSecret,
           dynamicAds: {
             popunder: {
               ...DEFAULT_DYNAMIC_ADS.popunder,
@@ -244,6 +263,13 @@ export async function fetchInitialStateFromFirestore(): Promise<InitialCloudStat
             ? data.adBanners
             : DEFAULT_SITE_SETTINGS.adBanners
         };
+
+        // If legacy code was updated, persist formatted settings to Firestore asynchronously
+        if (data.adminSecretCode !== adminSecret || data.managingSecretCode !== managingSecret) {
+          setDoc(settingsDocRef, { adminSecretCode: adminSecret, managingSecretCode: managingSecret }, { merge: true }).catch(() => {});
+        }
+
+        return mergedSettings;
       }
       return null;
     })(),
@@ -274,10 +300,23 @@ export async function fetchInitialStateFromFirestore(): Promise<InitialCloudStat
     (async () => {
       const managersSnap = await withCloudTimeout(getDocs(collection(db, 'managers')));
       if (!managersSnap.empty) {
-        return managersSnap.docs.map((d) => ({
-          id: d.id,
-          ...d.data()
-        })) as ManagerProfile[];
+        return managersSnap.docs.map((d) => {
+          const mData = d.data();
+          let refCode = mData.referralCode || 'MGR-RECAP-2026';
+          if (refCode === 'MGR-ALPHA' || refCode === 'MANAGING2026' || refCode === 'ADMIN-RECAP-9824') {
+            refCode = 'MGR-RECAP-2026';
+          }
+          let secUsed = mData.secretCodeUsed || 'MGR-RECAP-2026';
+          if (secUsed === 'MANAGING2026' || secUsed === 'ADMIN-RECAP-9824') {
+            secUsed = 'MGR-RECAP-2026';
+          }
+          return {
+            id: d.id,
+            ...mData,
+            referralCode: refCode,
+            secretCodeUsed: secUsed
+          };
+        }) as ManagerProfile[];
       }
       return [];
     })(),

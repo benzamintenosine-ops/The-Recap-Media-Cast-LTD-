@@ -273,28 +273,28 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-2xl w-full p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-2xl relative max-h-[90vh] overflow-y-auto my-auto space-y-6">
+    <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white dark:bg-[#0a0a0a] rounded-3xl max-w-2xl w-full p-6 sm:p-8 border border-slate-200 dark:border-zinc-800 shadow-2xl relative max-h-[90vh] overflow-y-auto my-auto space-y-6">
         
         {/* Close Button */}
         <button
           onClick={onClose}
           aria-label="বন্ধ করুন"
-          className="absolute top-5 right-5 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-full bg-slate-100 dark:bg-slate-800 transition-colors z-10 cursor-pointer"
+          className="absolute top-5 right-5 p-2 text-white bg-black hover:bg-zinc-800 rounded-full transition-colors z-10 cursor-pointer border border-zinc-800 shadow-sm"
         >
-          <X className="w-5 h-5" />
+          <X className="w-5 h-5 text-white" />
         </button>
 
         {/* Admin Edit Mode Alert Banner */}
         {isEditable && (
-          <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3 flex items-center justify-between gap-3 text-xs text-amber-700 dark:text-amber-300">
+          <div className="bg-black text-white border border-zinc-800 rounded-2xl p-3 flex items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2">
-              <Edit3 className="w-4 h-4 text-amber-500 shrink-0" />
-              <span className="font-bold">অ্যাডমিন এডিট মোড: এখানে সরাসরি লেখাগুলো পরিবর্তন করে 'সংরক্ষণ করুন' বাটনে চাপুন।</span>
+              <Edit3 className="w-4 h-4 text-white shrink-0" />
+              <span className="font-bold text-white">অ্যাডমিন এডিট মোড: এখানে সরাসরি লেখাগুলো পরিবর্তন করে 'সংরক্ষণ করুন' বাটনে চাপুন।</span>
             </div>
             {saveSuccessMsg && (
-              <span className="bg-emerald-600 text-white font-bold px-2.5 py-1 rounded-lg text-[11px] animate-fade-in flex items-center gap-1">
-                <CheckCircle className="w-3.5 h-3.5" /> {saveSuccessMsg}
+              <span className="bg-zinc-900 border border-zinc-700 text-white font-bold px-2.5 py-1 rounded-lg text-[11px] animate-fade-in flex items-center gap-1">
+                <CheckCircle className="w-3.5 h-3.5 text-white" /> {saveSuccessMsg}
               </span>
             )}
           </div>
@@ -305,9 +305,9 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
         {/* ========================================================================= */}
         {activeModal === 'about' && (
           <form onSubmit={handleSaveAbout} className="space-y-6">
-            <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div className="w-12 h-12 bg-red-600/10 text-red-600 dark:text-red-500 rounded-2xl flex items-center justify-center shrink-0">
-                <Info className="w-6 h-6" />
+            <div className="flex items-center gap-3 border-b border-slate-200 dark:border-zinc-800 pb-4">
+              <div className="w-12 h-12 bg-black text-white rounded-2xl flex items-center justify-center shrink-0 shadow-sm border border-zinc-800">
+                <Info className="w-6 h-6 text-white" />
               </div>
               <div className="flex-1">
                 {isEditable ? (
@@ -316,7 +316,7 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
                       type="text"
                       value={aboutTitle}
                       onChange={(e) => setAboutTitle(e.target.value)}
-                      className="w-full text-lg font-bold text-slate-900 dark:text-white font-serif bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1"
+                      className="w-full text-lg font-bold text-black dark:text-white font-serif bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-xl px-2.5 py-1"
                       placeholder="About Us শিরোনাম"
                       required
                     />
@@ -324,16 +324,16 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
                       type="text"
                       value={aboutSubtitle}
                       onChange={(e) => setAboutSubtitle(e.target.value)}
-                      className="w-full text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1"
+                      className="w-full text-xs text-black dark:text-zinc-400 bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-xl px-2.5 py-1"
                       placeholder="উপশিরোনাম"
                     />
                   </div>
                 ) : (
                   <>
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white font-serif">
+                    <h2 className="text-xl font-extrabold text-black dark:text-white font-serif">
                       {aboutTitle}
                     </h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                    <p className="text-xs text-black dark:text-zinc-400 font-medium">
                       {aboutSubtitle}
                     </p>
                   </>
@@ -341,21 +341,21 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
               </div>
             </div>
 
-            <div className="space-y-4 text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+            <div className="space-y-4 text-xs sm:text-sm text-black dark:text-zinc-300 leading-relaxed font-medium">
               {isEditable ? (
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                  <label className="block text-[11px] font-bold text-black dark:text-zinc-400 mb-1">
                     মূল সূচনা অনুচ্ছেদ (Introductory Paragraph):
                   </label>
                   <textarea
                     rows={3}
                     value={aboutIntro}
                     onChange={(e) => setAboutIntro(e.target.value)}
-                    className="w-full text-xs sm:text-sm text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-2xl p-3 leading-relaxed"
+                    className="w-full text-xs sm:text-sm text-black dark:text-white bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-2xl p-3 leading-relaxed"
                   />
                 </div>
               ) : (
-                <p className="font-semibold text-slate-900 dark:text-white text-sm">
+                <p className="font-semibold text-black dark:text-white text-sm">
                   {aboutIntro}
                 </p>
               )}
@@ -363,79 +363,79 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
               {/* 3 Visual Highlight Feature Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 my-4">
                 {/* Card 1 */}
-                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 text-center space-y-1">
-                  <Globe className="w-5 h-5 text-red-500 mx-auto" />
+                <div className="p-3.5 bg-black text-white rounded-2xl border border-zinc-800 text-center space-y-1 shadow-sm">
+                  <Globe className="w-5 h-5 text-white mx-auto" />
                   {isEditable ? (
                     <div className="space-y-1">
                       <input
                         type="text"
                         value={card1Title}
                         onChange={(e) => setCard1Title(e.target.value)}
-                        className="w-full text-center font-bold text-xs text-slate-900 dark:text-white bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg p-1"
+                        className="w-full text-center font-bold text-xs text-black dark:text-white bg-white dark:bg-zinc-900 border border-zinc-700 rounded-lg p-1"
                       />
                       <input
                         type="text"
                         value={card1Desc}
                         onChange={(e) => setCard1Desc(e.target.value)}
-                        className="w-full text-center text-[10px] text-slate-500 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg p-1"
+                        className="w-full text-center text-[10px] text-zinc-300 bg-white dark:bg-zinc-900 border border-zinc-700 rounded-lg p-1"
                       />
                     </div>
                   ) : (
                     <>
-                      <h4 className="font-bold text-xs text-slate-900 dark:text-white">{card1Title}</h4>
-                      <p className="text-[10px] text-slate-500">{card1Desc}</p>
+                      <h4 className="font-bold text-xs text-white">{card1Title}</h4>
+                      <p className="text-[10px] text-zinc-300">{card1Desc}</p>
                     </>
                   )}
                 </div>
 
                 {/* Card 2 */}
-                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 text-center space-y-1">
-                  <Award className="w-5 h-5 text-amber-500 mx-auto" />
+                <div className="p-3.5 bg-black text-white rounded-2xl border border-zinc-800 text-center space-y-1 shadow-sm">
+                  <Award className="w-5 h-5 text-white mx-auto" />
                   {isEditable ? (
                     <div className="space-y-1">
                       <input
                         type="text"
                         value={card2Title}
                         onChange={(e) => setCard2Title(e.target.value)}
-                        className="w-full text-center font-bold text-xs text-slate-900 dark:text-white bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg p-1"
+                        className="w-full text-center font-bold text-xs text-black dark:text-white bg-white dark:bg-zinc-900 border border-zinc-700 rounded-lg p-1"
                       />
                       <input
                         type="text"
                         value={card2Desc}
                         onChange={(e) => setCard2Desc(e.target.value)}
-                        className="w-full text-center text-[10px] text-slate-500 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg p-1"
+                        className="w-full text-center text-[10px] text-zinc-300 bg-white dark:bg-zinc-900 border border-zinc-700 rounded-lg p-1"
                       />
                     </div>
                   ) : (
                     <>
-                      <h4 className="font-bold text-xs text-slate-900 dark:text-white">{card2Title}</h4>
-                      <p className="text-[10px] text-slate-500">{card2Desc}</p>
+                      <h4 className="font-bold text-xs text-white">{card2Title}</h4>
+                      <p className="text-[10px] text-zinc-300">{card2Desc}</p>
                     </>
                   )}
                 </div>
 
                 {/* Card 3 */}
-                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 text-center space-y-1">
-                  <Users className="w-5 h-5 text-emerald-500 mx-auto" />
+                <div className="p-3.5 bg-black text-white rounded-2xl border border-zinc-800 text-center space-y-1 shadow-sm">
+                  <Users className="w-5 h-5 text-white mx-auto" />
                   {isEditable ? (
                     <div className="space-y-1">
                       <input
                         type="text"
                         value={card3Title}
                         onChange={(e) => setCard3Title(e.target.value)}
-                        className="w-full text-center font-bold text-xs text-slate-900 dark:text-white bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg p-1"
+                        className="w-full text-center font-bold text-xs text-black dark:text-white bg-white dark:bg-zinc-900 border border-zinc-700 rounded-lg p-1"
                       />
                       <input
                         type="text"
                         value={card3Desc}
                         onChange={(e) => setCard3Desc(e.target.value)}
-                        className="w-full text-center text-[10px] text-slate-500 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg p-1"
+                        className="w-full text-center text-[10px] text-zinc-300 bg-white dark:bg-zinc-900 border border-zinc-700 rounded-lg p-1"
                       />
                     </div>
                   ) : (
                     <>
-                      <h4 className="font-bold text-xs text-slate-900 dark:text-white">{card3Title}</h4>
-                      <p className="text-[10px] text-slate-500">{card3Desc}</p>
+                      <h4 className="font-bold text-xs text-white">{card3Title}</h4>
+                      <p className="text-[10px] text-zinc-300">{card3Desc}</p>
                     </>
                   )}
                 </div>
@@ -449,23 +449,23 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
                       type="text"
                       value={aboutMissionTitle}
                       onChange={(e) => setAboutMissionTitle(e.target.value)}
-                      className="w-full font-bold text-sm text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1"
+                      className="w-full font-bold text-sm text-black dark:text-white bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-xl px-2.5 py-1"
                       placeholder="লক্ষ্য ও উদ্দেশ্য শিরোনাম"
                     />
-                    <label className="block text-[11px] text-slate-400">বুলেট পয়েন্টসমূহ (প্রতি লাইনে একটি):</label>
+                    <label className="block text-[11px] text-zinc-500 font-bold">বুলেট পয়েন্টসমূহ (প্রতি লাইনে একটি):</label>
                     <textarea
                       rows={3}
                       value={aboutMissionPoints.join('\n')}
                       onChange={(e) => setAboutMissionPoints(e.target.value.split('\n'))}
-                      className="w-full text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-2xl p-2.5"
+                      className="w-full text-xs text-black dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-2xl p-2.5"
                     />
                   </div>
                 ) : (
                   <>
-                    <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
-                      <CheckCircle className="w-4 h-4 text-red-500" /> {aboutMissionTitle}
+                    <h3 className="font-bold text-sm text-black dark:text-white flex items-center gap-1.5">
+                      <CheckCircle className="w-4 h-4 text-black dark:text-white" /> {aboutMissionTitle}
                     </h3>
-                    <ul className="list-disc pl-5 space-y-1 text-xs text-slate-600 dark:text-slate-400">
+                    <ul className="list-disc pl-5 space-y-1 text-xs text-black dark:text-zinc-300">
                       {aboutMissionPoints.map((point, idx) => (
                         <li key={idx}>{point}</li>
                       ))}
@@ -475,28 +475,28 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
               </div>
 
               {/* Bottom Copyright and Registration note */}
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 flex justify-between items-center gap-2">
+              <div className="pt-2 border-t border-slate-200 dark:border-zinc-800 text-[11px] text-black dark:text-zinc-400 flex justify-between items-center gap-2 font-medium">
                 {isEditable ? (
                   <div className="w-full grid grid-cols-2 gap-2">
                     <input
                       type="text"
                       value={aboutFooterNotice}
                       onChange={(e) => setAboutFooterNotice(e.target.value)}
-                      className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl p-1 px-2"
+                      className="text-xs bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-xl p-1 px-2 text-black dark:text-white"
                       placeholder="কপিরাইট তথ্য"
                     />
                     <input
                       type="text"
                       value={aboutRegNo}
                       onChange={(e) => setAboutRegNo(e.target.value)}
-                      className="text-xs font-mono bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl p-1 px-2"
+                      className="text-xs font-mono bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-xl p-1 px-2 text-black dark:text-white"
                       placeholder="রেজিস্ট্রেশন নম্বর"
                     />
                   </div>
                 ) : (
                   <>
                     <span>{aboutFooterNotice}</span>
-                    <span className="font-mono">{aboutRegNo}</span>
+                    <span className="font-mono font-bold">{aboutRegNo}</span>
                   </>
                 )}
               </div>
@@ -504,19 +504,19 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
 
             {/* Action Bar for Admin Edit */}
             {isEditable && (
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-zinc-800">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-black dark:text-white hover:underline transition-colors cursor-pointer"
                 >
                   বাতিল
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer"
+                  className="px-6 py-2.5 bg-black hover:bg-zinc-800 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer border border-black"
                 >
-                  <Save className="w-4 h-4" /> পরিবর্তন সংরক্ষণ করুন
+                  <Save className="w-4 h-4 text-white" /> পরিবর্তন সংরক্ষণ করুন
                 </button>
               </div>
             )}
@@ -528,9 +528,9 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
         {/* ========================================================================= */}
         {activeModal === 'privacy' && (
           <form onSubmit={handleSavePrivacy} className="space-y-6">
-            <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div className="w-12 h-12 bg-emerald-600/10 text-emerald-600 dark:text-emerald-500 rounded-2xl flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-6 h-6" />
+            <div className="flex items-center gap-3 border-b border-slate-200 dark:border-zinc-800 pb-4">
+              <div className="w-12 h-12 bg-black text-white rounded-2xl flex items-center justify-center shrink-0 shadow-sm border border-zinc-800">
+                <ShieldCheck className="w-6 h-6 text-white" />
               </div>
               <div className="flex-1">
                 {isEditable ? (
@@ -539,7 +539,7 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
                       type="text"
                       value={privacyTitle}
                       onChange={(e) => setPrivacyTitle(e.target.value)}
-                      className="w-full text-lg font-bold text-slate-900 dark:text-white font-serif bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1"
+                      className="w-full text-lg font-bold text-black dark:text-white font-serif bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-xl px-2.5 py-1"
                       placeholder="Privacy & Policy শিরোনাম"
                       required
                     />
@@ -547,16 +547,16 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
                       type="text"
                       value={privacySubtitle}
                       onChange={(e) => setPrivacySubtitle(e.target.value)}
-                      className="w-full text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1"
+                      className="w-full text-xs text-black dark:text-zinc-400 bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-xl px-2.5 py-1 font-medium"
                       placeholder="উপশিরোনাম"
                     />
                   </div>
                 ) : (
                   <>
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white font-serif">
+                    <h2 className="text-xl font-extrabold text-black dark:text-white font-serif">
                       {privacyTitle}
                     </h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                    <p className="text-xs text-black dark:text-zinc-400 font-medium">
                       {privacySubtitle}
                     </p>
                   </>
@@ -564,32 +564,32 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
               </div>
             </div>
 
-            <div className="space-y-4 text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+            <div className="space-y-4 text-xs sm:text-sm text-black dark:text-zinc-300 leading-relaxed font-medium">
               {/* Highlight Security Notice Box */}
-              <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-200 text-xs space-y-1">
+              <div className="p-3.5 bg-black text-white rounded-2xl border border-zinc-800 text-xs space-y-1 shadow-sm">
                 {isEditable ? (
                   <div className="space-y-1">
                     <input
                       type="text"
                       value={privacySecTitle}
                       onChange={(e) => setPrivacySecTitle(e.target.value)}
-                      className="w-full font-bold text-xs bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 rounded-lg p-1 text-emerald-900 dark:text-emerald-100"
+                      className="w-full font-bold text-xs bg-zinc-900 border border-zinc-700 rounded-lg p-1 text-white"
                       placeholder="সুরক্ষা বার্তা শিরোনাম"
                     />
                     <textarea
                       rows={2}
                       value={privacySecDesc}
                       onChange={(e) => setPrivacySecDesc(e.target.value)}
-                      className="w-full text-xs bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 rounded-lg p-1 text-emerald-900 dark:text-emerald-100"
+                      className="w-full text-xs bg-zinc-900 border border-zinc-700 rounded-lg p-1 text-zinc-300"
                       placeholder="সুরক্ষা বার্তা বিস্তারিত"
                     />
                   </div>
                 ) : (
                   <>
-                    <strong className="block font-bold flex items-center gap-1">
-                      <Lock className="w-4 h-4" /> {privacySecTitle}
+                    <strong className="block font-bold flex items-center gap-1 text-white">
+                      <Lock className="w-4 h-4 text-white" /> {privacySecTitle}
                     </strong>
-                    <span>{privacySecDesc}</span>
+                    <span className="text-zinc-300">{privacySecDesc}</span>
                   </>
                 )}
               </div>
@@ -602,19 +602,19 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
                       type="text"
                       value={sec1Title}
                       onChange={(e) => setSec1Title(e.target.value)}
-                      className="w-full font-bold text-xs text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-1"
+                      className="w-full font-bold text-xs text-black dark:text-white bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-lg p-1"
                     />
                     <textarea
                       rows={2}
                       value={sec1Desc}
                       onChange={(e) => setSec1Desc(e.target.value)}
-                      className="w-full text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2"
+                      className="w-full text-xs text-black dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-lg p-2"
                     />
                   </>
                 ) : (
                   <>
-                    <h4 className="font-bold text-xs text-slate-900 dark:text-white">{sec1Title}</h4>
-                    <p className="text-xs text-slate-600 dark:text-slate-400">{sec1Desc}</p>
+                    <h4 className="font-bold text-xs text-black dark:text-white">{sec1Title}</h4>
+                    <p className="text-xs text-black dark:text-zinc-300">{sec1Desc}</p>
                   </>
                 )}
               </div>
@@ -627,19 +627,19 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
                       type="text"
                       value={sec2Title}
                       onChange={(e) => setSec2Title(e.target.value)}
-                      className="w-full font-bold text-xs text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-1"
+                      className="w-full font-bold text-xs text-black dark:text-white bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-lg p-1"
                     />
                     <textarea
                       rows={2}
                       value={sec2Desc}
                       onChange={(e) => setSec2Desc(e.target.value)}
-                      className="w-full text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2"
+                      className="w-full text-xs text-black dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-lg p-2"
                     />
                   </>
                 ) : (
                   <>
-                    <h4 className="font-bold text-xs text-slate-900 dark:text-white">{sec2Title}</h4>
-                    <p className="text-xs text-slate-600 dark:text-slate-400">{sec2Desc}</p>
+                    <h4 className="font-bold text-xs text-black dark:text-white">{sec2Title}</h4>
+                    <p className="text-xs text-black dark:text-zinc-300">{sec2Desc}</p>
                   </>
                 )}
               </div>
@@ -652,19 +652,19 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
                       type="text"
                       value={sec3Title}
                       onChange={(e) => setSec3Title(e.target.value)}
-                      className="w-full font-bold text-xs text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-1"
+                      className="w-full font-bold text-xs text-black dark:text-white bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-lg p-1"
                     />
                     <textarea
                       rows={2}
                       value={sec3Desc}
                       onChange={(e) => setSec3Desc(e.target.value)}
-                      className="w-full text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2"
+                      className="w-full text-xs text-black dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-lg p-2"
                     />
                   </>
                 ) : (
                   <>
-                    <h4 className="font-bold text-xs text-slate-900 dark:text-white">{sec3Title}</h4>
-                    <p className="text-xs text-slate-600 dark:text-slate-400">{sec3Desc}</p>
+                    <h4 className="font-bold text-xs text-black dark:text-white">{sec3Title}</h4>
+                    <p className="text-xs text-black dark:text-zinc-300">{sec3Desc}</p>
                   </>
                 )}
               </div>
@@ -677,19 +677,19 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
                       type="text"
                       value={sec4Title}
                       onChange={(e) => setSec4Title(e.target.value)}
-                      className="w-full font-bold text-xs text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-1"
+                      className="w-full font-bold text-xs text-black dark:text-white bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-lg p-1"
                     />
                     <textarea
                       rows={2}
                       value={sec4Desc}
                       onChange={(e) => setSec4Desc(e.target.value)}
-                      className="w-full text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2"
+                      className="w-full text-xs text-black dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-lg p-2"
                     />
                   </>
                 ) : (
                   <>
-                    <h4 className="font-bold text-xs text-slate-900 dark:text-white">{sec4Title}</h4>
-                    <p className="text-xs text-slate-600 dark:text-slate-400">{sec4Desc}</p>
+                    <h4 className="font-bold text-xs text-black dark:text-white">{sec4Title}</h4>
+                    <p className="text-xs text-black dark:text-zinc-300">{sec4Desc}</p>
                   </>
                 )}
               </div>
@@ -697,19 +697,19 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
 
             {/* Action Bar for Admin Edit */}
             {isEditable && (
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-zinc-800">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-black dark:text-white hover:underline transition-colors cursor-pointer"
                 >
                   বাতিল
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer"
+                  className="px-6 py-2.5 bg-black hover:bg-zinc-800 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer border border-black"
                 >
-                  <Save className="w-4 h-4" /> পলিসি সংরক্ষণ করুন
+                  <Save className="w-4 h-4 text-white" /> পলিসি সংরক্ষণ করুন
                 </button>
               </div>
             )}
@@ -721,9 +721,9 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
         {/* ========================================================================= */}
         {activeModal === 'contact' && (
           <form onSubmit={handleSaveContact} className="space-y-6">
-            <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div className="w-12 h-12 bg-amber-600/10 text-amber-600 dark:text-amber-500 rounded-2xl flex items-center justify-center shrink-0">
-                <PhoneCall className="w-6 h-6" />
+            <div className="flex items-center gap-3 border-b border-slate-200 dark:border-zinc-800 pb-4">
+              <div className="w-12 h-12 bg-black text-white rounded-2xl flex items-center justify-center shrink-0 shadow-sm border border-zinc-800">
+                <PhoneCall className="w-6 h-6 text-white" />
               </div>
               <div className="flex-1">
                 {isEditable ? (
@@ -732,7 +732,7 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
                       type="text"
                       value={contactTitle}
                       onChange={(e) => setContactTitle(e.target.value)}
-                      className="w-full text-lg font-bold text-slate-900 dark:text-white font-serif bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1"
+                      className="w-full text-lg font-bold text-black dark:text-white font-serif bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-xl px-2.5 py-1"
                       placeholder="Contact শিরোনাম"
                       required
                     />
@@ -740,16 +740,16 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
                       type="text"
                       value={contactSubtitle}
                       onChange={(e) => setContactSubtitle(e.target.value)}
-                      className="w-full text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1"
+                      className="w-full text-xs text-black dark:text-zinc-400 bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-xl px-2.5 py-1 font-medium"
                       placeholder="উপশিরোনাম"
                     />
                   </div>
                 ) : (
                   <>
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white font-serif">
+                    <h2 className="text-xl font-extrabold text-black dark:text-white font-serif">
                       {contactTitle}
                     </h2>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-black dark:text-zinc-400 font-medium">
                       {contactSubtitle}
                     </p>
                   </>
@@ -759,12 +759,12 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
 
             {/* If reader form submitted */}
             {contactSubmitted ? (
-              <div className="p-6 bg-emerald-50 dark:bg-emerald-950/60 rounded-2xl text-center space-y-2 border border-emerald-200 dark:border-emerald-900">
-                <CheckCircle className="w-10 h-10 text-emerald-500 mx-auto animate-bounce" />
-                <h3 className="text-base font-bold text-emerald-800 dark:text-emerald-200">
+              <div className="p-6 bg-black text-white rounded-2xl text-center space-y-2 border border-zinc-800 shadow-sm">
+                <CheckCircle className="w-10 h-10 text-white mx-auto" />
+                <h3 className="text-base font-bold text-white">
                   ধন্যবাদ! আপনার বার্তাটি আমাদের কাছে পৌঁছেছে।
                 </h3>
-                <p className="text-xs text-emerald-600 dark:text-emerald-300">
+                <p className="text-xs text-zinc-300">
                   আমাদের বার্তা প্রতিনিধি দ্রুত আপনার সাথে ইমেইলে যোগাযোগ করবে।
                 </p>
               </div>
@@ -772,115 +772,115 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Contact Details Card */}
                 <div className="space-y-4">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">অফিসিয়াল ঠিকানা ও তথ্য</h3>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-black dark:text-white">অফিসিয়াল ঠিকানা ও তথ্য</h3>
 
                   <div className="space-y-3 text-xs">
                     {/* Head Office Address */}
-                    <div className="flex items-start gap-2.5 text-slate-700 dark:text-slate-300">
-                      <MapPin className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                    <div className="flex items-start gap-2.5 text-black dark:text-zinc-300">
+                      <MapPin className="w-4 h-4 text-black dark:text-white shrink-0 mt-0.5" />
                       <div className="flex-1">
-                        <strong className="block font-bold text-slate-900 dark:text-white">হেড অফিস:</strong>
+                        <strong className="block font-bold text-black dark:text-white">হেড অফিস:</strong>
                         {isEditable ? (
                           <textarea
                             rows={2}
                             value={headOfficeAddress}
                             onChange={(e) => setHeadOfficeAddress(e.target.value)}
-                            className="w-full text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-1.5 mt-1"
+                            className="w-full text-xs bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-lg p-1.5 mt-1 text-black dark:text-white"
                           />
                         ) : (
-                          <span>{headOfficeAddress}</span>
+                          <span className="font-medium">{headOfficeAddress}</span>
                         )}
                       </div>
                     </div>
 
                     {/* Helpline Phone */}
-                    <div className="flex items-start gap-2.5 text-slate-700 dark:text-slate-300">
-                      <PhoneCall className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                    <div className="flex items-start gap-2.5 text-black dark:text-zinc-300">
+                      <PhoneCall className="w-4 h-4 text-black dark:text-white shrink-0 mt-0.5" />
                       <div className="flex-1">
-                        <strong className="block font-bold text-slate-900 dark:text-white">হেল্পলাইন / হটলাইন:</strong>
+                        <strong className="block font-bold text-black dark:text-white">হেল্পলাইন / হটলাইন:</strong>
                         {isEditable ? (
                           <input
                             type="text"
                             value={phoneNumbers}
                             onChange={(e) => setPhoneNumbers(e.target.value)}
-                            className="w-full text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-1.5 mt-1"
+                            className="w-full text-xs bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-lg p-1.5 mt-1 text-black dark:text-white"
                           />
                         ) : (
-                          <span>{phoneNumbers}</span>
+                          <span className="font-medium">{phoneNumbers}</span>
                         )}
                       </div>
                     </div>
 
                     {/* Email */}
-                    <div className="flex items-start gap-2.5 text-slate-700 dark:text-slate-300">
-                      <Mail className="w-4 h-4 text-purple-500 shrink-0 mt-0.5" />
+                    <div className="flex items-start gap-2.5 text-black dark:text-zinc-300">
+                      <Mail className="w-4 h-4 text-black dark:text-white shrink-0 mt-0.5" />
                       <div className="flex-1">
-                        <strong className="block font-bold text-slate-900 dark:text-white">ইমেইল এড্রেস:</strong>
+                        <strong className="block font-bold text-black dark:text-white">ইমেইল এড্রেস:</strong>
                         {isEditable ? (
                           <input
                             type="email"
                             value={officialEmail}
                             onChange={(e) => setOfficialEmail(e.target.value)}
-                            className="w-full text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-1.5 mt-1"
+                            className="w-full text-xs bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-lg p-1.5 mt-1 text-black dark:text-white"
                           />
                         ) : (
-                          <span>{officialEmail}</span>
+                          <span className="font-medium">{officialEmail}</span>
                         )}
                       </div>
                     </div>
                   </div>
 
                   {/* Social Buttons */}
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                    <span className="text-[11px] font-bold text-slate-400">সোশ্যাল মিডিয়া পেজ লিংক:</span>
+                  <div className="pt-2 border-t border-slate-200 dark:border-zinc-800 space-y-2">
+                    <span className="text-[11px] font-bold text-black dark:text-white">সোশ্যাল মিডিয়া পেজ লিংক:</span>
                     {isEditable ? (
                       <div className="space-y-1.5 text-xs">
                         <div className="flex items-center gap-1.5">
-                          <Facebook className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <Facebook className="w-3.5 h-3.5 text-black dark:text-white shrink-0" />
                           <input
                             type="text"
                             value={facebookUrl}
                             onChange={(e) => setFacebookUrl(e.target.value)}
                             placeholder="Facebook URL"
-                            className="w-full text-[11px] bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-1"
+                            className="w-full text-[11px] bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-lg p-1 text-black dark:text-white"
                           />
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <Instagram className="w-3.5 h-3.5 text-pink-600 shrink-0" />
+                          <Instagram className="w-3.5 h-3.5 text-black dark:text-white shrink-0" />
                           <input
                             type="text"
                             value={instagramUrl}
                             onChange={(e) => setInstagramUrl(e.target.value)}
                             placeholder="Instagram URL"
-                            className="w-full text-[11px] bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-1"
+                            className="w-full text-[11px] bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-lg p-1 text-black dark:text-white"
                           />
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <Youtube className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                          <Youtube className="w-3.5 h-3.5 text-black dark:text-white shrink-0" />
                           <input
                             type="text"
                             value={youtubeUrl}
                             onChange={(e) => setYoutubeUrl(e.target.value)}
                             placeholder="YouTube URL"
-                            className="w-full text-[11px] bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-1"
+                            className="w-full text-[11px] bg-white dark:bg-zinc-900 border border-black dark:border-zinc-700 rounded-lg p-1 text-black dark:text-white"
                           />
                         </div>
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
                         {facebookUrl && (
-                          <a href={facebookUrl} target="_blank" rel="noreferrer" className="p-2 rounded-xl bg-blue-600/10 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors cursor-pointer">
-                            <Facebook className="w-4 h-4" />
+                          <a href={facebookUrl} target="_blank" rel="noreferrer" className="p-2 rounded-xl bg-black text-white hover:bg-zinc-800 transition-colors cursor-pointer border border-zinc-800 shadow-sm" aria-label="Facebook">
+                            <Facebook className="w-4 h-4 text-white" />
                           </a>
                         )}
                         {instagramUrl && (
-                          <a href={instagramUrl} target="_blank" rel="noreferrer" className="p-2 rounded-xl bg-pink-600/10 text-pink-600 hover:bg-pink-600 hover:text-white transition-colors cursor-pointer">
-                            <Instagram className="w-4 h-4" />
+                          <a href={instagramUrl} target="_blank" rel="noreferrer" className="p-2 rounded-xl bg-black text-white hover:bg-zinc-800 transition-colors cursor-pointer border border-zinc-800 shadow-sm" aria-label="Instagram">
+                            <Instagram className="w-4 h-4 text-white" />
                           </a>
                         )}
                         {youtubeUrl && (
-                          <a href={youtubeUrl} target="_blank" rel="noreferrer" className="p-2 rounded-xl bg-red-600/10 text-red-600 hover:bg-red-600 hover:text-white transition-colors cursor-pointer">
-                            <Youtube className="w-4 h-4" />
+                          <a href={youtubeUrl} target="_blank" rel="noreferrer" className="p-2 rounded-xl bg-black text-white hover:bg-zinc-800 transition-colors cursor-pointer border border-zinc-800 shadow-sm" aria-label="YouTube">
+                            <Youtube className="w-4 h-4 text-white" />
                           </a>
                         )}
                       </div>
@@ -889,57 +889,57 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
                 </div>
 
                 {/* Right Side: Reader message form (disabled in Admin edit mode) */}
-                <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+                <div className="bg-black text-white p-4 rounded-2xl border border-zinc-800 space-y-3 shadow-sm">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-white">
                     সরাসরি বার্তা পাঠান
                   </h3>
 
                   <div className="space-y-2 text-xs">
                     <div>
-                      <label className="block text-slate-500 mb-0.5">আপনার পুরো নাম *</label>
+                      <label className="block text-zinc-300 font-bold mb-0.5">আপনার পুরো নাম *</label>
                       <input
                         type="text"
                         disabled={isEditable}
                         value={contactName}
                         onChange={(e) => setContactName(e.target.value)}
                         placeholder="উদা: মোঃ আরিফুল ইসলাম"
-                        className="w-full p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs"
+                        className="w-full p-2 rounded-xl bg-zinc-900 border border-zinc-700 text-white placeholder:text-zinc-500 text-xs focus:border-white focus:outline-none"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-slate-500 mb-0.5">ইমেইল ঠিকানা *</label>
+                      <label className="block text-zinc-300 font-bold mb-0.5">ইমেইল ঠিকানা *</label>
                       <input
                         type="email"
                         disabled={isEditable}
                         value={contactEmail}
                         onChange={(e) => setContactEmail(e.target.value)}
                         placeholder="name@example.com"
-                        className="w-full p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs"
+                        className="w-full p-2 rounded-xl bg-zinc-900 border border-zinc-700 text-white placeholder:text-zinc-500 text-xs focus:border-white focus:outline-none"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-slate-500 mb-0.5">বার্তার বিষয়</label>
+                      <label className="block text-zinc-300 font-bold mb-0.5">বার্তার বিষয়</label>
                       <input
                         type="text"
                         disabled={isEditable}
                         value={contactSubject}
                         onChange={(e) => setContactSubject(e.target.value)}
                         placeholder="সংবাদ / বিজ্ঞাপন / মতামত"
-                        className="w-full p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs"
+                        className="w-full p-2 rounded-xl bg-zinc-900 border border-zinc-700 text-white placeholder:text-zinc-500 text-xs focus:border-white focus:outline-none"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-slate-500 mb-0.5">বিস্তারিত বার্তা *</label>
+                      <label className="block text-zinc-300 font-bold mb-0.5">বিস্তারিত বার্তা *</label>
                       <textarea
                         rows={3}
                         disabled={isEditable}
                         value={contactMessage}
                         onChange={(e) => setContactMessage(e.target.value)}
                         placeholder="আপনার বক্তব্য লিখুন..."
-                        className="w-full p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs"
+                        className="w-full p-2 rounded-xl bg-zinc-900 border border-zinc-700 text-white placeholder:text-zinc-500 text-xs focus:border-white focus:outline-none"
                       />
                     </div>
 
@@ -947,9 +947,9 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
                       <button
                         type="button"
                         onClick={handleContactSubmit}
-                        className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-all shadow-md text-xs cursor-pointer flex items-center justify-center gap-1.5"
+                        className="w-full py-2.5 bg-white hover:bg-zinc-200 text-black font-extrabold rounded-xl transition-all shadow-md text-xs cursor-pointer flex items-center justify-center gap-1.5 border border-white"
                       >
-                        <PhoneCall className="w-3.5 h-3.5" /> বার্তা পাঠান
+                        <PhoneCall className="w-3.5 h-3.5 text-black" /> বার্তা পাঠান
                       </button>
                     )}
                   </div>
@@ -959,19 +959,19 @@ export const InfoModals: React.FC<InfoModalsProps> = ({
 
             {/* Action Bar for Admin Edit */}
             {isEditable && (
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-zinc-800">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-black dark:text-white hover:underline transition-colors cursor-pointer"
                 >
                   বাতিল
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer"
+                  className="px-6 py-2.5 bg-black hover:bg-zinc-800 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer border border-black"
                 >
-                  <Save className="w-4 h-4" /> যোগাযোগ তথ্য সংরক্ষণ করুন
+                  <Save className="w-4 h-4 text-white" /> যোগাযোগ তথ্য সংরক্ষণ করুন
                 </button>
               </div>
             )}

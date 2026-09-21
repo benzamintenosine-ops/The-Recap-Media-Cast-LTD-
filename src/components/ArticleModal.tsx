@@ -100,6 +100,31 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
   const reporterAvatar = article.authorAvatar || matchedWriter?.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanReporterName)}`;
   const formattedAuthor = formatReporterName(cleanReporterName, reporterDistrict);
 
+  // Lock body scroll and handle Escape key while reading
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
+
+  // Reset scroll to top when article changes
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [article.id]);
+
   // 1. Page Visibility API & Active Time Counter (Must be on active tab for >= 15s)
   useEffect(() => {
     activeSecondsRef.current = 0;
@@ -116,7 +141,9 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
         intervalId = setInterval(() => {
           if (document.visibilityState === 'visible') {
             activeSecondsRef.current += 1;
-            setActiveSeconds(activeSecondsRef.current);
+            if (!hasTriggeredViewRef.current) {
+              setActiveSeconds(activeSecondsRef.current);
+            }
             checkAndTriggerValidView();
           }
         }, 1000);
@@ -147,7 +174,9 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
     };
   }, [article.id]);
 
-  // 2. Scroll Depth Tracker (Must scroll >= 30% of content)
+  // Throttled Scroll Depth Tracker (Must scroll >= 30% of content)
+  const scrollRafIdRef = useRef<number | null>(null);
+
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
     const scrollTop = target.scrollTop;
@@ -156,8 +185,14 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
       const percentage = Math.min(100, Math.round((scrollTop / scrollHeight) * 100));
       if (percentage > maxScrollDepthRef.current) {
         maxScrollDepthRef.current = percentage;
-        setScrollDepth(percentage);
         checkAndTriggerValidView();
+
+        if (!hasTriggeredViewRef.current && !scrollRafIdRef.current) {
+          scrollRafIdRef.current = window.requestAnimationFrame(() => {
+            setScrollDepth(maxScrollDepthRef.current);
+            scrollRafIdRef.current = null;
+          });
+        }
       }
     }
   };
@@ -235,34 +270,43 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/85 dark:bg-[#050505]/95 backdrop-blur-md p-2 sm:p-4 md:p-6 flex justify-center items-start pt-6 sm:pt-10">
-      <div className="relative w-full max-w-4xl bg-white dark:bg-[#0a0a0a] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden flex flex-col my-auto transition-colors">
+    <div 
+      ref={scrollContainerRef}
+      onScroll={handleScroll}
+      onClick={onClose}
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/80 dark:bg-black/90 backdrop-blur-sm p-2 sm:p-4 md:p-6 flex justify-center items-start pt-3 sm:pt-6"
+      style={{ WebkitOverflowScrolling: 'touch' }}
+    >
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-4xl bg-white dark:bg-[#0a0a0a] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 flex flex-col mb-16 transition-colors"
+      >
         
         {/* Top Header Actions */}
-        <div className="sticky top-0 z-10 bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur border-b border-slate-200 dark:border-white/10 px-6 py-4 flex items-center justify-between">
+        <div className="sticky top-0 z-10 bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur border-b border-slate-200 dark:border-white/10 px-5 sm:px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="px-3 py-1 bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300 rounded text-xs font-bold border border-red-200 dark:border-red-600/30 uppercase tracking-widest">
+            <span className="px-3 py-1 bg-black text-white rounded text-xs font-bold uppercase tracking-widest border border-white/20 shadow-xs">
               {article.category}
             </span>
             {article.isAiGenerated && (
-              <span className="px-2.5 py-0.5 bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 rounded text-xs font-semibold flex items-center gap-1 border border-purple-500/30">
-                <Sparkles className="w-3 h-3" /> {t('aiGenerated')}
+              <span className="px-2.5 py-0.5 bg-black text-white rounded text-xs font-semibold flex items-center gap-1 border border-white/20">
+                <Sparkles className="w-3 h-3 text-white" /> {t('aiGenerated')}
               </span>
             )}
           </div>
 
           <div className="flex items-center gap-2">
             {/* Language Toggle in Modal */}
-            <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 text-xs font-medium border border-slate-200 dark:border-slate-700">
+            <div className="flex bg-black text-white rounded-lg p-0.5 text-xs font-medium border border-zinc-800">
               <button
                 onClick={() => setArtLang('bn')}
-                className={`px-2 py-0.5 rounded ${artLang === 'bn' ? 'bg-red-600 text-white font-bold' : 'text-slate-600 dark:text-slate-400'}`}
+                className={`px-2 py-0.5 rounded cursor-pointer ${artLang === 'bn' ? 'bg-white text-black font-bold' : 'text-zinc-400 hover:text-white'}`}
               >
                 বাংলা
               </button>
               <button
                 onClick={() => setArtLang('en')}
-                className={`px-2 py-0.5 rounded ${artLang === 'en' ? 'bg-red-600 text-white font-bold' : 'text-slate-600 dark:text-slate-400'}`}
+                className={`px-2 py-0.5 rounded cursor-pointer ${artLang === 'en' ? 'bg-white text-black font-bold' : 'text-zinc-400 hover:text-white'}`}
               >
                 EN
               </button>
@@ -271,10 +315,10 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
             {/* Offline Save */}
             <button
               onClick={() => onToggleOffline(article)}
-              className={`p-2 rounded-full border transition-all ${
+              className={`p-2 rounded-full border transition-all cursor-pointer ${
                 isOfflineSaved
-                  ? 'bg-amber-500 text-white border-amber-600 shadow'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200'
+                  ? 'bg-black text-white border-zinc-700 shadow'
+                  : 'bg-black text-white border-zinc-800 hover:bg-zinc-800'
               }`}
               title={isOfflineSaved ? t('savedOffline') : t('saveForOffline')}
             >
@@ -284,10 +328,10 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
             {/* Bookmark */}
             <button
               onClick={() => onToggleBookmark(article.id)}
-              className={`p-2 rounded-full border transition-all ${
+              className={`p-2 rounded-full border transition-all cursor-pointer ${
                 isBookmarked
-                  ? 'bg-red-600 text-white border-red-700 shadow'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200'
+                  ? 'bg-black text-white border-zinc-700 shadow'
+                  : 'bg-black text-white border-zinc-800 hover:bg-zinc-800'
               }`}
               title={isBookmarked ? t('bookmarked') : t('addBookmark')}
             >
@@ -297,68 +341,66 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
             {/* Close Button */}
             <button
               onClick={onClose}
-              className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors ml-2"
+              className="p-2 rounded-full bg-black text-white hover:bg-zinc-800 transition-colors ml-2 cursor-pointer border border-zinc-800"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Article Scroll Body with onScroll Anti-Fraud listener */}
+        {/* Article Scroll Body - Smooth natural scrolling without trapping or nested scrollbars */}
         <div 
-          ref={scrollContainerRef}
-          onScroll={handleScroll}
-          className="p-6 sm:p-8 space-y-6 overflow-y-auto max-h-[80vh]"
+          className="p-5 sm:p-7 space-y-5 bg-white dark:bg-[#0a0a0a]"
         >
           {/* Article Title */}
-          <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white leading-tight">
+          <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl font-extrabold text-black dark:text-white leading-tight">
             {title}
           </h1>
 
           {/* Subtitle / Summary */}
           {summary && (
-            <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 font-medium leading-relaxed border-l-4 border-red-600 pl-4 py-1 bg-red-50/50 dark:bg-red-950/20 rounded-r-xl">
+            <p className="text-base sm:text-lg text-black dark:text-zinc-200 font-medium leading-relaxed border-l-4 border-black dark:border-white pl-4 py-1.5 bg-slate-50 dark:bg-zinc-900 rounded-r-xl">
               {summary}
             </p>
           )}
 
           {/* Metadata Bar with Anti-Fraud Validation Status */}
-          <div className="flex flex-wrap items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400 py-3 border-y border-slate-100 dark:border-slate-800">
+          <div className="flex flex-wrap items-center justify-between gap-4 text-xs text-black dark:text-zinc-400 py-3 border-y border-slate-200 dark:border-zinc-800 font-medium">
             <div className="flex flex-wrap items-center gap-4">
               {/* Reporter Profile Click Button */}
               <button
                 type="button"
                 onClick={() => setShowReporterModal(true)}
-                className="flex items-center gap-2 group text-left hover:opacity-90 transition-opacity cursor-pointer bg-slate-50 dark:bg-slate-800/80 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700"
+                className="flex items-center gap-2 group text-left hover:opacity-90 transition-opacity cursor-pointer bg-black text-white px-3 py-1.5 rounded-xl border border-zinc-800"
                 title="প্রতিবেদকের প্রোফাইল দেখতে ক্লিক করুন"
               >
                 <img
                   src={reporterAvatar}
                   alt={cleanReporterName}
-                  className="w-5 h-5 rounded-full object-cover border border-red-500 shrink-0 group-hover:scale-105 transition-transform"
+                  className="w-5 h-5 rounded-full object-cover border border-white shrink-0 group-hover:scale-105 transition-transform"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanReporterName)}`;
                   }}
                 />
-                <span className="font-bold text-slate-900 dark:text-white group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                <span className="font-bold text-white group-hover:text-zinc-200 transition-colors">
                   {formattedAuthor}
                 </span>
-                <ExternalLink className="w-3 h-3 text-slate-400 group-hover:text-red-500" />
+                <ExternalLink className="w-3 h-3 text-zinc-300 group-hover:text-white" />
               </button>
 
               {article.source && (
-                <span className="flex items-center gap-1 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 rounded-lg text-xs font-medium border border-blue-200 dark:border-blue-800/60 shadow-xs">
-                  <Globe className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span className="flex items-center gap-1 px-2.5 py-1 bg-black text-white rounded-lg text-xs font-medium border border-zinc-800 shadow-xs">
+                  <Globe className="w-3.5 h-3.5 text-white" />
                   <span>তথ্যসূত্র: <strong>{article.source}</strong></span>
                 </span>
               )}
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1 text-black dark:text-zinc-300 font-semibold">
                 <Calendar className="w-3.5 h-3.5" />
                 {new Date(article.publishedAt).toLocaleDateString(artLang === 'bn' ? 'bn-BD' : 'en-US', {
                   dateStyle: 'medium'
                 })}
               </span>
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1 text-black dark:text-zinc-300 font-semibold">
                 <Clock className="w-3.5 h-3.5" />
                 {article.readTimeMinutes} {t('readTime')}
               </span>
@@ -366,23 +408,23 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
 
             <div className="flex items-center gap-3">
               {/* Anti-Fraud View Status */}
-              <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${
+              <span className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full ${
                 viewCounted 
-                  ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800' 
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                  ? 'bg-black text-white border border-zinc-700' 
+                  : 'bg-black text-white border border-zinc-800'
               }`}>
-                <ShieldCheck className="w-3 h-3" />
+                <ShieldCheck className="w-3 h-3 text-white" />
                 {viewCounted ? 'যাচাইকৃত ভিউ' : `${activeSeconds}s • ${scrollDepth}%`}
               </span>
 
-              <span className="font-semibold text-red-600 dark:text-red-400">
+              <span className="font-extrabold text-black dark:text-white font-mono">
                 {article.viewsCount} {t('views')}
               </span>
             </div>
           </div>
 
           {/* Featured Image */}
-          <div className="relative rounded-2xl overflow-hidden shadow-lg border border-slate-200 dark:border-slate-800">
+          <div className="relative rounded-2xl overflow-hidden shadow-md border border-slate-200 dark:border-zinc-800">
             <img
               src={article.imageUrl}
               alt={title}
@@ -395,42 +437,42 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
           <AdPanel placement="in_article" siteSettings={siteSettings} />
 
           {/* Social Share Bar */}
-          <div className="bg-slate-50 dark:bg-slate-800/70 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3 border border-slate-200 dark:border-slate-700">
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-              <Share2 className="w-4 h-4 text-red-600" />
+          <div className="bg-black text-white p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3 border border-zinc-800">
+            <span className="text-xs font-bold text-white flex items-center gap-1.5">
+              <Share2 className="w-4 h-4 text-white" />
               {t('share')}:
             </span>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handleShareSocial('facebook')}
-                className="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1"
+                className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold transition-colors flex items-center gap-1 border border-zinc-700 cursor-pointer"
               >
                 <Facebook className="w-3.5 h-3.5" /> Facebook
               </button>
               <button
                 onClick={() => handleShareSocial('twitter')}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 dark:bg-slate-700 text-white text-xs font-semibold hover:bg-black transition-colors flex items-center gap-1"
+                className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold transition-colors flex items-center gap-1 border border-zinc-700 cursor-pointer"
               >
                 <Twitter className="w-3.5 h-3.5" /> X
               </button>
               <button
                 onClick={() => handleShareSocial('whatsapp')}
-                className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors"
+                className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold transition-colors border border-zinc-700 cursor-pointer"
               >
                 WhatsApp
               </button>
               <button
                 onClick={handleCopyLink}
-                className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white text-xs font-semibold hover:bg-slate-300 transition-colors flex items-center gap-1"
+                className="px-3 py-1.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
               >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? <Check className="w-3.5 h-3.5 text-black" /> : <Copy className="w-3.5 h-3.5 text-black" />}
                 {copied ? t('linkCopied') : t('copyLink')}
               </button>
             </div>
           </div>
 
           {/* Article Main Formatted Content */}
-          <div className="prose dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 leading-relaxed font-sans text-base sm:text-lg">
+          <div className="prose dark:prose-invert max-w-none text-black dark:text-zinc-200 leading-relaxed font-sans text-base sm:text-lg">
             {renderFormattedContent(content)}
           </div>
 
@@ -438,25 +480,25 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
           <div className="pt-5 mt-4 border-t border-slate-200 dark:border-slate-800">
             <div 
               onClick={() => setShowReporterModal(true)}
-              className="flex items-center justify-between flex-wrap gap-3 p-4 bg-slate-50 dark:bg-[#121212] hover:bg-red-50/40 dark:hover:bg-red-950/20 rounded-2xl border border-slate-200 dark:border-white/10 hover:border-red-300 dark:hover:border-red-900 shadow-xs cursor-pointer transition-all group"
+              className="flex items-center justify-between flex-wrap gap-3 p-4 bg-black text-white hover:bg-zinc-900 rounded-2xl border border-zinc-800 shadow-sm cursor-pointer transition-all group"
             >
               <div className="flex items-center gap-3.5">
                 <div className="relative">
                   <img
                     src={reporterAvatar}
                     alt={cleanReporterName}
-                    className="w-12 h-12 rounded-2xl object-cover border-2 border-red-500 shadow-sm shrink-0 group-hover:scale-105 transition-transform"
+                    className="w-12 h-12 rounded-2xl object-cover border-2 border-white shadow-xs shrink-0 group-hover:scale-105 transition-transform"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanReporterName)}`;
                     }}
                   />
-                  <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900" />
+                  <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-black" />
                 </div>
                 <div>
-                  <span className="text-[11px] font-bold text-red-600 dark:text-red-400 block uppercase tracking-wider">
+                  <span className="text-[11px] font-bold text-zinc-300 block uppercase tracking-wider">
                     সংবাদ প্রতিবেদক • প্রোফাইল দেখতে ক্লিক করুন
                   </span>
-                  <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2 font-serif group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                  <h4 className="text-base font-bold text-white flex items-center gap-2 font-serif group-hover:text-zinc-200 transition-colors">
                     {formattedAuthor}
                   </h4>
                 </div>
@@ -464,11 +506,11 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
 
               <div className="flex items-center gap-2">
                 {article.source && (
-                  <span className="text-xs text-slate-600 dark:text-slate-400 bg-white dark:bg-white/5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 shadow-xs">
-                    তথ্যসূত্র: <strong className="text-slate-800 dark:text-slate-200">{article.source}</strong>
+                  <span className="text-xs text-zinc-300 bg-zinc-900 px-3 py-1.5 rounded-xl border border-zinc-700 shadow-xs">
+                    তথ্যসূত্র: <strong className="text-white">{article.source}</strong>
                   </span>
                 )}
-                <div className="flex items-center gap-1 text-xs font-bold text-red-600 dark:text-red-400 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-red-200 dark:border-red-900 shadow-xs group-hover:bg-red-600 group-hover:text-white transition-all">
+                <div className="flex items-center gap-1 text-xs font-bold text-black bg-white hover:bg-zinc-200 px-3 py-1.5 rounded-xl shadow-xs transition-all">
                   <span>প্রোফাইল দেখুন</span>
                   <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                 </div>
@@ -478,12 +520,12 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
 
           {/* Tags List */}
           {article.tags && article.tags.length > 0 && (
-            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-2">
-              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">ট্যাগসমূহ:</span>
+            <div className="pt-4 border-t border-slate-200 dark:border-zinc-800 flex flex-wrap items-center gap-2">
+              <span className="text-xs font-extrabold text-black dark:text-white">ট্যাগসমূহ:</span>
               {article.tags.map((tag, idx) => (
                 <span
                   key={`modal-tag-${tag}-${idx}`}
-                  className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium hover:bg-red-50 dark:hover:bg-red-950/60 hover:text-red-600 transition-colors cursor-pointer"
+                  className="px-3 py-1 rounded-full bg-black text-white text-xs font-bold hover:bg-zinc-800 transition-colors cursor-pointer border border-zinc-800"
                 >
                   #{tag}
                 </span>
@@ -492,32 +534,32 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
           )}
 
           {/* Comments Section */}
-          <div className="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-6">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-red-600" />
+          <div className="pt-6 border-t border-slate-200 dark:border-zinc-800 space-y-6">
+            <h3 className="text-lg font-extrabold text-black dark:text-white flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-black dark:text-white" />
               {t('comments')} ({article.comments.length})
             </h3>
 
-            {/* Write Comment Form (Restricted to Regular Readers) */}
+            {/* Write Comment Form */}
             {user ? (
-              <form onSubmit={handleSubmitComment} className="space-y-3 bg-slate-50 dark:bg-slate-850 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
-                <div className="flex items-center justify-between gap-2 pb-1 border-b border-slate-200 dark:border-slate-800">
+              <form onSubmit={handleSubmitComment} className="space-y-3 bg-black text-white p-4 rounded-2xl border border-zinc-800">
+                <div className="flex items-center justify-between gap-2 pb-1 border-b border-zinc-800">
                   <div className="flex items-center gap-2">
                     {user.avatar ? (
                       <img src={user.avatar} alt={user.name} className="w-6 h-6 rounded-full object-cover" />
                     ) : (
-                      <div className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-[10px] font-bold">
+                      <div className="w-6 h-6 rounded-full bg-white text-black flex items-center justify-center text-[10px] font-bold">
                         {user.name.charAt(0)}
                       </div>
                     )}
-                    <span className="text-xs font-bold text-slate-900 dark:text-white">
+                    <span className="text-xs font-bold text-white">
                       {user.name}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold">
+                    <span className="px-2 py-0.5 rounded-full bg-zinc-800 text-white text-[10px] font-bold border border-zinc-700">
                       নিয়মিত পাঠক
                     </span>
                   </div>
-                  <span className="text-[11px] text-slate-400">আপনার মতামত লিখুন</span>
+                  <span className="text-[11px] text-zinc-400">আপনার মতামত লিখুন</span>
                 </div>
 
                 <textarea
@@ -525,33 +567,33 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
                   onChange={(e) => setCommentText(e.target.value)}
                   placeholder={t('leaveComment')}
                   rows={3}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-700 bg-zinc-900 text-white focus:ring-2 focus:ring-white outline-none"
                 />
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-red-600 text-white font-semibold text-xs rounded-xl hover:bg-red-700 transition-colors flex items-center gap-1.5 ml-auto shadow cursor-pointer"
+                  className="px-4 py-2 bg-white text-black hover:bg-zinc-200 font-extrabold text-xs rounded-xl transition-colors flex items-center gap-1.5 ml-auto shadow cursor-pointer"
                 >
                   <Send className="w-3.5 h-3.5" />
                   {t('submitComment')}
                 </button>
               </form>
             ) : (
-              <div className="p-5 bg-gradient-to-r from-red-50 via-slate-50 to-amber-50 dark:from-red-950/30 dark:via-slate-900/50 dark:to-amber-950/20 rounded-2xl border border-red-200 dark:border-red-900/50 text-center space-y-3 shadow-xs">
-                <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-300 flex items-center justify-center mx-auto shadow-xs">
+              <div className="p-5 bg-black text-white rounded-2xl border border-zinc-800 text-center space-y-3 shadow-xs">
+                <div className="w-10 h-10 rounded-full bg-zinc-900 border border-zinc-700 text-white flex items-center justify-center mx-auto shadow-xs">
                   <Lock className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                  <h4 className="text-sm font-bold text-white">
                     সংবাদে মন্তব্য করতে নিয়মিত পাঠক হওয়া আবশ্যক
                   </h4>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 max-w-md mx-auto mt-1 leading-relaxed">
+                  <p className="text-xs text-zinc-300 max-w-md mx-auto mt-1 leading-relaxed">
                     নিয়মিত পাঠক ছাড়া কেউ মন্তব্য করতে পারবেন না। আপনার মূল্যবান মতামত জানাতে নিয়মিত পাঠক হিসেবে সাইন-ইন বা নতুন অ্যাকাউন্ট তৈরি করুন।
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={onRequireLogin}
-                  className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-md shadow-red-600/20 transition-all inline-flex items-center gap-2 cursor-pointer hover:scale-105 active:scale-95"
+                  className="px-5 py-2.5 bg-white text-black hover:bg-zinc-200 font-extrabold text-xs rounded-xl shadow-sm transition-all inline-flex items-center gap-2 cursor-pointer"
                 >
                   <User className="w-4 h-4" />
                   <span>নিয়মিত পাঠক হিসেবে Sign Up / Sign In করুন</span>
@@ -562,20 +604,20 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
             {/* Comments List */}
             <div className="space-y-3">
               {article.comments.length === 0 ? (
-                <p className="text-xs text-slate-400 italic">এখনো কোন মন্তব্য নেই। প্রথম মন্তব্যটি করুন!</p>
+                <p className="text-xs text-black dark:text-zinc-400 italic font-medium">এখনো কোন মন্তব্য নেই। প্রথম মন্তব্যটি করুন!</p>
               ) : (
                 article.comments.map((comment, idx) => (
-                  <div key={`comment-${comment.id}-${idx}`} className="p-4 bg-white dark:bg-slate-800/80 rounded-2xl border border-slate-100 dark:border-slate-700 space-y-1">
+                  <div key={`comment-${comment.id}-${idx}`} className="p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 space-y-1">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-red-500" />
+                      <span className="font-extrabold text-black dark:text-white flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-black dark:text-white" />
                         {comment.authorName}
                       </span>
-                      <span className="text-[11px] text-slate-400">
+                      <span className="text-[11px] text-zinc-500 font-mono">
                         {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed pt-1">
+                    <p className="text-xs text-black dark:text-zinc-300 leading-relaxed pt-1 font-medium">
                       {comment.text}
                     </p>
                   </div>
@@ -586,8 +628,8 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
 
           {/* Related News Carousel */}
           {relatedArticles.length > 0 && (
-            <div className="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+            <div className="pt-6 border-t border-slate-200 dark:border-zinc-800 space-y-4">
+              <h3 className="text-base font-extrabold text-black dark:text-white">
                 {t('relatedNews')}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -595,19 +637,19 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
                   <div
                     key={`rel-art-${rel.id}-${idx}`}
                     onClick={() => onSelectRelated(rel)}
-                    className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-200 dark:border-slate-700"
+                    className="flex items-center gap-3 p-3 bg-black text-white rounded-xl cursor-pointer hover:bg-zinc-900 transition-colors border border-zinc-800 shadow-xs"
                   >
                     <img
                       src={rel.imageUrl}
                       alt={rel.title}
                       referrerPolicy="no-referrer"
-                      className="w-16 h-16 rounded-lg object-cover shrink-0"
+                      className="w-16 h-16 rounded-lg object-cover shrink-0 border border-white/20"
                     />
                     <div>
-                      <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-2">
+                      <h4 className="text-xs font-bold text-white line-clamp-2">
                         {artLang === 'en' && rel.titleEn ? rel.titleEn : rel.title}
                       </h4>
-                      <span className="text-[10px] text-slate-400 mt-1 block">
+                      <span className="text-[10px] text-zinc-400 mt-1 block font-mono">
                         {rel.category} • {rel.readTimeMinutes} min
                       </span>
                     </div>

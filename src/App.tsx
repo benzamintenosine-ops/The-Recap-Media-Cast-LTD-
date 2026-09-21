@@ -69,7 +69,7 @@ export default function App() {
   const [currentMode, setCurrentMode] = useState<'viewer' | 'writer' | 'managing' | 'systemAdmin'>('viewer');
   const [currentLang, setCurrentLang] = useState<Language>('bn');
   const [darkMode, setDarkMode] = useState<boolean>(() => {
-    return localStorage.getItem('theme') !== 'light';
+    return localStorage.getItem('theme') === 'dark';
   });
 
   // Dynamic Categories list with deduplication
@@ -122,9 +122,19 @@ export default function App() {
     if (!saved) return DEFAULT_SITE_SETTINGS;
     try {
       const parsed = JSON.parse(saved);
+      let adminCode = parsed.adminSecretCode;
+      if (!adminCode || adminCode === 'ADMIN-RECAP-9824' || adminCode === 'ADMIN2026') {
+        adminCode = 'ADMIN-RECAP-2026';
+      }
+      let mgrCode = parsed.managingSecretCode;
+      if (!mgrCode || mgrCode === 'MANAGING2026') {
+        mgrCode = 'MGR-RECAP-2026';
+      }
       return {
         ...DEFAULT_SITE_SETTINGS,
         ...parsed,
+        adminSecretCode: adminCode,
+        managingSecretCode: mgrCode,
         dynamicAds: {
           popunder: {
             ...DEFAULT_DYNAMIC_ADS.popunder,
@@ -325,9 +335,24 @@ export default function App() {
 
     const unsubscribeSettings = subscribeToSiteSettings((liveSettings) => {
       if (liveSettings) {
+        let adminCode = liveSettings.adminSecretCode;
+        if (!adminCode || adminCode === 'ADMIN-RECAP-9824' || adminCode === 'ADMIN2026') {
+          adminCode = 'ADMIN-RECAP-2026';
+        }
+        let mgrCode = liveSettings.managingSecretCode;
+        if (!mgrCode || mgrCode === 'MANAGING2026') {
+          mgrCode = 'MGR-RECAP-2026';
+        }
+
+        if (liveSettings.adminSecretCode !== adminCode || liveSettings.managingSecretCode !== mgrCode) {
+          saveSiteSettingsToFirebase({ adminSecretCode: adminCode, managingSecretCode: mgrCode }).catch(() => {});
+        }
+
         setSiteSettings((prev) => ({
           ...prev,
-          ...liveSettings
+          ...liveSettings,
+          adminSecretCode: adminCode,
+          managingSecretCode: mgrCode
         }));
       }
     });
@@ -639,7 +664,7 @@ export default function App() {
   const breakingArticles = articles.filter((a) => a.isBreaking);
 
   return (
-    <div className="min-h-screen bg-slate-900 dark:bg-[#050505] text-slate-900 dark:text-[#e5e7eb] flex flex-col font-sans selection:bg-red-600 selection:text-white transition-colors duration-200">
+    <div className="min-h-screen bg-white dark:bg-[#050505] text-black dark:text-[#e5e7eb] flex flex-col font-sans selection:bg-black selection:text-white transition-colors duration-200">
       
       {/* Navigation Header */}
       <Header
@@ -810,16 +835,16 @@ export default function App() {
       <FooterStats />
 
       {/* Footer */}
-      <footer className="mt-16 bg-slate-900 dark:bg-[#0a0a0a] text-slate-400 dark:text-gray-400 border-t border-slate-800 dark:border-white/10 text-xs py-12 px-4 sm:px-6">
+      <footer className="mt-16 bg-black text-white border-t border-zinc-800 text-xs py-12 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="space-y-3">
             <h3 className="font-serif text-lg font-extrabold text-white tracking-tight uppercase">
-              THE RECAP <span className="text-red-500 font-sans">MEDIA CAST</span> LTD
+              THE RECAP <span className="text-zinc-400 font-sans">MEDIA CAST</span> LTD
             </h3>
-            <p className="text-slate-400 leading-relaxed text-xs">
+            <p className="text-zinc-300 leading-relaxed text-xs">
               সত্যনিষ্ঠ বস্তুনিষ্ঠ সংবাদ পরিবেশনায় অঙ্গীকারবদ্ধ আন্তর্জাতিক ডিজিটাল তথ্যমাধ্যম। 
             </p>
-            <p className="text-[10px] text-gray-500 uppercase tracking-widest pt-2">
+            <p className="text-[10px] text-zinc-400 uppercase tracking-widest pt-2 font-mono">
               © 2026 THE RECAP MEDIA CAST LTD. ALL RIGHTS RESERVED.
             </p>
           </div>
@@ -842,7 +867,7 @@ export default function App() {
                       setCurrentMode('viewer');
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
-                    className="hover:text-red-400"
+                    className="hover:text-white text-zinc-300 transition-colors"
                   >
                     {catName}
                   </button>
@@ -854,16 +879,16 @@ export default function App() {
           <div className="space-y-2">
             <h4 className="font-bold text-white text-xs uppercase tracking-wider">বিশেষ সেবা</h4>
             <ul className="space-y-1">
-              <li><button onClick={() => { setShowOfflineOnly(true); setCurrentMode('viewer'); }} className="hover:text-amber-400">অফলাইন রিডিং সুবিধা</button></li>
-              <li><button onClick={() => { setShowBookmarksOnly(true); setCurrentMode('viewer'); }} className="hover:text-red-400">সংরক্ষিত বুকমার্ক লিস্ট</button></li>
-              <li><button onClick={() => setCurrentMode('writer')} className="hover:text-white font-bold text-amber-400">লেখক ও অ্যাডমিন স্টুডিও</button></li>
-              <li><span>ডিজিটাল বিজ্ঞাপন প্যানেল</span></li>
+              <li><button onClick={() => { setShowOfflineOnly(true); setCurrentMode('viewer'); }} className="hover:text-white text-zinc-300 transition-colors">অফলাইন রিডিং সুবিধা</button></li>
+              <li><button onClick={() => { setShowBookmarksOnly(true); setCurrentMode('viewer'); }} className="hover:text-white text-zinc-300 transition-colors">সংরক্ষিত বুকমার্ক লিস্ট</button></li>
+              <li><button onClick={() => setCurrentMode('writer')} className="hover:text-white font-bold text-zinc-200 transition-colors">লেখক ও অ্যাডমিন স্টুডিও</button></li>
+              <li><span className="text-zinc-400">ডিজিটাল বিজ্ঞাপন প্যানেল</span></li>
             </ul>
           </div>
 
           <div className="space-y-2">
             <h4 className="font-bold text-white text-xs uppercase tracking-wider">প্রধান কার্যালয়</h4>
-            <p className="leading-relaxed">
+            <p className="leading-relaxed text-zinc-300">
               {siteSettings?.officeAddress || 'রেকাপ মিডিয়া কাস্ট লিমিটেড টাওয়ার, গুলশান-২, ঢাকা-১২১২।'}<br />
               ইমেইল: {siteSettings?.contactEmail || 'news@therecapmedia.com'}<br />
               হটলাইন: {siteSettings?.contactPhone || '+880 9612-888999'}

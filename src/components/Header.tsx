@@ -105,15 +105,15 @@ export const Header: React.FC<HeaderProps> = ({
   const t = (key: any) => getTranslation(currentLang, key);
 
   return (
-    <header className="sticky top-0 z-40 bg-white dark:bg-[#0a0a0a] border-b border-slate-200 dark:border-white/10 shadow-md transition-colors duration-200">
+    <header className="sticky top-0 z-40 bg-white dark:bg-[#0a0a0a] border-b border-slate-200 dark:border-white/10 shadow-sm transition-colors duration-200">
       {/* Top Utility Bar */}
       <div className="bg-slate-900 dark:bg-[#050505] text-slate-200 text-xs py-1.5 px-4 sm:px-6 flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 dark:border-white/10">
         <div className="flex items-center gap-4">
-          <span className="font-bold tracking-wider text-red-500 flex items-center gap-1.5 text-[11px] uppercase">
-            <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>
+          <span className="font-bold tracking-wider text-slate-300 flex items-center gap-1.5 text-[11px] uppercase">
+            <span className="h-2 w-2 rounded-full bg-slate-400 animate-pulse"></span>
             LIVE
           </span>
-          <span className="hidden sm:inline text-gray-400 text-[11px] tracking-wide">
+          <span className="hidden sm:inline text-slate-400 text-[11px] tracking-wide">
             {new Date().toLocaleDateString(currentLang === 'bn' ? 'bn-BD' : 'en-US', {
               weekday: 'long',
               year: 'numeric',
@@ -121,18 +121,18 @@ export const Header: React.FC<HeaderProps> = ({
               day: 'numeric'
             })}
           </span>
-          <div className="flex items-center gap-2 text-gray-400">
+          <div className="flex items-center gap-2 text-slate-400">
             {isOnline ? (
-              <span className="flex items-center gap-1 text-emerald-400 text-[11px]" title="Online mode active">
+              <span className="flex items-center gap-1 text-slate-300 text-[11px]" title="Online mode active">
                 <Wifi className="w-3.5 h-3.5" /> <span className="hidden md:inline">Online</span>
               </span>
             ) : (
-              <span className="flex items-center gap-1 text-amber-400 text-[11px]" title="Offline reading mode enabled">
+              <span className="flex items-center gap-1 text-slate-400 text-[11px]" title="Offline reading mode enabled">
                 <WifiOff className="w-3.5 h-3.5" /> <span>Offline Mode</span>
               </span>
             )}
-            <span className="hidden lg:flex items-center gap-1 text-amber-400 font-mono text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30" title="Firebase Firestore Realtime Database Connected">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span>
+            <span className="hidden lg:flex items-center gap-1 text-slate-300 font-mono text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/20" title="Firebase Firestore Realtime Database Connected">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-300 animate-ping"></span>
               Firebase Live
             </span>
           </div>
@@ -140,13 +140,13 @@ export const Header: React.FC<HeaderProps> = ({
 
         <div className="flex items-center gap-3">
           {/* Language Switcher */}
-          <div className="flex items-center bg-white/5 rounded-full p-0.5 border border-white/10">
+          <div className="flex items-center bg-white/10 rounded-full p-0.5 border border-white/10">
             <button
               onClick={() => onLanguageChange('bn')}
               className={`px-2.5 py-0.5 rounded-full text-xs font-semibold transition-all ${
                 currentLang === 'bn'
-                  ? 'bg-red-600 text-white shadow'
-                  : 'text-gray-400 hover:text-white'
+                  ? 'bg-slate-800 text-white shadow border border-slate-700'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               🇧🇩 BN
@@ -155,8 +155,8 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => onLanguageChange('en')}
               className={`px-2.5 py-0.5 rounded-full text-xs font-semibold transition-all ${
                 currentLang === 'en'
-                  ? 'bg-red-600 text-white shadow'
-                  : 'text-gray-400 hover:text-white'
+                  ? 'bg-slate-800 text-white shadow border border-slate-700'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               🇬🇧 EN
@@ -166,31 +166,31 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Dark Mode Toggle */}
           <button
             onClick={onDarkModeToggle}
-            className="p-1.5 rounded-full bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+            className="p-1.5 rounded-full bg-white/10 border border-white/15 text-slate-300 hover:text-white hover:bg-white/20 transition-colors"
             title={t(darkMode ? 'lightMode' : 'darkMode')}
           >
-            {darkMode ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-slate-300" />}
+            {darkMode ? <Sun className="w-3.5 h-3.5 text-slate-200" /> : <Moon className="w-3.5 h-3.5 text-slate-300" />}
           </button>
         </div>
       </div>
 
       {/* Breaking News Marquee Banner (Right to Left Animation) */}
       {breakingArticles.length > 0 && (
-        <div className="bg-red-50 dark:bg-red-950/40 border-b border-red-200 dark:border-red-600/20 text-xs py-2 px-4 flex items-center overflow-hidden">
-          <div className="flex items-center gap-2 bg-red-600 text-white font-bold px-3 py-0.5 rounded text-[10px] tracking-wider uppercase shrink-0 shadow-sm animate-pulse">
-            <Flame className="w-3 h-3 text-amber-300 fill-amber-300" />
+        <div className="bg-black border-b border-zinc-800 text-xs py-1 px-3 sm:px-4 flex items-center overflow-hidden text-white">
+          <div className="flex items-center gap-1.5 bg-zinc-900 border border-white/20 text-white font-bold px-2.5 py-0.5 rounded text-[9px] tracking-wider uppercase shrink-0 shadow-sm">
+            <Flame className="w-3 h-3 text-white fill-white" />
             {t('breakingNews')}
           </div>
 
-          <div className="overflow-hidden whitespace-nowrap ml-3 relative flex-1">
+          <div className="overflow-hidden whitespace-nowrap ml-2.5 relative flex-1">
             <div className="inline-block animate-[marquee_25s_linear_infinite] hover:[animation-play-state:paused] cursor-pointer">
               {breakingArticles.map((art) => (
                 <span
                   key={art.id}
                   onClick={() => onSelectArticle(art)}
-                  className="inline-flex items-center gap-2 mr-8 hover:underline text-slate-900 dark:text-slate-100 font-bold text-xs sm:text-sm transition-colors hover:text-red-600 dark:hover:text-red-400"
+                  className="inline-flex items-center gap-2 mr-6 hover:underline text-white font-semibold text-xs transition-colors hover:text-white/80"
                 >
-                  <span className="text-red-600 dark:text-red-500 font-black">•</span>
+                  <span className="text-white/60 font-black">•</span>
                   {currentLang === 'en' && art.titleEn ? art.titleEn : art.title}
                 </span>
               ))}
@@ -199,20 +199,56 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       )}
 
+      {/* Emergency Notice Marquee Banner (জরুরি নির্দেশনা) */}
+      {((siteSettings?.emergencyNotices && siteSettings.emergencyNotices.length > 0) ? siteSettings.emergencyNotices : [
+        'জরুরি আবহাওয়া বার্তা: উপকূলীয় ও নদী অববাহিকা অঞ্চলগুলোতে সতর্কতামূলক ব্যবস্থা গ্রহণের নির্দেশ।',
+        'জরুরি নিরাপত্তা বার্তা: সামাজিক মাধ্যমে প্রচারিত কোনো গুজবে কান না দিয়ে নির্ভরযোগ্য তথ্য যাচাই করুন।',
+        'ডিজিটাল সুরক্ষা সতর্কতা: অনলাইন ব্যাংকিং বা আর্থিক সেবার গোপন ওটিপি (OTP) ও পিন কারো সাথে শেয়ার করবেন না।',
+        'জরুরি স্বাস্থ্য বার্তা: মৌসুমি রোগ প্রতিরোধে বাড়ির আঙিনা পরিষ্কার রাখুন এবং স্বাস্থ্যবিধি মেনে চলুন।',
+        'জাতীয় জরুরি সেবা নম্বর: যেকোনো সংকটকালে ৯৯৯ (জাতীয় জরুরি সেবা) ও ৩৩৩ (তথ্য বাতায়ন)-এ যোগাযোগ করুন।'
+      ]).length > 0 && (
+        <div className="bg-black border-b border-zinc-800 text-xs py-1 px-3 sm:px-4 flex items-center overflow-hidden text-white">
+          <div className="flex items-center gap-1.5 bg-zinc-900 border border-white/20 text-white font-bold px-2.5 py-0.5 rounded text-[9px] tracking-wider uppercase shrink-0 shadow-sm">
+            <ShieldAlert className="w-3 h-3 text-white" />
+            <span>জরুরি নির্দেশনা</span>
+          </div>
+
+          <div className="overflow-hidden whitespace-nowrap ml-2.5 relative flex-1">
+            <div className="inline-block animate-[marquee_28s_linear_infinite] hover:[animation-play-state:paused] cursor-pointer">
+              {((siteSettings?.emergencyNotices && siteSettings.emergencyNotices.length > 0) ? siteSettings.emergencyNotices : [
+                'জরুরি আবহাওয়া বার্তা: উপকূলীয় ও নদী অববাহিকা অঞ্চলগুলোতে সতর্কতামূলক ব্যবস্থা গ্রহণের নির্দেশ।',
+                'জরুরি নিরাপত্তা বার্তা: সামাজিক মাধ্যমে প্রচারিত কোনো গুজবে কান না দিয়ে নির্ভরযোগ্য তথ্য যাচাই করুন।',
+                'ডিজিটাল সুরক্ষা সতর্কতা: অনলাইন ব্যাংকিং বা আর্থিক সেবার গোপন ওটিপি (OTP) ও পিন কারো সাথে শেয়ার করবেন না।',
+                'জরুরি স্বাস্থ্য বার্তা: মৌসুমি রোগ প্রতিরোধে বাড়ির আঙিনা পরিষ্কার রাখুন এবং স্বাস্থ্যবিধি মেনে চলুন।',
+                'জাতীয় জরুরি সেবা নম্বর: যেকোনো সংকটকালে ৯৯৯ (জাতীয় জরুরি সেবা) ও ৩৩৩ (তথ্য বাতায়ন)-এ যোগাযোগ করুন।'
+              ]).map((notice, idx) => (
+                <span
+                  key={`notice-${idx}`}
+                  className="inline-flex items-center gap-2 mr-6 text-white font-semibold text-xs transition-colors hover:text-white/80"
+                >
+                  <span className="text-white/60 font-black">•</span>
+                  {notice}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mobile Top Brand Bar (Prevents Squeezing & Line Breaking on Mobile) */}
-      <div className="sm:hidden px-4 pt-3 pb-2 border-b border-slate-100 dark:border-white/5 bg-white dark:bg-[#080808]">
+      <div className="sm:hidden px-3 py-1.5 border-b border-slate-200 dark:border-white/5 bg-white dark:bg-[#080808]">
         <div 
           onClick={() => { onCategorySelect('ALL'); onModeSwitch('viewer'); }}
-          className="cursor-pointer flex items-center justify-center gap-2.5 mx-auto"
+          className="cursor-pointer flex items-center justify-center gap-2 mx-auto"
         >
           {siteSettings?.logoUrl ? (
             <img
               src={siteSettings.logoUrl}
               alt={siteSettings.siteName || "Website Logo"}
-              className="w-8 h-8 rounded-lg object-contain shrink-0 shadow-sm border border-slate-200 dark:border-slate-800"
+              className="w-7 h-7 rounded-lg object-contain shrink-0 shadow-sm border border-slate-200 dark:border-slate-800"
             />
           ) : (
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-red-600 to-amber-600 text-white flex items-center justify-center font-black text-sm shadow-sm shrink-0 overflow-hidden">
+            <div className="w-7 h-7 rounded-lg bg-black text-white flex items-center justify-center font-black text-xs shadow-sm shrink-0 overflow-hidden">
               <img
                 src="https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=100&q=80"
                 alt="Website Logo"
@@ -221,11 +257,11 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
           <div className="text-left leading-tight">
-            <h1 className="font-extrabold text-sm uppercase tracking-tight text-slate-900 dark:text-white flex items-center gap-1">
+            <h1 className="font-extrabold text-xs uppercase tracking-tight text-black dark:text-white flex items-center gap-1">
               <span className="whitespace-nowrap">{siteSettings?.siteName || 'THE RECAP MEDIA CAST'}</span>
-              <span className="text-[9px] tracking-normal font-sans font-bold text-gray-400 border border-slate-200 dark:border-white/10 px-1 py-0.2 rounded shrink-0">LTD</span>
+              <span className="text-[8px] tracking-normal font-sans font-bold text-black dark:text-white border border-black dark:border-white px-1 rounded shrink-0">LTD</span>
             </h1>
-            <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium tracking-wide truncate max-w-[230px]">
+            <p className="text-[9px] text-black dark:text-zinc-300 font-semibold tracking-wide truncate max-w-[220px]">
               {siteSettings?.siteTagline || t('tagline')}
             </p>
           </div>
@@ -233,16 +269,16 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Main Header Toolbar */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between gap-3 sm:gap-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-3 sm:gap-4 bg-white dark:bg-[#0a0a0a]">
         <div className="flex items-center gap-3">
           {/* Left Drawer Menu Button */}
           <button
             onClick={() => setLeftMenuOpen(true)}
-            className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-800 dark:text-white font-bold text-xs border border-slate-200 dark:border-white/10 transition-all shadow-sm shrink-0"
+            className="flex items-center gap-2 px-3 py-1.5 sm:py-2 rounded-xl bg-black hover:bg-zinc-800 text-white font-bold text-xs border border-black transition-all shadow-sm shrink-0 cursor-pointer"
             title="মেনু খুলুন"
           >
-            <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 dark:text-red-500" />
-            <span className="text-xs">মেনু</span>
+            <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            <span className="text-xs text-white">মেনু</span>
           </button>
 
           {/* Desktop Logo & Title */}
@@ -257,7 +293,7 @@ export const Header: React.FC<HeaderProps> = ({
                 className="w-10 h-10 rounded-xl object-cover shrink-0 shadow-md group-hover:scale-105 transition-transform border border-slate-200 dark:border-slate-800"
               />
             ) : (
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 to-amber-600 text-white flex items-center justify-center font-black text-xl shadow-md shrink-0 group-hover:scale-105 transition-transform overflow-hidden">
+              <div className="w-10 h-10 rounded-xl bg-black text-white flex items-center justify-center font-black text-xl shadow-md shrink-0 group-hover:scale-105 transition-transform overflow-hidden">
                 <img
                   src="https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=100&q=80"
                   alt="Website Logo"
@@ -266,10 +302,10 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
             <div>
-              <h1 className="font-bold text-xl sm:text-2xl tracking-tighter uppercase text-slate-900 dark:text-white flex items-center gap-1.5">
-                {siteSettings?.siteName || 'THE RECAP MEDIA CAST'} <span className="text-xs tracking-normal font-sans font-semibold text-gray-400 border border-white/10 px-1.5 py-0.5 rounded">LTD</span>
+              <h1 className="font-extrabold text-xl sm:text-2xl tracking-tighter uppercase text-black dark:text-white flex items-center gap-1.5">
+                {siteSettings?.siteName || 'THE RECAP MEDIA CAST'} <span className="text-xs tracking-normal font-sans font-bold text-black dark:text-white border border-black dark:border-white px-1.5 py-0.5 rounded">LTD</span>
               </h1>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium tracking-wide">
+              <p className="text-[11px] text-black dark:text-zinc-300 font-semibold tracking-wide">
                 {siteSettings?.siteTagline || t('tagline')}
               </p>
             </div>
@@ -283,10 +319,10 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={() => setShowSearchModal(true)}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer transition-colors"
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1 text-black dark:text-white cursor-pointer transition-colors"
               title="বিস্তারিত অনুসন্ধান করুন"
             >
-              <Search className="w-4 h-4" />
+              <Search className="w-4 h-4 text-black dark:text-white" />
             </button>
             <input
               type="text"
@@ -298,13 +334,13 @@ export const Header: React.FC<HeaderProps> = ({
                 }
               }}
               placeholder={t('searchPlaceholder')}
-              className="w-full pl-9 pr-8 py-1.5 text-xs rounded-full border border-slate-300 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-slate-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all cursor-text"
+              className="w-full pl-9 pr-8 py-1.5 text-xs rounded-full border border-black bg-white text-black placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-black transition-all cursor-text font-medium"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => onSearchChange('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-black hover:text-zinc-700 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -313,21 +349,21 @@ export const Header: React.FC<HeaderProps> = ({
 
           <button
             onClick={() => setShowSearchModal(true)}
-            className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 border border-white/10 text-slate-700 dark:text-gray-200 hover:bg-red-50 hover:text-red-600 dark:hover:bg-white/10 cursor-pointer transition-colors"
+            className="p-2 rounded-xl bg-black border border-black text-white hover:bg-zinc-800 cursor-pointer transition-colors shadow-sm"
             title="সংবাদ অনুসন্ধান (Search)"
           >
-            <Search className="w-4 h-4" />
+            <Search className="w-4 h-4 text-white" />
           </button>
 
           {/* Bookmarks */}
           <button
             onClick={onOpenBookmarks}
-            className="relative p-2 rounded-xl bg-slate-100 dark:bg-white/5 border border-white/10 text-slate-700 dark:text-gray-200 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
+            className="relative p-2 rounded-xl bg-black border border-black text-white hover:bg-zinc-800 transition-colors shadow-sm cursor-pointer"
             title={t('bookmarks')}
           >
-            <Bookmark className="w-4 h-4 text-red-500" />
+            <Bookmark className="w-4 h-4 text-white" />
             {bookmarksCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 bg-white text-black text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-black shadow-xs">
                 {bookmarksCount}
               </span>
             )}
@@ -336,12 +372,12 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Offline Saved Articles */}
           <button
             onClick={onOpenOffline}
-            className="relative p-2 rounded-xl bg-slate-100 dark:bg-white/5 border border-white/10 text-slate-700 dark:text-gray-200 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
+            className="relative p-2 rounded-xl bg-black border border-black text-white hover:bg-zinc-800 transition-colors shadow-sm cursor-pointer"
             title={t('offlineSaved')}
           >
-            <WifiOff className="w-4 h-4 text-amber-500" />
+            <WifiOff className="w-4 h-4 text-white" />
             {offlineCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-amber-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 bg-white text-black text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-black shadow-xs">
                 {offlineCount}
               </span>
             )}
@@ -351,27 +387,27 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onOpenProfile}
             title={user ? `নিয়মিত পাঠক: ${user.name}` : 'নিয়মিত পাঠক একাউন্ট (সাইন-ইন / সাইন-আপ)'}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-gray-200 hover:bg-slate-200 dark:hover:bg-white/10 text-xs font-semibold border border-slate-200 dark:border-white/10 transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black hover:bg-zinc-800 text-white text-xs font-bold border border-black transition-all cursor-pointer shadow-sm"
           >
             {user?.avatar ? (
               <img src={user.avatar} alt={user.name} className="w-5 h-5 rounded-full object-cover shrink-0" />
             ) : (
-              <User className="w-4 h-4 text-slate-600 dark:text-gray-300 shrink-0" />
+              <User className="w-4 h-4 text-white shrink-0" />
             )}
-            <span className="hidden md:inline">{user ? user.name : 'নিয়মিত পাঠক'}</span>
+            <span className="hidden md:inline text-white">{user ? user.name : 'নিয়মিত পাঠক'}</span>
           </button>
         </div>
       </div>
 
       {/* Category Navigation Bar */}
-      <nav className="border-t border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-[#0a0a0a]/90 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-1 overflow-x-auto py-2 scrollbar-none">
+      <nav className="border-t border-slate-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a]">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 flex items-center gap-1.5 overflow-x-auto py-1.5 scrollbar-none">
           <button
             onClick={() => onCategorySelect('ALL')}
-            className={`px-3.5 py-1 rounded-md text-xs font-bold uppercase tracking-widest whitespace-nowrap transition-all ${
+            className={`px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all shadow-sm ${
               selectedCategory === 'ALL'
-                ? 'text-white border-b-2 border-red-600 pb-0.5'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-black text-white border-2 border-zinc-700 ring-1 ring-black font-black'
+                : 'bg-black text-white hover:bg-zinc-800 border border-black'
             }`}
           >
             {t('allCategories')}
@@ -386,10 +422,10 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               key={`nav-cat-${catName}-${idx}`}
               onClick={() => onCategorySelect(catName as Category)}
-              className={`px-3.5 py-1 rounded-md text-xs font-bold uppercase tracking-widest whitespace-nowrap transition-all ${
+              className={`px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all shadow-sm ${
                 selectedCategory === catName
-                  ? 'text-red-600 dark:text-red-500 border-b-2 border-red-600 font-extrabold'
-                  : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-black text-white border-2 border-zinc-700 ring-1 ring-black font-black'
+                  : 'bg-black text-white hover:bg-zinc-800 border border-black'
               }`}
             >
               {catName}
@@ -400,22 +436,22 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3">
+        <div className="md:hidden border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0a0a0a] p-4 space-y-3">
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-black dark:text-white" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder={t('searchPlaceholder')}
-              className="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              className="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-black dark:border-zinc-700 bg-white dark:bg-zinc-900 text-black dark:text-white font-medium"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-xs font-medium">
             <button
               onClick={() => { onCategorySelect('ALL'); setMobileMenuOpen(false); }}
-              className="p-2 text-left bg-slate-100 dark:bg-slate-800 rounded-md font-semibold text-red-600 dark:text-red-400"
+              className="p-2 text-left bg-black text-white rounded-md font-bold"
             >
               {t('allCategories')}
             </button>
@@ -423,7 +459,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 key={`mobile-cat-${cat}-${idx}`}
                 onClick={() => { onCategorySelect(cat); setMobileMenuOpen(false); }}
-                className="p-2 text-left bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 rounded-md text-slate-800 dark:text-slate-200"
+                className="p-2 text-left bg-black hover:bg-zinc-800 rounded-md text-white font-bold transition-colors"
               >
                 {cat}
               </button>
@@ -434,12 +470,12 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Left Sliding Drawer Menu Overlay */}
       {leftMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex justify-start animate-fadeIn">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-start animate-fadeIn">
           {/* Backdrop click to close */}
           <div className="absolute inset-0" onClick={() => setLeftMenuOpen(false)} />
 
           {/* Sliding Menu Panel */}
-          <div className="relative w-80 max-w-[85vw] bg-white dark:bg-slate-900 h-full overflow-y-auto shadow-2xl p-5 border-r border-slate-200 dark:border-slate-800 space-y-6 flex flex-col justify-between z-10">
+          <div className="relative w-80 max-w-[85vw] bg-white dark:bg-[#0a0a0a] h-full overflow-y-auto shadow-2xl p-5 border-r border-slate-200 dark:border-zinc-800 space-y-6 flex flex-col justify-between z-10">
             <div className="space-y-6">
               {/* Drawer Header */}
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
@@ -451,7 +487,7 @@ export const Header: React.FC<HeaderProps> = ({
                       className="w-8 h-8 rounded-lg object-cover shadow border border-slate-200 dark:border-slate-800"
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-red-600 to-amber-600 text-white flex items-center justify-center font-black text-base shadow overflow-hidden">
+                    <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-black text-base shadow overflow-hidden">
                       <img
                         src="https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=100&q=80"
                         alt="Logo"
@@ -460,15 +496,15 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                   )}
                   <div>
-                    <h3 className="font-bold text-xs text-slate-900 dark:text-white uppercase tracking-tight">
+                    <h3 className="font-extrabold text-xs text-black dark:text-white uppercase tracking-tight">
                       {siteSettings?.siteName || 'THE RECAP MEDIA'}
                     </h3>
-                    <span className="text-[10px] text-slate-400 block">মেনু সার্ভিসেস</span>
+                    <span className="text-[10px] text-black dark:text-zinc-400 font-semibold block">মেনু সার্ভিসেস</span>
                   </div>
                 </div>
                 <button
                   onClick={() => setLeftMenuOpen(false)}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-full bg-slate-100 dark:bg-slate-800"
+                  className="p-1.5 text-white bg-black hover:bg-zinc-800 rounded-full border border-black transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -476,7 +512,7 @@ export const Header: React.FC<HeaderProps> = ({
 
               {/* 1. HOME, WRITER'S PANEL & ADMIN PANEL BUTTONS */}
               <div className="space-y-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-1">
+                <span className="text-[10px] font-extrabold text-black dark:text-white uppercase tracking-wider block px-1">
                   প্যানেল অ্যাক্সেস
                 </span>
 
@@ -487,19 +523,19 @@ export const Header: React.FC<HeaderProps> = ({
                     onModeSwitch('viewer');
                     setLeftMenuOpen(false);
                   }}
-                  className="w-full p-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-md transition-all flex items-center justify-between group"
+                  className="w-full p-3 bg-black hover:bg-zinc-800 text-white rounded-2xl shadow-sm border border-black transition-all flex items-center justify-between group cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center font-bold">
+                    <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-700 flex items-center justify-center font-bold">
                       <Home className="w-4 h-4 text-white" />
                     </div>
                     <div className="text-left">
-                      <h4 className="text-sm font-bold flex items-center gap-1.5">
+                      <h4 className="text-sm font-bold flex items-center gap-1.5 text-white">
                         🏠 Home
                       </h4>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-white/80 group-hover:translate-x-1 transition-transform" />
+                  <ChevronRight className="w-4 h-4 text-white group-hover:translate-x-1 transition-transform" />
                 </button>
                 
                 {/* Writer Panel Button */}
@@ -508,22 +544,22 @@ export const Header: React.FC<HeaderProps> = ({
                     onModeSwitch('writer');
                     setLeftMenuOpen(false);
                   }}
-                  className="w-full p-3 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white rounded-2xl shadow-md transition-all flex items-center justify-between group"
+                  className="w-full p-3 bg-black hover:bg-zinc-800 text-white rounded-2xl shadow-sm border border-black transition-all flex items-center justify-between group cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center font-bold">
+                    <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-700 flex items-center justify-center font-bold">
                       <PenTool className="w-4 h-4 text-white" />
                     </div>
                     <div className="text-left">
-                      <h4 className="text-xs font-bold flex items-center gap-1.5">
+                      <h4 className="text-xs font-bold flex items-center gap-1.5 text-white">
                         ✍️ প্রতিবেদক প্যানেল (Reporters Panel)
                       </h4>
-                      <p className="text-[10px] text-white/80">
+                      <p className="text-[10px] text-zinc-300">
                         সংবাদ ও রিপোর্ট প্রকাশ প্যানেলে যান
                       </p>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-white/80 group-hover:translate-x-1 transition-transform" />
+                  <ChevronRight className="w-4 h-4 text-white group-hover:translate-x-1 transition-transform" />
                 </button>
 
                 {/* Managing Panel Button */}
@@ -532,22 +568,22 @@ export const Header: React.FC<HeaderProps> = ({
                     onModeSwitch('managing');
                     setLeftMenuOpen(false);
                   }}
-                  className="w-full p-3 bg-gradient-to-r from-blue-700 via-indigo-800 to-slate-900 hover:from-blue-800 hover:to-indigo-900 text-white rounded-2xl shadow-md border border-blue-500/30 transition-all flex items-center justify-between group"
+                  className="w-full p-3 bg-black hover:bg-zinc-800 text-white rounded-2xl shadow-sm border border-black transition-all flex items-center justify-between group cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-blue-600/30 border border-blue-500/40 flex items-center justify-center font-bold">
-                      <Building2 className="w-4 h-4 text-blue-400" />
+                    <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-700 flex items-center justify-center font-bold">
+                      <Building2 className="w-4 h-4 text-white" />
                     </div>
                     <div className="text-left">
                       <h4 className="text-xs font-bold flex items-center gap-1.5 text-white">
                         🏢 Managing Panel (ব্যবস্থাপনা প্যানেল)
                       </h4>
-                      <p className="text-[10px] text-blue-200">
+                      <p className="text-[10px] text-zinc-300">
                         প্রতিবেদক নিয়ন্ত্রণ ও কন্টেন্ট মডারেশন
                       </p>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-white/80 group-hover:translate-x-1 transition-transform" />
+                  <ChevronRight className="w-4 h-4 text-white group-hover:translate-x-1 transition-transform" />
                 </button>
 
                 {/* Admin Panel Button */}
@@ -556,11 +592,11 @@ export const Header: React.FC<HeaderProps> = ({
                     onModeSwitch('systemAdmin');
                     setLeftMenuOpen(false);
                   }}
-                  className="w-full p-3 bg-gradient-to-r from-slate-900 via-slate-800 to-red-950 hover:from-slate-800 hover:to-red-900 text-white rounded-2xl shadow-md border border-red-500/30 transition-all flex items-center justify-between group"
+                  className="w-full p-3 bg-black hover:bg-zinc-800 text-white rounded-2xl shadow-sm border border-black transition-all flex items-center justify-between group cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-red-600/30 border border-red-500/40 flex items-center justify-center font-bold">
-                      <ShieldCheck className="w-4 h-4 text-red-500" />
+                    <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-700 flex items-center justify-center font-bold">
+                      <ShieldCheck className="w-4 h-4 text-white" />
                     </div>
                     <div className="text-left">
                       <h4 className="text-xs font-bold flex items-center gap-1.5 text-white">
@@ -568,27 +604,27 @@ export const Header: React.FC<HeaderProps> = ({
                       </h4>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-white/80 group-hover:translate-x-1 transition-transform" />
+                  <ChevronRight className="w-4 h-4 text-white group-hover:translate-x-1 transition-transform" />
                 </button>
               </div>
 
               {/* 2. ABOUT, PRIVACY & CONTACT LINKS */}
               <div className="space-y-1.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-1">
+                <span className="text-[10px] font-extrabold text-black dark:text-white uppercase tracking-wider block px-1">
                   প্রতিষ্ঠান ও সাপোর্ট
                 </span>
-                <div className="space-y-1 bg-slate-50 dark:bg-slate-800/50 p-2 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <div className="space-y-1.5">
                   <button
                     onClick={() => {
                       setActiveInfoModal('about');
                       setLeftMenuOpen(false);
                     }}
-                    className="w-full p-2.5 text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 rounded-xl flex items-center justify-between transition-colors"
+                    className="w-full p-2.5 text-left text-xs font-bold bg-black text-white hover:bg-zinc-800 rounded-xl border border-black flex items-center justify-between transition-colors cursor-pointer"
                   >
-                    <span className="flex items-center gap-2">
-                      <Info className="w-4 h-4 text-red-500" /> About us (আমাদের কথা)
+                    <span className="flex items-center gap-2 text-white">
+                      <Info className="w-4 h-4 text-white" /> About us (আমাদের কথা)
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                    <ChevronRight className="w-3.5 h-3.5 text-white" />
                   </button>
 
                   <button
@@ -596,12 +632,12 @@ export const Header: React.FC<HeaderProps> = ({
                       setActiveInfoModal('privacy');
                       setLeftMenuOpen(false);
                     }}
-                    className="w-full p-2.5 text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 rounded-xl flex items-center justify-between transition-colors"
+                    className="w-full p-2.5 text-left text-xs font-bold bg-black text-white hover:bg-zinc-800 rounded-xl border border-black flex items-center justify-between transition-colors cursor-pointer"
                   >
-                    <span className="flex items-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-emerald-500" /> Privacy & Policy (প্রাইভেসি পলিসি)
+                    <span className="flex items-center gap-2 text-white">
+                      <ShieldCheck className="w-4 h-4 text-white" /> Privacy & Policy (প্রাইভেসি পলিসি)
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                    <ChevronRight className="w-3.5 h-3.5 text-white" />
                   </button>
 
                   <button
@@ -609,19 +645,19 @@ export const Header: React.FC<HeaderProps> = ({
                       setActiveInfoModal('contact');
                       setLeftMenuOpen(false);
                     }}
-                    className="w-full p-2.5 text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 rounded-xl flex items-center justify-between transition-colors"
+                    className="w-full p-2.5 text-left text-xs font-bold bg-black text-white hover:bg-zinc-800 rounded-xl border border-black flex items-center justify-between transition-colors cursor-pointer"
                   >
-                    <span className="flex items-center gap-2">
-                      <PhoneCall className="w-4 h-4 text-amber-500" /> Contact with us (যোগাযোগ)
+                    <span className="flex items-center gap-2 text-white">
+                      <PhoneCall className="w-4 h-4 text-white" /> Contact with us (যোগাযোগ)
                     </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                    <ChevronRight className="w-3.5 h-3.5 text-white" />
                   </button>
                 </div>
               </div>
 
               {/* 3. SOCIAL WIDGETS (Facebook, Instagram, YouTube, Telegram, etc.) */}
               <div className="space-y-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-1">
+                <span className="text-[10px] font-extrabold text-black dark:text-white uppercase tracking-wider block px-1">
                   সোশ্যাল মিডিয়া পেজ (Social Widgets)
                 </span>
                 <div className="space-y-2">
@@ -631,50 +667,21 @@ export const Header: React.FC<HeaderProps> = ({
                     { id: 'soc-ig', name: 'Instagram Profile', platform: 'instagram' as const, url: 'https://instagram.com/therecapmediacast', badge: 'ফলো', isActive: true },
                   ]).filter(s => s.isActive !== false).map((soc) => {
                     let IconComponent = Globe;
-                    let bgClass = "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700";
-                    let iconBg = "bg-slate-600 text-white";
-                    let btnBg = "bg-slate-700 text-white";
-                    let badgeText = soc.badge || 'ভিজিট';
-
                     const plat = soc.platform || '';
                     const n = soc.name.toLowerCase();
 
                     if (plat === 'facebook' || n.includes('facebook')) {
                       IconComponent = Facebook;
-                      bgClass = "bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900";
-                      iconBg = "bg-blue-600 text-white";
-                      btnBg = "bg-blue-600 text-white";
-                      badgeText = soc.badge || 'ফলো';
                     } else if (plat === 'youtube' || n.includes('youtube')) {
                       IconComponent = Youtube;
-                      bgClass = "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900";
-                      iconBg = "bg-red-600 text-white";
-                      btnBg = "bg-red-600 text-white";
-                      badgeText = soc.badge || 'সাবস্ক্রাইব';
                     } else if (plat === 'instagram' || n.includes('instagram')) {
                       IconComponent = Instagram;
-                      bgClass = "bg-pink-50 dark:bg-pink-950/40 border-pink-200 dark:border-pink-900";
-                      iconBg = "bg-gradient-to-tr from-amber-500 via-pink-600 to-purple-600 text-white";
-                      btnBg = "bg-pink-600 text-white";
-                      badgeText = soc.badge || 'ফলো';
                     } else if (plat === 'twitter' || n.includes('twitter') || n.includes(' x')) {
                       IconComponent = Twitter;
-                      bgClass = "bg-sky-50 dark:bg-sky-950/40 border-sky-200 dark:border-sky-900";
-                      iconBg = "bg-black text-white";
-                      btnBg = "bg-black text-white";
-                      badgeText = soc.badge || 'ফলো';
                     } else if (plat === 'whatsapp' || n.includes('whatsapp')) {
                       IconComponent = MessageCircle;
-                      bgClass = "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900";
-                      iconBg = "bg-emerald-600 text-white";
-                      btnBg = "bg-emerald-600 text-white";
-                      badgeText = soc.badge || 'মেসেজ';
                     } else if (plat === 'telegram' || n.includes('telegram')) {
                       IconComponent = Send;
-                      bgClass = "bg-sky-50 dark:bg-sky-950/40 border-sky-200 dark:border-sky-900";
-                      iconBg = "bg-sky-500 text-white";
-                      btnBg = "bg-sky-500 text-white";
-                      badgeText = soc.badge || 'যুক্ত হন';
                     }
 
                     return (
@@ -683,23 +690,23 @@ export const Header: React.FC<HeaderProps> = ({
                         href={soc.url}
                         target="_blank"
                         rel="noreferrer"
-                        className={`p-3 rounded-2xl border flex items-center justify-between hover:scale-[1.02] transition-all group ${bgClass}`}
+                        className="p-3 rounded-2xl border border-zinc-800 bg-black text-white flex items-center justify-between hover:bg-zinc-900 transition-all group"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
-                            <IconComponent className="w-4 h-4" />
+                          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 bg-zinc-900 text-white border border-zinc-700 shadow-xs">
+                            <IconComponent className="w-4 h-4 text-white" />
                           </div>
                           <div className="min-w-0">
-                            <h5 className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            <h5 className="text-xs font-bold text-white truncate">
                               {soc.name}
                             </h5>
-                            <p className="text-[10px] text-slate-400 truncate max-w-[130px] font-mono">
+                            <p className="text-[10px] text-zinc-300 truncate max-w-[130px] font-mono">
                               {soc.url.replace(/^https?:\/\//, '')}
                             </p>
                           </div>
                         </div>
-                        <span className={`text-[10px] px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 shrink-0 ${btnBg}`}>
-                          {badgeText} <ExternalLink className="w-3 h-3" />
+                        <span className="text-[10px] px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 shrink-0 bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 text-white">
+                          {soc.badge || 'ভিজিট'} <ExternalLink className="w-3 h-3 text-white" />
                         </span>
                       </a>
                     );
@@ -709,7 +716,7 @@ export const Header: React.FC<HeaderProps> = ({
 
               {/* 4. NEWS CATEGORIES */}
               <div className="space-y-1.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-1">
+                <span className="text-[10px] font-extrabold text-black dark:text-white uppercase tracking-wider block px-1">
                   সংবাদ ক্যাটাগরি (Categories)
                 </span>
                 <div className="grid grid-cols-2 gap-1.5 text-xs">
@@ -727,10 +734,10 @@ export const Header: React.FC<HeaderProps> = ({
                         onModeSwitch('viewer');
                         setLeftMenuOpen(false);
                       }}
-                      className={`p-2 rounded-xl text-left font-medium transition-colors ${
+                      className={`p-2 rounded-xl text-left font-bold transition-colors cursor-pointer ${
                         selectedCategory === cat
-                          ? 'bg-red-600 text-white font-bold'
-                          : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
+                          ? 'bg-black text-white border-2 border-white/60 ring-2 ring-black'
+                          : 'bg-black text-white hover:bg-zinc-800 border border-black'
                       }`}
                     >
                       {cat}
@@ -740,7 +747,7 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400 text-center">
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 text-[11px] text-black dark:text-zinc-300 font-bold text-center">
               THE RECAP MEDIA CAST LTD © ২০২৬
             </div>
           </div>

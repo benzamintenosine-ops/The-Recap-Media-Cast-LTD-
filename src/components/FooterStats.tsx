@@ -71,25 +71,25 @@ export const FooterStats: React.FC = () => {
   }, []);
 
   return (
-    <div className="w-full bg-slate-950/80 dark:bg-black/90 border-y border-slate-800 dark:border-white/10 py-6 px-4 sm:px-6 my-6">
+    <div className="w-full bg-black text-white border-y border-zinc-800 py-6 px-4 sm:px-6 my-6">
       <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 pb-4 border-b border-slate-800/80 mb-4">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 pb-4 border-b border-zinc-800 mb-4">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
             </span>
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+            <span className="text-xs font-bold uppercase tracking-wider text-white">
               লাইভ পাঠকমহল ও সাংবাদিক নেটওয়ার্ক পরিসংখ্যান
             </span>
-            <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">
+            <span className="text-[10px] text-zinc-400 font-mono hidden sm:inline">
               (প্রতি ৩০ মিনিট পর পর স্বয়ংক্রিয় আপডেট)
             </span>
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] text-slate-400">
-            {isLoading && <RefreshCw className="w-3 h-3 text-red-500 animate-spin" />}
-            <span className="font-mono text-[10px] text-slate-500">
+          <div className="flex items-center gap-2 text-[11px] text-zinc-400">
+            {isLoading && <RefreshCw className="w-3 h-3 text-white animate-spin" />}
+            <span className="font-mono text-[10px] text-zinc-300">
               সর্বশেষ সিঙ্ক: {stats.lastUpdated ? new Date(stats.lastUpdated).toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' }) : 'সবেমাত্র'}
             </span>
           </div>
@@ -98,57 +98,57 @@ export const FooterStats: React.FC = () => {
         {/* 4-Card Responsive Grid for Daily and Monthly counts */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           {/* Daily Readers */}
-          <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800/80 shadow-sm space-y-1">
-            <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
+          <div className="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-white shadow-sm space-y-1">
+            <div className="flex items-center justify-between text-zinc-300 text-xs font-semibold">
               <span>দৈনিক পাঠক</span>
-              <Users className="w-3.5 h-3.5 text-blue-400" />
+              <Users className="w-3.5 h-3.5 text-white" />
             </div>
             <div className="text-xl sm:text-2xl font-black text-white font-mono">
               {stats.dailyReaders.toLocaleString('bn-BD')}
             </div>
-            <div className="text-[10px] text-blue-400/90 font-medium">
+            <div className="text-[10px] text-zinc-400 font-medium">
               আজকের সক্রিয় পাঠক
             </div>
           </div>
 
           {/* Daily Reporters (1/4th of Daily Readers) */}
-          <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800/80 shadow-sm space-y-1">
-            <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
+          <div className="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-white shadow-sm space-y-1">
+            <div className="flex items-center justify-between text-zinc-300 text-xs font-semibold">
               <span>দৈনিক প্রতিবেদক</span>
-              <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <UserCheck className="w-3.5 h-3.5 text-white" />
             </div>
-            <div className="text-xl sm:text-2xl font-black text-emerald-400 font-mono">
+            <div className="text-xl sm:text-2xl font-black text-white font-mono">
               {stats.dailyReporters.toLocaleString('bn-BD')}
             </div>
-            <div className="text-[10px] text-emerald-400/90 font-medium">
+            <div className="text-[10px] text-zinc-400 font-medium">
               আজকে কর্মরত সাংবাদিক
             </div>
           </div>
 
           {/* Monthly Readers */}
-          <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800/80 shadow-sm space-y-1">
-            <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
+          <div className="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-white shadow-sm space-y-1">
+            <div className="flex items-center justify-between text-zinc-300 text-xs font-semibold">
               <span>মাসিক পাঠক</span>
-              <Eye className="w-3.5 h-3.5 text-amber-400" />
+              <Eye className="w-3.5 h-3.5 text-white" />
             </div>
             <div className="text-xl sm:text-2xl font-black text-white font-mono">
               {stats.monthlyReaders.toLocaleString('bn-BD')}
             </div>
-            <div className="text-[10px] text-amber-400/90 font-medium">
+            <div className="text-[10px] text-zinc-400 font-medium">
               এই মাসের মোট ভিজিটর
             </div>
           </div>
 
           {/* Monthly Reporters (1/4th of Monthly Readers) */}
-          <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800/80 shadow-sm space-y-1">
-            <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
+          <div className="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-white shadow-sm space-y-1">
+            <div className="flex items-center justify-between text-zinc-300 text-xs font-semibold">
               <span>মাসিক প্রতিবেদক</span>
-              <Activity className="w-3.5 h-3.5 text-purple-400" />
+              <Activity className="w-3.5 h-3.5 text-white" />
             </div>
-            <div className="text-xl sm:text-2xl font-black text-purple-400 font-mono">
+            <div className="text-xl sm:text-2xl font-black text-white font-mono">
               {stats.monthlyReporters.toLocaleString('bn-BD')}
             </div>
-            <div className="text-[10px] text-purple-400/90 font-medium">
+            <div className="text-[10px] text-zinc-400 font-medium">
               মাসিক নিবন্ধিত প্রতিনিধি
             </div>
           </div>

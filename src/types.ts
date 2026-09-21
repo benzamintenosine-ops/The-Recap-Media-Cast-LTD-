@@ -295,6 +295,7 @@ export interface SiteSettings {
   };
   socialWidgets: SocialWidget[];
   adBanners: AdBanner[];
+  emergencyNotices?: string[];
   dynamicAds?: DynamicAdSettings;
   staticPages?: {
     aboutUs?: string;

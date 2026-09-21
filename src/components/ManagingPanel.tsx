@@ -170,7 +170,7 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
   const [activeTab, setActiveTab] = useState<'pending' | 'writers' | 'referral' | 'articles' | 'notifications' | 'analytics' | 'rules' | 'profile'>('pending');
 
   // Manager Referral Code State
-  const [myRefCodeInput, setMyRefCodeInput] = useState<string>(() => managerProfile?.referralCode || 'MGR-ALPHA');
+  const [myRefCodeInput, setMyRefCodeInput] = useState<string>(() => managerProfile?.referralCode || 'MGR-RECAP-2026');
   const [myRefCodeMsg, setMyRefCodeMsg] = useState<string>('');
 
   useEffect(() => {
@@ -369,12 +369,12 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
   const handleUnifiedSignUp = (data: UnifiedAuthData) => {
     setAuthError('');
 
-    const targetSecret1 = (siteSettings.managingSecretCode || 'MANAGING2026').trim().toUpperCase();
-    const targetSecret2 = (siteSettings.managerSecretCode || 'MANAGING2026').trim().toUpperCase();
+    const targetSecret1 = (siteSettings.managingSecretCode || 'MGR-RECAP-2026').trim().toUpperCase();
+    const targetSecret2 = (siteSettings.managerSecretCode || 'MGR-RECAP-2026').trim().toUpperCase();
     const enteredSecret = data.secretCode.trim().toUpperCase();
 
-    const adminCode1 = (siteSettings.adminSecretCode || 'ADMIN-RECAP-9824').trim().toUpperCase();
-    const adminCode2 = (siteSettings.systemAdminSecretCode || 'ADMIN2026').trim().toUpperCase();
+    const adminCode1 = (siteSettings.adminSecretCode || 'ADMIN-RECAP-2026').trim().toUpperCase();
+    const adminCode2 = (siteSettings.systemAdminSecretCode || 'ADMIN-RECAP-2026').trim().toUpperCase();
     const writerCode = (siteSettings.writerSecretCode || 'RECAP2026').trim().toUpperCase();
 
     // Check if the code belongs to another panel (Writer/Reporter or Admin)
@@ -386,6 +386,7 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
     const isAdminCode = 
       enteredSecret === adminCode1 || 
       enteredSecret === adminCode2 || 
+      enteredSecret === 'ADMIN-RECAP-2026' ||
       enteredSecret === 'ADMIN-RECAP-9824' || 
       enteredSecret === 'ADMIN2026';
 
@@ -394,8 +395,13 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
       return;
     }
 
-    if (enteredSecret !== targetSecret1 && enteredSecret !== targetSecret2 && enteredSecret !== 'MANAGING2026') {
-      setAuthError('ভুল সিক্রেট কোড! এক প্যানেলের জন্য নির্ধারিত রেফার কোড দিয়ে অন্য প্যানেলে সাইন-আপ করা যাবে না। ম্যানেজার প্যানেলের সঠিক সিক্রেট কোড প্রদান করুন।');
+    if (
+      enteredSecret !== targetSecret1 && 
+      enteredSecret !== targetSecret2 && 
+      enteredSecret !== 'MGR-RECAP-2026' && 
+      enteredSecret !== 'MANAGING2026'
+    ) {
+      setAuthError('ভুল সিক্রেট কোড! এক প্যানেলের জন্য নির্ধারিত রেফার কোড দিয়ে অন্য প্যানেলে সাইন-আপ করা যাবে না। ম্যানেজার প্যানেলের সঠিক সিক্রেট কোড (MGR-RECAP-2026) প্রদান করুন।');
       return;
     }
 
@@ -424,6 +430,7 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
       mobile: data.mobile.trim(),
       designation: 'ব্যবস্থাপনা পরিচালক',
       secretCodeUsed: data.secretCode.trim(),
+      referralCode: 'MGR-RECAP-2026',
       createdAt: new Date().toISOString()
     };
 
@@ -779,74 +786,74 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8">
+    <div className="max-w-7xl mx-auto px-3 sm:px-5 py-3 sm:py-4 space-y-4">
       {/* Top Banner & Managing Profile */}
-      <div className="bg-slate-900 dark:bg-[#0a0a0a] text-white rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-xl relative overflow-hidden border border-slate-800 dark:border-white/10">
-        <div className="absolute top-0 right-0 translate-x-1/4 -translate-y-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="bg-slate-900 dark:bg-[#0a0a0a] text-white rounded-xl p-3.5 sm:p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-sm relative overflow-hidden border border-slate-800 dark:border-white/10">
+        <div className="absolute top-0 right-0 translate-x-1/4 -translate-y-1/4 w-44 h-44 bg-blue-600/10 rounded-full blur-2xl pointer-events-none"></div>
 
-        <div className="space-y-3 z-10">
+        <div className="space-y-1 z-10">
           <div className="flex items-center gap-2">
-            <span className="px-3 py-1 bg-blue-600/30 text-blue-400 border border-blue-500/30 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5" /> Managing Panel Control Room
+            <span className="px-2 py-0.5 bg-blue-600/30 text-blue-400 border border-blue-500/30 rounded-full text-[9px] font-bold uppercase tracking-wider flex items-center gap-1">
+              <Building2 className="w-3 h-3" /> Managing Panel
             </span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-black font-serif tracking-tight">
+          <h1 className="text-lg sm:text-xl font-bold font-serif tracking-tight">
             ব্যবস্থাপনা প্যানেল (Managing Panel)
           </h1>
-          <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
-            প্রতিবেদকবৃন্দের তথ্য ও NID ভেরিফিকেশন, সংবাদ কন্টেন্ট মডারেশন, বিজ্ঞপ্তি প্রেরণ এবং রিয়েলটাইম অ্যানালিটিক্স প্যানেল।
+          <p className="text-[11px] text-slate-400 max-w-2xl leading-relaxed">
+            প্রতিবেদকবৃন্দের তথ্য ও NID ভেরিফিকেশন, সংবাদ কন্টেন্ট মডারেশন এবং রিয়েলটাইম অ্যানালিটিক্স।
           </p>
         </div>
 
         {/* Managing Profile Pill */}
-        <div className="z-10 bg-slate-800/90 border border-slate-700/80 rounded-2xl p-4 flex flex-wrap items-center gap-4 shrink-0 shadow-lg">
-          <div className="w-12 h-12 rounded-xl bg-blue-600/30 border border-blue-500/40 flex items-center justify-center font-bold text-blue-400 overflow-hidden shrink-0">
+        <div className="z-10 bg-slate-800/90 border border-slate-700/80 rounded-xl p-2.5 flex flex-wrap items-center gap-2.5 shrink-0 shadow-sm">
+          <div className="w-9 h-9 rounded-lg bg-blue-600/30 border border-blue-500/40 flex items-center justify-center font-bold text-blue-400 overflow-hidden shrink-0">
             {managerProfile?.avatarUrl ? (
               <img src={managerProfile.avatarUrl} alt="" className="w-full h-full object-cover" />
             ) : (
-              <UserCheck className="w-6 h-6" />
+              <UserCheck className="w-4 h-4" />
             )}
           </div>
           <div>
             <h4 className="text-xs font-bold text-white">{managerProfile?.name || 'ব্যবস্থাপক'}</h4>
             <p className="text-[10px] text-blue-400 font-semibold">{managerProfile?.designation || 'ব্যবস্থাপনা পরিচালক'}</p>
-            <p className="text-[10px] text-slate-400 font-mono mt-0.5">{managerProfile?.email}</p>
+            <p className="text-[9px] text-slate-400 font-mono mt-0.5">{managerProfile?.email}</p>
           </div>
-          <div className="flex items-center gap-1.5 ml-auto">
+          <div className="flex items-center gap-1 ml-auto">
             <button
               onClick={handleOpenEditProfile}
               title="ম্যানেজার প্রোফাইল সেটআপ ও এডিট"
-              className="px-3 py-1.5 bg-blue-600/30 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 border border-blue-500/40 cursor-pointer shadow-sm"
+              className="px-2 py-1 bg-blue-600/30 hover:bg-blue-600 text-white rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 border border-blue-500/40 cursor-pointer shadow-xs"
             >
-              <UserCheck className="w-3.5 h-3.5" />
-              <span>প্রোফাইল এডিট</span>
+              <UserCheck className="w-3 h-3" />
+              <span>প্রোফাইল</span>
             </button>
             <button
               onClick={handleLogout}
               title="লগআউট"
-              className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700/50 rounded-xl transition-colors"
+              className="p-1 text-slate-400 hover:text-red-400 hover:bg-slate-700/50 rounded-lg transition-colors"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
       </div>
 
       {/* Navigation Tabs Header */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+      <div className="flex flex-wrap items-center gap-1 border-b border-slate-200 dark:border-slate-800 pb-2">
         <button
           onClick={() => setActiveTab('pending')}
-          className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 relative ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 relative ${
             activeTab === 'pending'
-              ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+              ? 'bg-amber-500 text-slate-950 shadow-xs'
               : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          <AlertCircle className="w-4 h-4 text-amber-900 dark:text-amber-400 shrink-0" />
-          <span>পেন্ডিং আবেদনসমূহ (Pending Requests)</span>
+          <AlertCircle className="w-3.5 h-3.5 text-amber-900 dark:text-amber-400 shrink-0" />
+          <span>পেন্ডিং আবেদন</span>
           {writers.filter(w => w.status === 'pending').length > 0 && (
-            <span className="px-2 py-0.5 bg-red-600 text-white rounded-full text-[10px] font-mono font-bold animate-pulse">
+            <span className="px-1.5 py-0.2 bg-red-600 text-white rounded-full text-[10px] font-mono font-bold animate-pulse">
               {writers.filter(w => w.status === 'pending').length}
             </span>
           )}
@@ -854,90 +861,90 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
 
         <button
           onClick={() => setActiveTab('writers')}
-          className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
             activeTab === 'writers'
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+              ? 'bg-blue-600 text-white shadow-xs'
               : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          <Users className="w-4 h-4" />
-          <span>আমার প্রতিবেদকবৃন্দ</span>
-          <span className="px-2 py-0.5 bg-white/20 rounded-full text-[10px] font-mono">
+          <Users className="w-3.5 h-3.5" />
+          <span>প্রতিবেদকবৃন্দ</span>
+          <span className="px-1.5 py-0.2 bg-white/20 rounded-full text-[10px] font-mono">
             {writers.filter(w => (w.managerId === managerProfile?.id || w.referralCodeUsed === managerProfile?.referralCode) && w.status !== 'pending').length} / {managerProfile?.maxReportersLimit || 10}
           </span>
         </button>
 
         <button
           onClick={() => setActiveTab('referral')}
-          className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
             activeTab === 'referral'
-              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+              ? 'bg-indigo-600 text-white shadow-xs'
               : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          <Lock className="w-4 h-4 text-amber-400" />
-          <span>আমার রেফার কোড</span>
+          <Lock className="w-3.5 h-3.5 text-amber-400" />
+          <span>রেফার কোড</span>
         </button>
 
         <button
           onClick={() => setActiveTab('articles')}
-          className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
             activeTab === 'articles'
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+              ? 'bg-blue-600 text-white shadow-xs'
               : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          <FileText className="w-4 h-4" />
-          <span>সংবাদ নিয়ন্ত্রণ ও মডারেশন</span>
-          <span className="px-2 py-0.5 bg-white/20 rounded-full text-[10px] font-mono">
+          <FileText className="w-3.5 h-3.5" />
+          <span>সংবাদ নিয়ন্ত্রণ</span>
+          <span className="px-1.5 py-0.2 bg-white/20 rounded-full text-[10px] font-mono">
             {articles.length}
           </span>
         </button>
 
         <button
           onClick={() => setActiveTab('notifications')}
-          className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
             activeTab === 'notifications'
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+              ? 'bg-blue-600 text-white shadow-xs'
               : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          <Bell className="w-4 h-4" />
-          <span>প্রতিবেদকদের নোটিফিকেশন</span>
-          <span className="px-2 py-0.5 bg-white/20 rounded-full text-[10px] font-mono">
+          <Bell className="w-3.5 h-3.5" />
+          <span>নোটিফিকেশন</span>
+          <span className="px-1.5 py-0.2 bg-white/20 rounded-full text-[10px] font-mono">
             {notifications.length}
           </span>
         </button>
 
         <button
           onClick={() => setActiveTab('analytics')}
-          className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
             activeTab === 'analytics'
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+              ? 'bg-blue-600 text-white shadow-xs'
               : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          <BarChart3 className="w-4 h-4" />
-          <span>রিয়েলটাইম অ্যানালিটিক্স</span>
+          <BarChart3 className="w-3.5 h-3.5" />
+          <span>অ্যানালিটিক্স</span>
         </button>
 
         <button
           onClick={() => setActiveTab('rules')}
-          className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
             activeTab === 'rules'
-              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+              ? 'bg-emerald-600 text-white shadow-xs'
               : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          <ShieldCheck className="w-4 h-4 text-emerald-300" />
-          <span>প্যানেল নিয়মাবলি</span>
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
+          <span>নিয়মাবলি</span>
         </button>
 
         <button
           onClick={() => setActiveTab('profile')}
-          className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
             activeTab === 'profile'
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+              ? 'bg-blue-600 text-white shadow-xs'
               : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
@@ -969,77 +976,77 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
               পেন্ডিং প্রতিবেদক আবেদনসমূহ (Pending Reporter Signups)
             </h2>
             <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              আপনার ম্যানেজার রেফার কোড ব্যবহার করে সাইনআপ করা নতুন প্রতিবেদকদের তথ্য ও NID পর্যালোচনা করে অনুমোদন বা বাতিল করুন। অনুমোদনের পর প্রতিবেদক সংবাদ পোস্ট তৈরি করতে পারবেন।
+              সরাসরি সাইন-আপ করা বা আপনার টিমে যুক্ত হওয়া নতুন প্রতিবেদকদের তথ্য ও NID পর্যালোচনা করে অনুমোদন বা বাতিল করুন। অনুমোদনের পর প্রতিবেদক সংবাদ পোস্ট তৈরি করতে পারবেন।
             </p>
           </div>
 
           {writers.filter(w => w.status === 'pending' && isWriterAssignedToCurrentManager(w)).length === 0 ? (
-            <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-3">
-              <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto" />
-              <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
+            <div className="text-center py-8 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
+              <CheckCircle className="w-8 h-8 text-emerald-500 mx-auto" />
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
                 কোনো পেন্ডিং আবেদন নেই!
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-[11px] text-slate-500">
                 বর্তমানে আপনার কাছে কোনো নতুন প্রতিবেদকের অনুমোদনের আবেদন জমে নেই।
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               {writers.filter(w => w.status === 'pending' && isWriterAssignedToCurrentManager(w)).map((writer) => (
-                <div key={writer.id} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border-2 border-amber-300 dark:border-amber-900/60 shadow-lg space-y-4 relative overflow-hidden">
-                  <div className="flex items-start gap-4">
+                <div key={writer.id} className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-amber-300 dark:border-amber-900/60 shadow-xs space-y-2.5 relative overflow-hidden">
+                  <div className="flex items-start gap-3">
                     <img
                       src={writer.avatarUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80"}
                       alt={writer.name}
-                      className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-500 shrink-0"
+                      className="w-12 h-12 rounded-lg object-cover border-2 border-amber-500 shrink-0"
                     />
-                    <div className="space-y-1 flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-base font-bold text-slate-900 dark:text-white truncate font-serif">
+                    <div className="space-y-0.5 flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate font-serif">
                           {writer.name}
                         </h3>
-                        <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 text-[10px] font-extrabold rounded-full shrink-0">
+                        <span className="px-2 py-0.2 bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 text-[9px] font-bold rounded-full shrink-0">
                           পেন্ডিং
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 font-mono">
+                      <p className="text-[11px] text-slate-500 font-mono">
                         NID: <strong className="text-slate-800 dark:text-slate-200">{writer.nidNumber || 'প্রদান করা হয়নি'}</strong>
                       </p>
-                      <p className="text-xs text-slate-500 font-mono">
+                      <p className="text-[11px] text-slate-500 font-mono">
                         মোবাইল: <strong className="text-slate-800 dark:text-slate-200">{writer.mobile}</strong>
                       </p>
                     </div>
                   </div>
 
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl text-xs space-y-1 border border-slate-200 dark:border-slate-700">
+                  <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-lg text-[11px] space-y-1 border border-slate-200 dark:border-slate-700">
                     <p className="text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                      <MapPin className="w-3 h-3 text-red-500 shrink-0" />
                       <span>ঠিকানা: <strong>{writer.address || 'তথ্য অনুপস্থিত'}</strong></span>
                     </p>
                     <p className="text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                      <span>আবেদনের তারিখ: <strong>{writer.createdAt ? new Date(writer.createdAt).toLocaleDateString('bn-BD') : 'আজ'}</strong></span>
+                      <Calendar className="w-3 h-3 text-blue-500 shrink-0" />
+                      <span>তারিখ: <strong>{writer.createdAt ? new Date(writer.createdAt).toLocaleDateString('bn-BD') : 'আজ'}</strong></span>
                     </p>
                     <p className="text-slate-600 dark:text-slate-300 flex items-center gap-1.5 font-mono">
-                      <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      <span>ব্যবহৃত রেফার কোড: <strong>{writer.referralCodeUsed || 'N/A'}</strong></span>
+                      <Lock className="w-3 h-3 text-amber-500 shrink-0" />
+                      <span>রেফার কোড: <strong>{writer.referralCodeUsed || 'N/A'}</strong></span>
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-3 pt-2">
+                  <div className="flex items-center gap-2 pt-1">
                     <button
                       onClick={() => handleApproveReporter(writer.id)}
-                      className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-xs transition-all flex items-center justify-center gap-1 cursor-pointer"
                     >
-                      <CheckCircle className="w-4 h-4" />
-                      <span>অনুমোদন করুন (Approve)</span>
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      <span>অনুমোদন (Approve)</span>
                     </button>
                     <button
                       onClick={() => handleRejectReporter(writer.id)}
-                      className="py-2.5 px-4 bg-red-600/10 hover:bg-red-600 text-red-600 hover:text-white border border-red-300 dark:border-red-900 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="py-1.5 px-3 bg-red-600/10 hover:bg-red-600 text-red-600 hover:text-white border border-red-300 dark:border-red-900 font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer"
                     >
-                      <X className="w-4 h-4" />
-                      <span>বাতিল (Reject)</span>
+                      <X className="w-3.5 h-3.5" />
+                      <span>বাতিল</span>
                     </button>
                   </div>
                 </div>
@@ -1051,14 +1058,14 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
 
       {/* TAB: MANAGER REFERRAL CODE & LIMIT TAB */}
       {activeTab === 'referral' && (
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-6 shadow-xl">
-          <div className="border-b border-slate-100 dark:border-slate-800 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 space-y-4 shadow-sm">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div>
               <h2 className="text-xl font-black text-slate-900 dark:text-white font-serif flex items-center gap-2">
-                <Lock className="w-6 h-6 text-indigo-600" /> ম্যানেজার নিজস্ব রেফার কোড নিয়ন্ত্রণ
+                <Lock className="w-6 h-6 text-indigo-600" /> ম্যানেজার রেফার কোড ও টিম সেটিং
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                আপনার রেফার কোড তৈরি ও এডিট করুন। আপনার রেফার কোড ব্যবহার করেই নতুন প্রতিবেদক আপনার অধীনে যুক্ত হতে পারবে।
+                ম্যানেজার নিজস্ব রেফার কোড। প্রতিবেদক সাইন-আপ বর্তমানে ওপেন (রেফার কোড ছাড়াই যেকেউ আবেদন করতে পারেন)।
               </p>
             </div>
             <div className="p-3 bg-indigo-50 dark:bg-indigo-950/60 rounded-2xl border border-indigo-200 dark:border-indigo-900 text-center">
@@ -1086,11 +1093,11 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
                 required
                 value={myRefCodeInput}
                 onChange={(e) => setMyRefCodeInput(e.target.value)}
-                placeholder="যেমন: MGR-ALPHA"
+                placeholder="যেমন: MGR-RECAP-2026"
                 className="w-full px-4 py-3 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold uppercase tracking-wider focus:ring-2 focus:ring-indigo-500"
               />
               <p className="text-[11px] text-slate-500 mt-1">
-                নতুন প্রতিবেদক রেজিস্ট্রেশনের সময় এই রেফার কোডটি প্রদান করবে।
+                ম্যানেজার প্যানেলের টিম রেফারেন্স কোড।
               </p>
             </div>
 
@@ -1107,17 +1114,17 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
 
       {/* TAB: MANAGING PANEL RULES & INSTRUCTIONS */}
       {activeTab === 'rules' && (
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-6 shadow-xl">
-          <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-            <h2 className="text-2xl font-black text-slate-900 dark:text-white font-serif flex items-center gap-2">
-              <ShieldCheck className="w-7 h-7 text-indigo-600" /> ব্যবস্থাপনা প্যানেলের দায়িত্ব ও নিয়মাবলি
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 space-y-4 shadow-sm">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white font-serif flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-indigo-600" /> ব্যবস্থাপনা প্যানেলের দায়িত্ব ও নিয়মাবলি
             </h2>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-slate-500 mt-0.5">
               The Recap Media-তে ম্যানেজার প্যানেলের পরিচালনার নিয়ম, সীমা ও দায়িত্বসমূহ
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="p-5 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-2xl border border-indigo-200 dark:border-indigo-900 space-y-2">
               <h3 className="text-sm font-bold text-indigo-900 dark:text-indigo-300 flex items-center gap-2 font-serif">
                 👥 ১. প্রতিবেদক ধারণ ক্ষমতা (সর্বোচ্চ ১০ জন)
@@ -1129,10 +1136,10 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
 
             <div className="p-5 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-2xl border border-indigo-200 dark:border-indigo-900 space-y-2">
               <h3 className="text-sm font-bold text-indigo-900 dark:text-indigo-300 flex items-center gap-2 font-serif">
-                🔑 ২. ম্যানেজার রেফার কোড নিয়ন্ত্রণ
+                🔑 ২. ম্যানেজার রেফার কোড ও টিম সমন্বয়
               </h3>
               <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                ম্যানেজার তার প্যানেলের <strong>"আমার রেফার কোড"</strong> ট্যাব থেকে নিজস্ব রেফার কোড তৈরি বা এডিট করবেন। এই রেফার কোড ব্যবহার ব্যতীত কোনো নতুন প্রতিবেদক অ্যাকাউন্টে রেজিস্টার করতে পারবেন না।
+                প্রতিবেদক সাইন-আপে কোনো রেফার কোডের বাধ্যবাধকতা নেই। তবে ম্যানেজার তার প্যানেলের <strong>"আমার রেফার কোড"</strong> ট্যাব থেকে রেফার কোড সংরক্ষণ করে টিম সমন্বয় ও প্রতিবেদক পরিচালনা করতে পারবেন।
               </p>
             </div>
 
@@ -1159,85 +1166,84 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
 
       {/* TAB 1: REPORTERS CONTROL */}
       {activeTab === 'writers' && (
-        <div className="space-y-6">
-
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white dark:bg-slate-900 p-3 sm:p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
             <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 font-serif">
-                <Users className="w-5 h-5 text-blue-500" /> নিবন্ধিত প্রতিবেদকবৃন্দ
+              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-1.5 font-serif">
+                <Users className="w-4 h-4 text-blue-500" /> নিবন্ধিত প্রতিবেদকবৃন্দ
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-[11px] text-slate-500">
                 সকল প্রতিবেদকের NID, মোবাইল ও প্রোফাইল ভেরিফিকেশন নিয়ন্ত্রণ করুন।
               </p>
             </div>
 
-            <div className="relative w-full sm:w-72">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <div className="relative w-full sm:w-64">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={writerSearchQuery}
                 onChange={(e) => setWriterSearchQuery(e.target.value)}
-                placeholder="নাম, মোবাইল, NID দিয়ে খুঁজুন..."
-                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                placeholder="নাম, মোবাইল, NID খুঁজুন..."
+                className="w-full pl-8 pr-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-1 focus:ring-blue-500"
               />
             </div>
           </div>
 
           {filteredWriters.length === 0 ? (
-            <div className="bg-white dark:bg-slate-900 p-12 text-center rounded-3xl border border-slate-200 dark:border-slate-800 text-slate-500 space-y-2">
-              <Users className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-700" />
+            <div className="bg-white dark:bg-slate-900 p-8 text-center rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 space-y-1.5">
+              <Users className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-700" />
               <p className="text-xs font-bold">কোনো প্রতিবেদক পাওয়া যায়নি!</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {filteredWriters.map((writer) => {
                 const writerArticles = articles.filter((a) => a.author === writer.name);
                 return (
                   <div
                     key={writer.id}
-                    className={`bg-white dark:bg-slate-900 p-5 rounded-3xl border transition-all space-y-4 shadow-sm relative ${
+                    className={`bg-white dark:bg-slate-900 p-3.5 rounded-xl border transition-all space-y-2.5 shadow-xs relative ${
                       writer.isBanned
                         ? 'border-red-300 dark:border-red-900/60 bg-red-50/20 dark:bg-red-950/10'
                         : 'border-slate-200 dark:border-slate-800 hover:border-blue-500/50'
                     }`}
                   >
-                    <div className="flex items-start gap-4">
+                    <div className="flex items-start gap-3">
                       <img
                         src={writer.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'}
                         alt={writer.name}
-                        className="w-14 h-14 rounded-2xl object-cover border-2 border-blue-500 shrink-0"
+                        className="w-11 h-11 rounded-lg object-cover border-2 border-blue-500 shrink-0"
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1">
-                          <h3 className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                          <h3 className="font-bold text-xs text-slate-900 dark:text-white truncate">
                             {writer.name}
                           </h3>
                           {writer.isBanned ? (
-                            <span className="text-[10px] font-extrabold px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 rounded-full shrink-0">
+                            <span className="text-[9px] font-extrabold px-1.5 py-0.2 bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 rounded-full shrink-0">
                               ব্লকড
                             </span>
                           ) : (
-                            <span className="text-[10px] font-extrabold px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 rounded-full shrink-0">
+                            <span className="text-[9px] font-extrabold px-1.5 py-0.2 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 rounded-full shrink-0">
                               সক্রিয়
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-slate-500 truncate">{writer.email}</p>
-                        <p className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 mt-0.5">
+                        <p className="text-[11px] text-slate-500 truncate">{writer.email}</p>
+                        <p className="text-[11px] font-mono font-bold text-blue-600 dark:text-blue-400 mt-0.5">
                           📱 {writer.mobile}
                         </p>
                       </div>
                     </div>
 
-                    <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800/80 text-xs space-y-1.5">
+                    <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-100 dark:border-slate-800/80 text-[11px] space-y-1">
                       <div className="flex justify-between">
                         <span className="text-slate-400">NID নম্বর:</span>
                         <span className="font-mono font-bold text-slate-900 dark:text-white">
-                          {writer.nidNumber || 'তথ্য দেওয়া হয়নি'}
+                          {writer.nidNumber || 'তথ্য নেই'}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-400">প্রকাশিত সংবাদ:</span>
+                        <span className="text-slate-400">সংবাদ:</span>
                         <span className="font-bold text-slate-900 dark:text-white">{writerArticles.length} টি</span>
                       </div>
                       <div className="flex justify-between">
@@ -1246,24 +1252,24 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800">
                       <button
                         onClick={() => setSelectedWriter(writer)}
-                        className="flex-1 py-2 text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors flex items-center justify-center gap-1.5"
+                        className="flex-1 py-1.5 text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center justify-center gap-1"
                       >
-                        <Eye className="w-3.5 h-3.5 text-blue-500" />
+                        <Eye className="w-3 h-3 text-blue-500" />
                         <span>প্রোফাইল NID</span>
                       </button>
 
                       <button
                         onClick={() => handleToggleBanWriter(writer.id)}
-                        className={`py-2 px-3 text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1 ${
+                        className={`py-1.5 px-2.5 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 ${
                           writer.isBanned
                             ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                             : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 hover:bg-amber-200'
                         }`}
                       >
-                        <Ban className="w-3.5 h-3.5" />
+                        <Ban className="w-3 h-3" />
                         <span>{writer.isBanned ? 'আনব্লক' : 'ব্লক'}</span>
                       </button>
 
@@ -1766,20 +1772,20 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
 
       {/* TAB 6: MANAGER PROFILE SETUP & OVERVIEW */}
       {activeTab === 'profile' && (
-        <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-md">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 pb-6 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border-2 border-blue-500 shadow-md shrink-0 flex items-center justify-center">
+        <div className="space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border-2 border-blue-500 shadow-sm shrink-0 flex items-center justify-center">
                   {managerProfile?.avatarUrl ? (
                     <img src={managerProfile.avatarUrl} alt={managerProfile.name} className="w-full h-full object-cover" />
                   ) : (
-                    <UserCheck className="w-10 h-10 text-blue-500" />
+                    <UserCheck className="w-7 h-7 text-blue-500" />
                   )}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-serif">
+                    <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white font-serif">
                       {managerProfile?.name || 'ব্যবস্থাপক'}
                     </h2>
                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
@@ -1839,7 +1845,7 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
               <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-800">
                 <span className="text-[11px] font-bold text-slate-400 block mb-1">🔑 ম্যানেজার রেফারেল কোড</span>
                 <p className="font-bold text-amber-600 dark:text-amber-400 font-mono text-sm tracking-wider">
-                  {managerProfile?.referralCode || 'MGR-ALPHA'}
+                  {managerProfile?.referralCode || 'MGR-RECAP-2026'}
                 </p>
               </div>
 
@@ -2228,8 +2234,8 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
       )}
       {/* Full Article Preview / Inspection Modal for Managing Panel */}
       {viewingArticle && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-sm p-4 flex justify-center items-center">
-          <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-6">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-sm p-3 sm:p-4 flex justify-center items-center">
+          <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-4 sm:p-6 space-y-4">
             {/* Top Bar */}
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-2 flex-wrap">

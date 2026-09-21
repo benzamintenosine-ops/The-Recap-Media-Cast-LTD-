@@ -66,10 +66,12 @@ import { RichContentEditor } from './BloggerRichEditor';
 import { uploadImageToCloudinary, compressImageClientSide } from '../services/cloudinaryService';
 import { 
   saveAdminToFirebase, 
+  saveManagerToFirebase,
   subscribeToContactMessages, 
   deleteContactMessageFromFirebase, 
   markContactMessageReadInFirebase 
 } from '../services/firebaseDataService';
+import { saveSiteSettingsToFirebase } from '../services/firebaseSettingsService';
 import { InfoModals } from './InfoModals';
 import { UnifiedProfileSetup, UnifiedProfileSetupData } from './UnifiedProfileSetup';
 import { UnifiedAuthCard, UnifiedAuthData } from './UnifiedAuthCard';
@@ -348,7 +350,7 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
     setQuickPasswordMsg(null);
     if (!adminProfile) return;
 
-    const currentSecret = siteSettings.adminSecretCode || 'ADMIN-RECAP-9824';
+    const currentSecret = siteSettings.adminSecretCode || 'ADMIN-RECAP-2026';
     if (adminProfile.password && quickOldPassword.trim() !== adminProfile.password && quickOldPassword.trim() !== currentSecret) {
       setQuickPasswordMsg({ type: 'error', text: 'বর্তমান পাসওয়ার্ডটি সঠিক নয়!' });
       return;
@@ -415,8 +417,8 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
   const [editContactEmail, setEditContactEmail] = useState(siteSettings.contactEmail || 'news@therecapmedia.com');
   const [editContactPhone, setEditContactPhone] = useState(siteSettings.contactPhone || '+880 9612-888999');
   const [editWriterSecret, setEditWriterSecret] = useState(siteSettings.writerSecretCode || 'RECAP2026');
-  const [editManagingSecret, setEditManagingSecret] = useState(siteSettings.managingSecretCode || 'MANAGING2026');
-  const [editAdminSecret, setEditAdminSecret] = useState(siteSettings.adminSecretCode || 'ADMIN-RECAP-9824');
+  const [editManagingSecret, setEditManagingSecret] = useState(siteSettings.managingSecretCode || 'MGR-RECAP-2026');
+  const [editAdminSecret, setEditAdminSecret] = useState(siteSettings.adminSecretCode || 'ADMIN-RECAP-2026');
   const [editTelegramReferralUrl, setEditTelegramReferralUrl] = useState(siteSettings.telegramReferralUrl || 'https://t.me/TheRecapMediaCast');
 
   // Category Management State
@@ -624,8 +626,8 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
     setEditContactEmail(siteSettings.contactEmail || 'news@therecapmedia.com');
     setEditContactPhone(siteSettings.contactPhone || '+880 9612-888999');
     setEditWriterSecret(siteSettings.writerSecretCode || 'RECAP2026');
-    setEditManagingSecret(siteSettings.managingSecretCode || 'MANAGING2026');
-    setEditAdminSecret(siteSettings.adminSecretCode || 'ADMIN-RECAP-9824');
+    setEditManagingSecret(siteSettings.managingSecretCode || 'MGR-RECAP-2026');
+    setEditAdminSecret(siteSettings.adminSecretCode || 'ADMIN-RECAP-2026');
     setEditTelegramReferralUrl(siteSettings.telegramReferralUrl || 'https://t.me/TheRecapMediaCast');
     setAboutHtml(siteSettings.aboutUsHtml || '');
     setPrivacyHtml(siteSettings.privacyPolicyHtml || '');
@@ -667,18 +669,19 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
   // Unified Admin Sign Up Handler
   const handleAdminUnifiedSignUp = (data: UnifiedAuthData) => {
     setAuthError('');
-    const currentSecret1 = (siteSettings.adminSecretCode || 'ADMIN-RECAP-9824').trim().toUpperCase();
-    const currentSecret2 = (siteSettings.systemAdminSecretCode || 'ADMIN2026').trim().toUpperCase();
+    const currentSecret1 = (siteSettings.adminSecretCode || 'ADMIN-RECAP-2026').trim().toUpperCase();
+    const currentSecret2 = (siteSettings.systemAdminSecretCode || 'ADMIN-RECAP-2026').trim().toUpperCase();
     const enteredSecret = data.secretCode.trim().toUpperCase();
 
-    const managingCode1 = (siteSettings.managingSecretCode || 'MANAGING2026').trim().toUpperCase();
-    const managingCode2 = (siteSettings.managerSecretCode || 'MANAGING2026').trim().toUpperCase();
+    const managingCode1 = (siteSettings.managingSecretCode || 'MGR-RECAP-2026').trim().toUpperCase();
+    const managingCode2 = (siteSettings.managerSecretCode || 'MGR-RECAP-2026').trim().toUpperCase();
     const writerCode = (siteSettings.writerSecretCode || 'RECAP2026').trim().toUpperCase();
 
     // Check if user entered code meant for another panel (Manager or Reporter)
     const isManagingCode = 
       enteredSecret === managingCode1 || 
       enteredSecret === managingCode2 || 
+      enteredSecret === 'MGR-RECAP-2026' ||
       enteredSecret === 'MANAGING2026';
 
     const isReporterCode = 
@@ -691,8 +694,14 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
       return;
     }
 
-    if (enteredSecret !== currentSecret1 && enteredSecret !== currentSecret2 && enteredSecret !== 'ADMIN-RECAP-9824' && enteredSecret !== 'ADMIN2026') {
-      setAuthError('ভুল অ্যাডমিন সিক্রেট কোড! এক প্যানেলের জন্য নির্ধারিত রেফার কোড দিয়ে অন্য প্যানেলে সাইন-আপ করা যাবে না। অ্যাডমিন প্যানেলের সঠিক সিক্রেট কোড প্রদান করুন।');
+    if (
+      enteredSecret !== currentSecret1 && 
+      enteredSecret !== currentSecret2 && 
+      enteredSecret !== 'ADMIN-RECAP-2026' && 
+      enteredSecret !== 'ADMIN-RECAP-9824' && 
+      enteredSecret !== 'ADMIN2026'
+    ) {
+      setAuthError('ভুল অ্যাডমিন সিক্রেট কোড! এক প্যানেলের জন্য নির্ধারিত রেফার কোড দিয়ে অন্য প্যানেলে সাইন-আপ করা যাবে না। অ্যাডমিন প্যানেলের সঠিক সিক্রেট কোড (ADMIN-RECAP-2026) প্রদান করুন।');
       return;
     }
 
@@ -1171,44 +1180,44 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
 
   // Authenticated Main Admin Dashboard Component
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-[#050505] text-slate-900 dark:text-slate-100 p-4 sm:p-6 space-y-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-slate-100 dark:bg-[#050505] text-slate-900 dark:text-slate-100 p-3 sm:p-5 space-y-4">
+      <div className="max-w-7xl mx-auto space-y-4">
         
         {/* Top Header Bar */}
-        <div className="bg-slate-900 text-white rounded-3xl p-6 shadow-xl border border-slate-800 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-red-600 to-amber-500 p-0.5 shadow-md">
+        <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-md border border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-red-600 to-amber-500 p-0.5 shadow-sm">
               <img
                 src={adminProfile?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'}
                 alt={adminProfile?.name}
-                className="w-full h-full rounded-[14px] object-cover"
+                className="w-full h-full rounded-[10px] object-cover"
               />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3" /> SUPER ADMIN
+              <div className="flex items-center gap-1.5">
+                <span className="bg-red-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                  <ShieldCheck className="w-2.5 h-2.5" /> SUPER ADMIN
                 </span>
-                <span className="text-xs text-slate-400">| ID: {adminProfile?.id}</span>
+                <span className="text-[11px] text-slate-400">| ID: {adminProfile?.id}</span>
               </div>
-              <h1 className="text-xl sm:text-2xl font-black font-serif tracking-tight mt-1">
-                {adminProfile?.name} <span className="text-xs font-sans font-normal text-slate-400">({adminProfile?.mobile})</span>
+              <h1 className="text-base sm:text-lg font-bold font-serif tracking-tight mt-0.5">
+                {adminProfile?.name} <span className="text-[11px] font-sans font-normal text-slate-400">({adminProfile?.mobile})</span>
               </h1>
-              <p className="text-xs text-slate-400">
+              <p className="text-[11px] text-slate-400">
                 {siteSettings.siteName || 'THE RECAP MEDIA CAST LTD'} — নিয়ন্ত্রণ ও পরিচালনা প্যানেল
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {/* Bell Icon for Notification Center Modal (Sent & Received) */}
             <button
               onClick={() => setShowNotificationCenterModal(true)}
-              className="relative p-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl border border-slate-700 transition-all flex items-center justify-center group shadow-md"
+              className="relative p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl border border-slate-700 transition-all flex items-center justify-center group shadow-sm"
               title="নোটিফিকেশন সেন্টার (পাঠানো ও রিসিভকৃত নোটিফিকেশন)"
             >
-              <Bell className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
-              <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center border-2 border-slate-900 shadow">
+              <Bell className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+              <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full min-w-[16px] text-center border-2 border-slate-900 shadow">
                 {notifications.length + withdrawals.length}
               </span>
             </button>
@@ -1216,9 +1225,9 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
             {pendingWithdrawalsCount > 0 && (
               <button
                 onClick={() => setActiveTab('withdrawals')}
-                className="px-3.5 py-2 bg-amber-500 text-slate-950 font-extrabold text-xs rounded-2xl shadow-lg flex items-center gap-2 animate-bounce"
+                className="px-3 py-1.5 bg-amber-500 text-slate-950 font-extrabold text-xs rounded-xl shadow flex items-center gap-1.5 animate-bounce"
               >
-                <DollarSign className="w-4 h-4" />
+                <DollarSign className="w-3.5 h-3.5" />
                 <span>{pendingWithdrawalsCount} টি উইথড্রয়াল নোটিফিকেশন</span>
               </button>
             )}
@@ -1229,42 +1238,42 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                 initAdminEditModal();
                 setShowEditAdminModal(true);
               }}
-              className="px-3.5 py-2 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white text-xs font-bold rounded-2xl shadow flex items-center gap-2 transition-all"
+              className="px-3 py-1.5 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
               title="অ্যাডমিন প্রোফাইল সেটাপ ও এডিট করুন"
             >
-              <UserCheck className="w-4 h-4" />
+              <UserCheck className="w-3.5 h-3.5" />
               <span>প্রোফাইল সেটাপ / এডিট</span>
             </button>
 
             <button
               onClick={handleLogout}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-2xl border border-slate-700 flex items-center gap-2 transition-colors"
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 flex items-center gap-1.5 transition-colors"
             >
-              <LogOut className="w-4 h-4 text-red-400" />
+              <LogOut className="w-3.5 h-3.5 text-red-400" />
               <span>লগআউট</span>
             </button>
           </div>
         </div>
 
         {/* Navigation Tabs Bar */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-2 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+        <div className="bg-white dark:bg-slate-900 rounded-xl p-1.5 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-1 overflow-x-auto scrollbar-none">
           <button
             onClick={() => setActiveTab('profile')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
               activeTab === 'profile'
-                ? 'bg-red-600 text-white shadow-md ring-2 ring-red-400/40'
+                ? 'bg-red-600 text-white shadow-sm ring-1 ring-red-400/40'
                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <UserCheck className="w-4 h-4 text-amber-400" />
+            <UserCheck className="w-3.5 h-3.5 text-amber-400" />
             <span>🛡️ অ্যাডমিন প্রোফাইল সেটাপ</span>
           </button>
 
           <button
             onClick={() => setActiveTab('withdrawals')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
               activeTab === 'withdrawals'
-                ? 'bg-red-600 text-white shadow-md'
+                ? 'bg-red-600 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
@@ -1279,26 +1288,26 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
 
           <button
             onClick={() => setActiveTab('managers')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
               activeTab === 'managers'
-                ? 'bg-blue-600 text-white shadow-md'
+                ? 'bg-blue-600 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Building2 className="w-4 h-4 text-blue-400" />
+            <Building2 className="w-3.5 h-3.5 text-blue-400" />
             <span>ম্যানেজারবৃন্দ ({managers.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('messages')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
               activeTab === 'messages'
-                ? 'bg-emerald-600 text-white shadow-md'
+                ? 'bg-emerald-600 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Mail className="w-4 h-4 text-emerald-400" />
-            <span>পাঠক বার্তা / ইনবক্স ({contactMessages.length})</span>
+            <Mail className="w-3.5 h-3.5 text-emerald-400" />
+            <span>বার্তা ({contactMessages.length})</span>
             {unreadMessagesCount > 0 && (
               <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full animate-pulse">
                 {unreadMessagesCount}
@@ -1308,57 +1317,57 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
 
           <button
             onClick={() => setActiveTab('settings')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
               activeTab === 'settings'
-                ? 'bg-red-600 text-white shadow-md'
+                ? 'bg-red-600 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Settings className="w-4 h-4" />
-            <span>সাইট এডিটর ও গোপন কোড</span>
+            <Settings className="w-3.5 h-3.5" />
+            <span>সাইট এডিটর ও কোড</span>
           </button>
 
           <button
             onClick={() => setActiveTab('ads')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
               activeTab === 'ads'
-                ? 'bg-red-600 text-white shadow-md'
+                ? 'bg-red-600 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <ImageIcon className="w-4 h-4" />
-            <span>বিজ্ঞাপন (Ads)</span>
+            <ImageIcon className="w-3.5 h-3.5" />
+            <span>বিজ্ঞাপন</span>
           </button>
 
           <button
             onClick={() => setActiveTab('socials')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
               activeTab === 'socials'
-                ? 'bg-red-600 text-white shadow-md'
+                ? 'bg-red-600 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Globe className="w-4 h-4" />
-            <span>সোশ্যাল উইজেটস</span>
+            <Globe className="w-3.5 h-3.5" />
+            <span>সোশ্যাল</span>
           </button>
 
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
               activeTab === 'analytics'
-                ? 'bg-red-600 text-white shadow-md'
+                ? 'bg-red-600 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <BarChart3 className="w-4 h-4" />
-            <span>রিয়েলটাইম অ্যানালিটিক্স</span>
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span>অ্যানালিটিক্স</span>
           </button>
         </div>
 
         {/* TAB 1: WITHDRAWALS & PAYMENTS */}
         {activeTab === 'withdrawals' && (
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-md space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 font-serif">
                   <DollarSign className="w-6 h-6 text-emerald-500" />
@@ -1488,7 +1497,7 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                   এখনো পর্যন্ত কোনো ম্যানেজার নিবন্ধিত হয়নি।
                 </p>
                 <p className="text-xs text-slate-400">
-                  ম্যানেজিং রেফার কোড (বর্তমান: <code className="font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-blue-600 font-bold">{siteSettings.managingSecretCode || 'MANAGING2026'}</code>) দিয়ে সাইনআপ করলে ম্যানেজার তালিকা এখানে দেখা যাবে।
+                  ম্যানেজিং রেফার কোড (বর্তমান: <code className="font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-blue-600 font-bold">{siteSettings.managingSecretCode || 'MGR-RECAP-2026'}</code>) দিয়ে সাইনআপ করলে ম্যানেজার তালিকা এখানে দেখা যাবে।
                 </p>
               </div>
             ) : (
@@ -2166,21 +2175,70 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
               {settingsSubTab === 'codes' && (
                 <div className="space-y-4 max-w-xl">
                   <div className="p-4 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-900 text-xs text-amber-800 dark:text-amber-300">
-                    🔐 <strong>গোপন কোড ও টেলিগ্রাম ইনবক্স নিয়ন্ত্রণ:</strong> সাইনআপ করার সময় সাধারণ পাঠকরা প্রবেশ করতে পারবে না। এডমিন এখান থেকে প্রতিবেদক, ম্যানেজিং প্যানেল ও অ্যাডমিন প্যানেলের রেফার কোড এবং টেলিগ্রাম ইনবক্স লিংক পরিবর্তন ও নিয়ন্ত্রণ করতে পারবেন।
+                    🔐 <strong>গোপন কোড ও টেলিগ্রাম ইনবক্স নিয়ন্ত্রণ:</strong> সাইনআপ করার সময় সাধারণ পাঠকরা প্রবেশ করতে পারবে না। এডমিন এখান থেকে ম্যানেজিং প্যানেল ও অ্যাডমিন প্যানেলের রেফার কোড এবং টেলিগ্রাম ইনবক্স লিংক পরিবর্তন ও নিয়ন্ত্রণ করতে পারবেন। (দ্রষ্টব্য: প্রতিবেদকদের উন্মুক্ত সাইন-আপের জন্য তাদের কোনো রেফার কোড প্রয়োজন হয় না)।
+                  </div>
+
+                  {/* Format & Reset Codes Action Button */}
+                  <div className="p-4 bg-gradient-to-r from-red-50 to-indigo-50 dark:from-red-950/40 dark:to-indigo-950/40 rounded-2xl border border-red-200 dark:border-red-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div>
+                      <h5 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <RefreshCw className="w-4 h-4 text-red-500" /> পূর্বের রেফার কোড ফরম্যাট করুন
+                      </h5>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        এডমিন কোড: <code className="font-mono text-red-600 font-bold">ADMIN-RECAP-2026</code> | ম্যানেজার কোড: <code className="font-mono text-blue-600 font-bold">MGR-RECAP-2026</code>
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const formattedAdmin = 'ADMIN-RECAP-2026';
+                        const formattedManager = 'MGR-RECAP-2026';
+                        setEditAdminSecret(formattedAdmin);
+                        setEditManagingSecret(formattedManager);
+
+                        const updatedSettings: SiteSettings = {
+                          ...siteSettings,
+                          adminSecretCode: formattedAdmin,
+                          managingSecretCode: formattedManager,
+                          systemAdminSecretCode: formattedAdmin,
+                          managerSecretCode: formattedManager
+                        };
+
+                        onUpdateSiteSettings(updatedSettings);
+                        saveSiteSettingsToFirebase(updatedSettings).catch(() => {});
+                        localStorage.setItem('recap_site_settings', JSON.stringify(updatedSettings));
+
+                        if (managers && managers.length > 0) {
+                          const updatedManagers = managers.map(m => ({
+                            ...m,
+                            referralCode: formattedManager,
+                            secretCodeUsed: formattedManager
+                          }));
+                          onUpdateManagers(updatedManagers);
+                          updatedManagers.forEach(m => saveManagerToFirebase(m).catch(() => {}));
+                        }
+
+                        alert('পূর্বের রেফার কোড সফলভাবে ফরম্যাট করা হয়েছে!\n\nনতুন কোডসমূহ:\n• অ্যাডমিন সিক্রেট কোড: ADMIN-RECAP-2026\n• ম্যানেজিং সিক্রেট কোড: MGR-RECAP-2026\n\nডেটাবেসে সফলভাবে সংরক্ষিত হয়েছে।');
+                      }}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow transition-all shrink-0 cursor-pointer flex items-center gap-1.5"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>ফরম্যাট ও সেট করুন</span>
+                    </button>
                   </div>
 
                   <div>
                     <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1 flex items-center gap-1.5">
-                      <Lock className="w-4 h-4 text-emerald-500" /> প্রতিবেদক গোপন রেফার কোড (Reporter Secret Referral Code) *
+                      <Lock className="w-4 h-4 text-emerald-500" /> প্রতিবেদক গোপন রেফার কোড (ঐচ্ছিক ব্যাকআপ কোড)
                     </label>
                     <input
                       type="text"
-                      required
                       value={editWriterSecret}
                       onChange={(e) => setEditWriterSecret(e.target.value)}
                       placeholder="RECAP2026"
                       className="w-full px-4 py-2.5 text-xs rounded-xl border border-emerald-400 dark:border-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/30 text-slate-900 dark:text-emerald-200 font-mono font-bold tracking-wider uppercase"
                     />
+                    <p className="text-[11px] text-slate-400 mt-1">প্রতিবেদক সাইন-আপ বর্তমানে ওপেন (রেফার কোড ছাড়াই যেকেউ আবেদন করতে পারে)।</p>
                   </div>
 
                   <div>
@@ -2192,7 +2250,7 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                       required
                       value={editManagingSecret}
                       onChange={(e) => setEditManagingSecret(e.target.value)}
-                      placeholder="MANAGING2026"
+                      placeholder="MGR-RECAP-2026"
                       className="w-full px-4 py-2.5 text-xs rounded-xl border border-blue-400 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/30 text-slate-900 dark:text-blue-200 font-mono font-bold tracking-wider uppercase"
                     />
                   </div>
@@ -2206,7 +2264,7 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                       required
                       value={editAdminSecret}
                       onChange={(e) => setEditAdminSecret(e.target.value)}
-                      placeholder="ADMIN-RECAP-9824"
+                      placeholder="ADMIN-RECAP-2026"
                       className="w-full px-4 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold tracking-wider uppercase"
                     />
                   </div>

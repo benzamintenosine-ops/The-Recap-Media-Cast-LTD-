@@ -136,19 +136,21 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
     // Check if entered code belongs to another panel (Admin or Manager)
     const enteredSecret = (data.secretCode || '').trim().toUpperCase();
-    const adminCode1 = (siteSettings?.adminSecretCode || 'ADMIN-RECAP-9824').trim().toUpperCase();
-    const adminCode2 = (siteSettings?.systemAdminSecretCode || 'ADMIN2026').trim().toUpperCase();
-    const managingCode1 = (siteSettings?.managingSecretCode || 'MANAGING2026').trim().toUpperCase();
-    const managingCode2 = (siteSettings?.managerSecretCode || 'MANAGING2026').trim().toUpperCase();
+    const adminCode1 = (siteSettings?.adminSecretCode || 'ADMIN-RECAP-2026').trim().toUpperCase();
+    const adminCode2 = (siteSettings?.systemAdminSecretCode || 'ADMIN-RECAP-2026').trim().toUpperCase();
+    const managingCode1 = (siteSettings?.managingSecretCode || 'MGR-RECAP-2026').trim().toUpperCase();
+    const managingCode2 = (siteSettings?.managerSecretCode || 'MGR-RECAP-2026').trim().toUpperCase();
 
     if (
       enteredSecret &&
       (enteredSecret === adminCode1 ||
        enteredSecret === adminCode2 ||
+       enteredSecret === 'ADMIN-RECAP-2026' ||
        enteredSecret === 'ADMIN2026' ||
        enteredSecret === 'ADMIN-RECAP-9824' ||
        enteredSecret === managingCode1 ||
        enteredSecret === managingCode2 ||
+       enteredSecret === 'MGR-RECAP-2026' ||
        enteredSecret === 'MANAGING2026')
     ) {
       setAuthError('এই কোডটি অন্য প্যানেলের (ম্যানেজার বা অ্যাডমিন প্যানেলের)! এক প্যানেলের জন্য নির্ধারিত রেফার কোড দিয়ে অন্য প্যানেলে সাইন-আপ করা সম্পূর্ণ নিষিদ্ধ। পাঠক হিসেবে আপনি কোনো কোড ছাড়াই সরাসরি সাইন-আপ সম্পন্ন করতে পারবেন।');
@@ -228,26 +230,29 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-sm p-4 flex justify-center items-center">
-      <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-6">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm p-4 flex justify-center items-center">
+      <div className="relative w-full max-w-lg bg-white dark:bg-[#0a0a0a] rounded-3xl shadow-2xl border border-slate-200 dark:border-zinc-800 p-6 space-y-6">
         
         {/* Modal Top Bar */}
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-red-600 to-amber-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
-              <User className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-2xl bg-black text-white flex items-center justify-center font-bold text-sm shadow-xs border border-zinc-800">
+              <User className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">
+              <h3 className="text-base font-extrabold text-black dark:text-white leading-tight">
                 {user ? (isEditingProfile ? 'পাঠক প্রোফাইল সেটআপ / সংশোধন' : 'নিয়মিত পাঠক প্রোফাইল') : 'নিয়মিত পাঠক পোর্টাল'}
               </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              <p className="text-[11px] text-black dark:text-zinc-400 font-medium">
                 The Recap Media Cast পাঠক ও ফলোয়ার কমিউনিটি
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
-            <X className="w-5 h-5" />
+          <button 
+            onClick={onClose} 
+            className="p-1.5 rounded-full bg-black text-white hover:bg-zinc-800 transition-colors cursor-pointer border border-zinc-800"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -282,34 +287,34 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             /* READER PROFILE VIEW */
             <div className="space-y-6">
               {editSuccessMsg && (
-                <div className="p-3 bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800 rounded-xl flex items-center gap-2 text-xs text-emerald-800 dark:text-emerald-200 font-bold">
-                  <CheckCircle className="w-4 h-4 text-emerald-600" />
+                <div className="p-3 bg-black text-white border border-zinc-700 rounded-xl flex items-center gap-2 text-xs font-bold shadow-xs">
+                  <CheckCircle className="w-4 h-4 text-white" />
                   <span>{editSuccessMsg}</span>
                 </div>
               )}
 
-              <div className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-4 p-4 bg-black text-white rounded-2xl border border-zinc-800 shadow-sm">
                 <img
                   src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`}
                   alt={user.name}
-                  className="w-16 h-16 rounded-full border-2 border-red-500 object-cover shadow-sm shrink-0"
+                  className="w-16 h-16 rounded-full border-2 border-white object-cover shadow-sm shrink-0"
                 />
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-slate-900 dark:text-white text-lg truncate">{user.name}</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate">
-                    <Mail className="w-3 h-3 text-red-500 shrink-0" /> {user.email}
+                  <h4 className="font-extrabold text-white text-lg truncate">{user.name}</h4>
+                  <p className="text-xs text-zinc-300 flex items-center gap-1 truncate font-medium">
+                    <Mail className="w-3 h-3 text-zinc-400 shrink-0" /> {user.email}
                   </p>
                   {user.mobile && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
-                      <Phone className="w-3 h-3 text-slate-400 shrink-0" /> {user.mobile}
+                    <p className="text-xs text-zinc-300 flex items-center gap-1 mt-0.5 font-medium">
+                      <Phone className="w-3 h-3 text-zinc-400 shrink-0" /> {user.mobile}
                     </p>
                   )}
                   {user.address && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5 truncate">
-                      <MapPin className="w-3 h-3 text-slate-400 shrink-0" /> {user.address}
+                    <p className="text-xs text-zinc-300 flex items-center gap-1 mt-0.5 truncate font-medium">
+                      <MapPin className="w-3 h-3 text-zinc-400 shrink-0" /> {user.address}
                     </p>
                   )}
-                  <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 text-[10px] font-extrabold border border-emerald-300 dark:border-emerald-800">
+                  <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full bg-zinc-800 text-white text-[10px] font-bold border border-zinc-700">
                     ✓ নিবন্ধিত নিয়মিত পাঠক
                   </span>
                 </div>
@@ -319,20 +324,20 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div 
                   onClick={() => { onClose(); onOpenBookmarks(); }}
-                  className="p-4 bg-red-50 dark:bg-red-950/40 rounded-2xl border border-red-100 dark:border-red-900/50 cursor-pointer hover:scale-[1.02] transition-transform text-center"
+                  className="p-4 bg-black text-white rounded-2xl border border-zinc-800 cursor-pointer hover:bg-zinc-900 transition-colors text-center shadow-xs"
                 >
-                  <Bookmark className="w-6 h-6 text-red-600 mx-auto mb-1" />
-                  <span className="block text-xl font-extrabold text-slate-900 dark:text-white">{bookmarksCount}</span>
-                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">সংরক্ষিত বুকমার্ক</span>
+                  <Bookmark className="w-6 h-6 text-white mx-auto mb-1" />
+                  <span className="block text-xl font-extrabold text-white font-mono">{bookmarksCount}</span>
+                  <span className="text-xs font-semibold text-zinc-300">সংরক্ষিত বুকমার্ক</span>
                 </div>
 
                 <div 
                   onClick={() => { onClose(); onOpenOffline(); }}
-                  className="p-4 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-100 dark:border-amber-900/50 cursor-pointer hover:scale-[1.02] transition-transform text-center"
+                  className="p-4 bg-black text-white rounded-2xl border border-zinc-800 cursor-pointer hover:bg-zinc-900 transition-colors text-center shadow-xs"
                 >
-                  <WifiOff className="w-6 h-6 text-amber-500 mx-auto mb-1" />
-                  <span className="block text-xl font-extrabold text-slate-900 dark:text-white">{offlineCount}</span>
-                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">অফলাইন পঠিত খবর</span>
+                  <WifiOff className="w-6 h-6 text-white mx-auto mb-1" />
+                  <span className="block text-xl font-extrabold text-white font-mono">{offlineCount}</span>
+                  <span className="text-xs font-semibold text-zinc-300">অফলাইন পঠিত খবর</span>
                 </div>
               </div>
 
@@ -340,15 +345,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <div className="flex gap-2">
                 <button
                   onClick={() => setIsEditingProfile(true)}
-                  className="flex-1 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/50 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 border border-red-200 dark:border-red-800 cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl bg-black hover:bg-zinc-800 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 border border-zinc-700 cursor-pointer shadow-sm"
                 >
                   <Edit3 className="w-4 h-4" /> প্রোফাইল এডিট
                 </button>
                 <button
                   onClick={handlePerformLogout}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl bg-zinc-900 hover:bg-black text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 border border-zinc-700 cursor-pointer shadow-sm"
                 >
-                  <LogOut className="w-4 h-4 text-red-500" /> লগআউট করুন
+                  <LogOut className="w-4 h-4 text-zinc-300" /> লগআউট করুন
                 </button>
               </div>
             </div>

@@ -84,29 +84,29 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-md flex items-start justify-center p-3 sm:p-6 animate-fadeIn">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-md flex items-start justify-center p-3 sm:p-6 animate-fadeIn">
       {/* Click outside to close */}
       <div className="fixed inset-0" onClick={onClose} />
 
-      <div className="relative w-full max-w-3xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden my-8 z-10 flex flex-col max-h-[85vh]">
+      <div className="relative w-full max-w-3xl bg-white dark:bg-[#0a0a0a] rounded-3xl shadow-2xl border border-slate-200 dark:border-zinc-800 overflow-hidden my-8 z-10 flex flex-col max-h-[85vh]">
         {/* Search Header Input */}
-        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850">
+        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0a0a0a]">
           <div className="flex items-center gap-3">
             <div className="relative flex-1">
-              <Search className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-red-600 dark:text-red-400" />
+              <Search className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-black dark:text-white" />
               <input
                 ref={inputRef}
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="সংবাদের শিরোনাম, কি-ওয়ার্ড, ট্যাগ বা প্রতিবেদকের নাম দিয়ে খুঁজুন..."
-                className="w-full pl-11 pr-10 py-3 text-sm sm:text-base rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 shadow-xs transition-all"
+                className="w-full pl-11 pr-10 py-3 text-sm sm:text-base rounded-2xl border-2 border-black bg-white dark:bg-[#111] text-black dark:text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-black shadow-xs transition-all font-medium"
               />
               {query && (
                 <button
                   type="button"
                   onClick={() => setQuery('')}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-black dark:text-white hover:text-zinc-600 rounded-full"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -116,24 +116,24 @@ export const SearchModal: React.FC<SearchModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-3 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              className="p-3 text-white bg-black hover:bg-zinc-800 rounded-2xl transition-colors cursor-pointer border border-black shadow-sm"
               title="বন্ধ করুন"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5 text-white" />
             </button>
           </div>
 
           {/* Category Filter Pills */}
           <div className="flex items-center gap-1.5 overflow-x-auto pt-3 scrollbar-none">
-            <span className="text-[11px] font-bold text-slate-400 shrink-0 mr-1">বিভাগ:</span>
+            <span className="text-[11px] font-bold text-black dark:text-zinc-400 shrink-0 mr-1">বিভাগ:</span>
             {categoriesList.map((cat) => (
               <button
                 key={`search-cat-${cat}`}
                 onClick={() => setSelectedCatFilter(cat)}
                 className={`px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                   selectedCatFilter === cat
-                    ? 'bg-red-600 text-white shadow-sm'
-                    : 'bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700'
+                    ? 'bg-black text-white border-2 border-zinc-700 ring-2 ring-black font-black'
+                    : 'bg-black text-white hover:bg-zinc-800 border border-black'
                 }`}
               >
                 {cat === 'ALL' ? 'সকল বিভাগ' : cat}
@@ -144,19 +144,19 @@ export const SearchModal: React.FC<SearchModalProps> = ({
 
         {/* Search Results Area */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-3">
-          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 font-semibold px-1">
+          <div className="flex items-center justify-between text-xs text-black dark:text-zinc-400 font-bold px-1">
             <span>
               {query
                 ? `"${query}" এর জন্য ফলাফল (${searchResults.length} টি সংবাদ)`
                 : `সাম্প্রতিক ও আলোচিত সংবাদ (${searchResults.length} টি)`}
             </span>
             {selectedCatFilter !== 'ALL' && (
-              <span className="text-red-600 dark:text-red-400">বিভাগ: {selectedCatFilter}</span>
+              <span className="text-black dark:text-white font-bold">বিভাগ: {selectedCatFilter}</span>
             )}
           </div>
 
           {searchResults.length > 0 ? (
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            <div className="divide-y divide-slate-200 dark:divide-zinc-800">
               {searchResults.map((article) => (
                 <div
                   key={`search-res-${article.id}`}
@@ -164,53 +164,53 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                     onSelectArticle(article);
                     onClose();
                   }}
-                  className="py-3.5 px-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded-2xl transition-colors cursor-pointer flex gap-3.5 sm:gap-4 items-start group"
+                  className="py-3.5 px-3 hover:bg-slate-100 dark:hover:bg-zinc-900 rounded-2xl transition-colors cursor-pointer flex gap-3.5 sm:gap-4 items-start group"
                 >
                   {/* Article Thumbnail */}
                   {article.imageUrl ? (
                     <img
                       src={article.imageUrl}
                       alt={article.title}
-                      className="w-20 h-20 sm:w-24 sm:h-20 rounded-xl object-cover shrink-0 border border-slate-200 dark:border-slate-800 group-hover:scale-105 transition-transform"
+                      className="w-20 h-20 sm:w-24 sm:h-20 rounded-xl object-cover shrink-0 border border-slate-300 dark:border-zinc-800 group-hover:scale-105 transition-transform"
                     />
                   ) : (
-                    <div className="w-20 h-20 sm:w-24 sm:h-20 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 text-slate-400">
-                      <Newspaper className="w-6 h-6" />
+                    <div className="w-20 h-20 sm:w-24 sm:h-20 rounded-xl bg-black text-white flex items-center justify-center shrink-0 border border-zinc-800">
+                      <Newspaper className="w-6 h-6 text-white" />
                     </div>
                   )}
 
                   {/* Article Metadata */}
                   <div className="flex-1 min-w-0 space-y-1.5">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="px-2 py-0.5 rounded-md bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 text-[10px] font-bold">
+                      <span className="px-2 py-0.5 rounded-md bg-black text-white border border-zinc-800 text-[10px] font-bold">
                         {article.category}
                       </span>
                       {article.postType === 'video' && (
-                        <span className="px-1.5 py-0.5 rounded-md bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 text-[10px] font-bold">
+                        <span className="px-1.5 py-0.5 rounded-md bg-black text-white border border-zinc-800 text-[10px] font-bold">
                           📹 ভিডিও
                         </span>
                       )}
-                      <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
+                      <span className="text-[11px] text-black dark:text-zinc-400 flex items-center gap-1 font-medium font-mono">
+                        <Calendar className="w-3 h-3 text-black dark:text-zinc-400" />
                         {new Date(article.publishedAt).toLocaleDateString(currentLang === 'bn' ? 'bn-BD' : 'en-US')}
                       </span>
                     </div>
 
-                    <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white line-clamp-2 font-serif group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                    <h4 className="text-sm sm:text-base font-extrabold text-black dark:text-white line-clamp-2 font-serif group-hover:underline transition-colors">
                       {article.title}
                     </h4>
 
                     {article.summary && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">
+                      <p className="text-xs text-black dark:text-zinc-300 line-clamp-1 font-medium">
                         {article.summary}
                       </p>
                     )}
 
-                    <div className="flex items-center justify-between pt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
-                      <span className="font-medium text-slate-700 dark:text-slate-300">
+                    <div className="flex items-center justify-between pt-0.5 text-[11px] text-black dark:text-zinc-400">
+                      <span className="font-semibold text-black dark:text-zinc-300">
                         প্রতিবেদক: {formatReporterName(article.author, article.authorDistrict)}
                       </span>
-                      <span className="flex items-center gap-1 font-bold text-red-600 dark:text-red-400 group-hover:translate-x-1 transition-transform">
+                      <span className="flex items-center gap-1 font-bold text-black dark:text-white group-hover:translate-x-1 transition-transform">
                         পড়ুন <ArrowRight className="w-3 h-3" />
                       </span>
                     </div>
@@ -220,13 +220,13 @@ export const SearchModal: React.FC<SearchModalProps> = ({
             </div>
           ) : (
             <div className="text-center py-12 px-4 space-y-3">
-              <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
-                <Search className="w-8 h-8" />
+              <div className="w-16 h-16 rounded-full bg-black text-white flex items-center justify-center mx-auto border border-zinc-800 shadow-sm">
+                <Search className="w-8 h-8 text-white" />
               </div>
-              <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">
+              <h4 className="text-base font-extrabold text-black dark:text-white">
                 কোনো সংবাদ পাওয়া যায়নি
               </h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+              <p className="text-xs text-black dark:text-zinc-300 max-w-sm mx-auto font-medium">
                 অনুগ্রহ করে অন্য কোনো শব্দ বা অন্য কোনো বিভাগ নির্বাচন করে পুনরায় অনুসন্ধান করুন।
               </p>
             </div>
@@ -234,12 +234,12 @@ export const SearchModal: React.FC<SearchModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-3 sm:p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-850 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+        <div className="p-3 sm:p-4 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0a0a0a] flex items-center justify-between text-xs text-black dark:text-zinc-400 font-medium">
           <span className="text-[11px]">The Recap Media Cast Ltd • বস্তুনিষ্ঠ সংবাদ অনুসন্ধান</span>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors cursor-pointer"
+            className="px-4 py-1.5 rounded-xl bg-black hover:bg-zinc-800 text-white font-bold transition-colors cursor-pointer border border-black shadow-sm"
           >
             বন্ধ করুন
           </button>

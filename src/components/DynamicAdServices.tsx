@@ -1,11 +1,19 @@
 import React, { useEffect, useRef } from 'react';
 import { DynamicAdSettings } from '../types';
 
+let lastPopunderTime = 0;
+
 /**
  * Triggers Popunder Ad Script cleanly.
  * Specifically invoked when viewer clicks on news headline or cover image.
+ * Throttled to prevent multiple competing scripts from intercepting touch/scroll events.
  */
 export function triggerPopunder(scriptUrl?: string) {
+  const now = Date.now();
+  // Throttle to at most once per 45s to avoid freezing user scrolling gestures
+  if (now - lastPopunderTime < 45000) return;
+  lastPopunderTime = now;
+
   const url =
     scriptUrl ||
     'https://pl31159237.profitableratecpmnetwork.com/29/a8/67/29a8676045a7e37ef249372b2fa46d3c.js';
@@ -174,11 +182,11 @@ export const NativeBannerAd: React.FC<NativeBannerAdProps> = ({
           className="w-full overflow-hidden p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all"
         >
           <div className="flex items-center justify-between mb-2 px-1">
-            <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-slate-900 dark:bg-white animate-pulse"></span>
               {banner.title || 'স্পন্সরড নেটিভ ব্যানার'} • {panelLabel}
             </span>
-            <span className="text-[9px] bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded font-mono font-bold">
+            <span className="text-[9px] bg-slate-900 text-white px-2 py-0.5 rounded font-mono font-bold">
               OFFICIAL SPONSOR
             </span>
           </div>

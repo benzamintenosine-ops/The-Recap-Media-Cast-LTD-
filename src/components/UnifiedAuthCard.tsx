@@ -30,6 +30,7 @@ interface UnifiedAuthCardProps {
   secretCodeHint?: string;
   errorMessage?: string;
   isSecretCodeOptional?: boolean;
+  hideSecretCode?: boolean;
   onLogin: (credentials: { email: string; password: string }) => void;
   onSignUp: (data: UnifiedAuthData) => void;
 }
@@ -44,6 +45,7 @@ export const UnifiedAuthCard: React.FC<UnifiedAuthCardProps> = ({
   secretCodeHint = 'সংশ্লিষ্ট প্যানেল থেকে সংগৃহীত গোপন রেফার কোড প্রদান করুন।',
   errorMessage = '',
   isSecretCodeOptional = false,
+  hideSecretCode = false,
   onLogin,
   onSignUp
 }) => {
@@ -104,7 +106,7 @@ export const UnifiedAuthCard: React.FC<UnifiedAuthCardProps> = ({
       return;
     }
 
-    if (!isSecretCodeOptional && !secretCode.trim()) {
+    if (!hideSecretCode && !isSecretCodeOptional && !secretCode.trim()) {
       setLocalError('গোপন রেফার কোড প্রদান করা বাধ্যতামূলক!');
       return;
     }
@@ -115,44 +117,22 @@ export const UnifiedAuthCard: React.FC<UnifiedAuthCardProps> = ({
       mobile: cleanMobile,
       password: password.trim(),
       confirmPassword: confirmPassword.trim(),
-      secretCode: secretCode.trim()
+      secretCode: hideSecretCode ? '' : secretCode.trim()
     });
   };
 
   const getButtonColor = () => {
-    switch (themeColor) {
-      case 'blue':
-        return 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20';
-      case 'indigo':
-        return 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20';
-      case 'emerald':
-        return 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20';
-      case 'amber':
-        return 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20';
-      default:
-        return 'bg-red-600 hover:bg-red-700 shadow-red-600/20';
-    }
+    return 'bg-slate-900 hover:bg-black text-white shadow-sm';
   };
 
   const getActiveTabColor = () => {
-    switch (themeColor) {
-      case 'blue':
-        return 'bg-blue-600 text-white shadow';
-      case 'indigo':
-        return 'bg-indigo-600 text-white shadow';
-      case 'emerald':
-        return 'bg-emerald-600 text-white shadow';
-      case 'amber':
-        return 'bg-amber-600 text-white shadow';
-      default:
-        return 'bg-red-600 text-white shadow';
-    }
+    return 'bg-slate-900 text-white shadow';
   };
 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6">
       <div className="text-center space-y-2">
-        <div className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center text-white shadow-lg bg-gradient-to-tr from-slate-800 to-slate-950">
+        <div className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center text-white shadow bg-slate-900">
           {portalIcon}
         </div>
         <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white font-serif">
@@ -206,7 +186,7 @@ export const UnifiedAuthCard: React.FC<UnifiedAuthCardProps> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="আপনার পূর্ণ নাম লিখুন"
-              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-red-500"
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-slate-900"
             />
           </div>
         )}
@@ -222,7 +202,7 @@ export const UnifiedAuthCard: React.FC<UnifiedAuthCardProps> = ({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="example@gmail.com"
-            className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+            className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-900"
           />
         </div>
 
@@ -233,7 +213,7 @@ export const UnifiedAuthCard: React.FC<UnifiedAuthCardProps> = ({
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                 মোবাইল নম্বর (Mobile Number) *
               </label>
-              <span className="text-[10px] text-red-500 font-bold">(সর্বোচ্চ ১১ সংখ্যা)</span>
+              <span className="text-[10px] text-slate-500 font-bold">(সর্বোচ্চ ১১ সংখ্যা)</span>
             </div>
             <input
               type="tel"
@@ -242,7 +222,7 @@ export const UnifiedAuthCard: React.FC<UnifiedAuthCardProps> = ({
               value={mobile}
               onChange={(e) => setMobile(e.target.value)}
               placeholder="017XXXXXXXX"
-              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-900"
             />
           </div>
         )}
@@ -258,7 +238,7 @@ export const UnifiedAuthCard: React.FC<UnifiedAuthCardProps> = ({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
-            className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+            className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-900"
           />
         </div>
 
@@ -274,13 +254,13 @@ export const UnifiedAuthCard: React.FC<UnifiedAuthCardProps> = ({
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500"
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-900"
             />
           </div>
         )}
 
         {/* Secret Referral Code (Only for Sign Up) */}
-        {authMode === 'signup' && (
+        {authMode === 'signup' && !hideSecretCode && (
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
               {isSecretCodeOptional ? 'রেফার কোড (Referral Code) (ঐচ্ছিক)' : 'গোপন রেফার কোড (Secret Referral Code) *'}
@@ -291,7 +271,7 @@ export const UnifiedAuthCard: React.FC<UnifiedAuthCardProps> = ({
               value={secretCode}
               onChange={(e) => setSecretCode(e.target.value)}
               placeholder={secretCodePlaceholder}
-              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-950/30 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 font-mono font-bold uppercase tracking-wider"
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-900 font-mono font-bold uppercase tracking-wider"
             />
             {secretCodeHint && (
               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
@@ -303,7 +283,7 @@ export const UnifiedAuthCard: React.FC<UnifiedAuthCardProps> = ({
 
         <button
           type="submit"
-          className={`w-full py-3.5 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${getButtonColor()}`}
+          className={`w-full py-3.5 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center justify-center gap-2 cursor-pointer ${getButtonColor()}`}
         >
           <ShieldCheck className="w-4 h-4" />
           <span>{authMode === 'signup' ? 'রেজিস্ট্রেশন করুন ও প্রোফাইল সাজান' : 'প্যানেলে সাইন ইন করুন'}</span>

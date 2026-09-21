@@ -277,7 +277,7 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
   return (
     <div className="max-w-xl mx-auto my-6 p-6 sm:p-8 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 space-y-6">
       <div className="text-center space-y-2 border-b border-slate-100 dark:border-slate-800 pb-4">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 font-bold text-xs rounded-full border border-red-200 dark:border-red-900">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-900 text-white font-bold text-xs rounded-full border border-slate-900">
           <ShieldCheck className="w-3.5 h-3.5" />
           <span>{panelBadge}</span>
         </div>
@@ -307,7 +307,7 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
                 <User className="w-10 h-10 text-slate-400" />
               )}
             </div>
-            <label className="absolute bottom-0 right-0 p-2 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg cursor-pointer transition-all">
+            <label className="absolute bottom-0 right-0 p-2 bg-slate-900 hover:bg-black text-white rounded-full shadow cursor-pointer transition-all">
               <Camera className="w-4 h-4" />
               <input
                 type="file"
@@ -324,12 +324,12 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
               প্রোফাইল ছবি (Profile Photo) *
             </span>
             {isVerifyingPhoto ? (
-              <span className="text-[11px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1 justify-center">
-                <Loader2 className="w-3 h-3 animate-spin" /> AI ছবি যাচাই ও ক্লাউড আপলোড চলছে...
+              <span className="text-[11px] text-slate-700 dark:text-slate-300 font-bold flex items-center gap-1 justify-center">
+                <Loader2 className="w-3 h-3 animate-spin text-slate-900 dark:text-white" /> AI ছবি যাচাই ও ক্লাউড আপলোড চলছে...
               </span>
             ) : photoVerified ? (
-              <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 justify-center">
-                <CheckCircle className="w-3 h-3" /> ছবি সঠিকভাবে যাচাইকৃত হয়েছে
+              <span className="text-[11px] text-slate-900 dark:text-white font-bold flex items-center gap-1 justify-center">
+                <CheckCircle className="w-3 h-3 text-slate-800 dark:text-slate-200" /> ছবি সঠিকভাবে যাচাইকৃত হয়েছে
               </span>
             ) : (
               <span className="text-[10px] text-slate-400 block">
@@ -339,11 +339,11 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
           </div>
 
           {/* AI Photo Rules Hint Card */}
-          <div className="mt-3 p-3 bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-xl text-left w-full space-y-1">
-            <p className="text-[11px] font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" /> AI দিয়ে ছবি যাচাইয়ের ৩টি বিশেষ নিয়ম:
+          <div className="mt-3 p-3 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-left w-full space-y-1">
+            <p className="text-[11px] font-bold text-slate-900 dark:text-white flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5 text-slate-700 dark:text-slate-300 shrink-0" /> AI দিয়ে ছবি যাচাইয়ের ৩টি বিশেষ নিয়ম:
             </p>
-            <ul className="list-disc list-inside space-y-0.5 text-[10.5px] text-amber-700 dark:text-amber-400 font-medium">
+            <ul className="list-disc list-inside space-y-0.5 text-[10.5px] text-slate-700 dark:text-slate-300 font-medium">
               <li>ছবিতে কোনো ধরনের লেখা, সিল বা ওয়াটারমার্ক থাকতে পারবে না।</li>
               <li>ছবিতে স্পষ্ট ফুল ফেইস (Full Face) দেখা যেতে হবে।</li>
               <li>কোনো ঝাপসা, অস্পষ্ট বা অন্ধকার ছবি গ্রহণ করা হবে না।</li>
@@ -363,7 +363,7 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="আপনার পূর্ণ নাম"
-              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-red-500"
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-slate-900"
             />
           </div>
 
@@ -516,7 +516,7 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
                   setPostOffice('');
                   setPostCode('');
                 }}
-                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-red-500"
+                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-slate-900"
               >
                 <option value="">-- বিভাগ নির্বাচন করুন --</option>
                 {BANGLADESH_GEO_DATA.map((div) => (
@@ -544,7 +544,7 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
                     setPostOffice('');
                     setPostCode('');
                   }}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-900 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800"
                 >
                   <option value="">
                     {!division ? 'প্রথমে বিভাগ সিলেক্ট করুন' : '-- জেলা নির্বাচন করুন --'}
@@ -571,7 +571,7 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
                     setPostOffice('');
                     setPostCode('');
                   }}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-900 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800"
                 >
                   <option value="">
                     {!district ? 'প্রথমে জেলা সিলেক্ট করুন' : '-- থানা/উপজেলা নির্বাচন করুন --'}
@@ -604,7 +604,7 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
                       setPostCode(matched.code);
                     }
                   }}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-slate-900 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800"
                 >
                   <option value="">
                     {!thana ? 'প্রথমে থানা সিলেক্ট করুন' : '-- পোস্ট অফিস নির্বাচন করুন --'}
@@ -623,7 +623,7 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
                   <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
                     ৫. পোস্ট কোড (Post Code) *
                   </label>
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
+                  <span className="text-[10px] text-slate-600 dark:text-slate-400 font-bold">
                     (অটো-ফিল্ড)
                   </span>
                 </div>
@@ -633,7 +633,7 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
                   value={postCode}
                   onChange={(e) => setPostCode(e.target.value)}
                   placeholder={postOffice ? 'অটো-ফিল্ড পোস্ট কোড' : 'পোস্ট অফিস সিলেক্ট করুন'}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-emerald-50/50 dark:bg-emerald-950/20 text-slate-900 dark:text-white font-mono font-bold focus:ring-2 focus:ring-red-500"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold focus:ring-2 focus:ring-slate-900"
                 />
               </div>
             </div>
@@ -653,7 +653,7 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
                   required
                   checked={ruleCheckboxes[idx]}
                   onChange={() => handleRuleToggle(idx)}
-                  className="mt-0.5 rounded text-red-600 focus:ring-red-500"
+                  className="mt-0.5 rounded text-slate-900 focus:ring-slate-900"
                 />
                 <span>{rule}</span>
               </label>
@@ -662,13 +662,13 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
         </div>
 
         {/* Declaration Confirmation */}
-        <label className="flex items-start gap-2.5 cursor-pointer text-xs text-slate-700 dark:text-slate-300 font-medium p-3 bg-red-50/50 dark:bg-red-950/20 rounded-xl border border-red-100 dark:border-red-900/30">
+        <label className="flex items-start gap-2.5 cursor-pointer text-xs text-slate-700 dark:text-slate-300 font-medium p-3 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
           <input
             type="checkbox"
             required
             checked={agreedToTerms}
             onChange={(e) => setAgreedToTerms(e.target.checked)}
-            className="mt-0.5 rounded text-red-600 focus:ring-red-500"
+            className="mt-0.5 rounded text-slate-900 focus:ring-slate-900"
           />
           <span>আমি শপথ করে বলছি যে, উপরে উল্লেখিত সকল বিবরণ সঠিক ও সত্য।</span>
         </label>
@@ -686,7 +686,7 @@ export const UnifiedProfileSetup: React.FC<UnifiedProfileSetupProps> = ({
 
           <button
             type="submit"
-            className="flex-1 py-3.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-red-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="flex-1 py-3.5 bg-slate-900 hover:bg-black text-white font-extrabold text-xs rounded-2xl shadow transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <CheckCircle className="w-4 h-4" />
             <span>{isEditing ? 'প্রোফাইল আপডেট সংরক্ষণ করুন' : 'প্রোফাইল সংরক্ষণ করুন'}</span>

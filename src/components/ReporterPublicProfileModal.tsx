@@ -66,22 +66,22 @@ export const ReporterPublicProfileModal: React.FC<ReporterPublicProfileModalProp
   const totalViews = reporterArticles.reduce((sum, a) => sum + (a.viewsCount || 0), 0);
 
   return (
-    <div className="fixed inset-0 z-[70] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
       <div 
-        className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full overflow-hidden border border-slate-200 dark:border-slate-800 shadow-2xl relative my-auto animate-in fade-in zoom-in-95 duration-200"
+        className="bg-white dark:bg-[#0a0a0a] rounded-3xl max-w-lg w-full overflow-hidden border border-slate-200 dark:border-zinc-800 shadow-2xl relative my-auto animate-in fade-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Cover Banner */}
-        <div className="h-28 bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 relative">
+        <div className="h-28 bg-black relative border-b border-zinc-800">
           <button
             onClick={onClose}
             aria-label="বন্ধ করুন"
-            className="absolute top-3 right-3 p-2 text-white/80 hover:text-white bg-black/20 hover:bg-black/40 rounded-full transition-colors cursor-pointer"
+            className="absolute top-3 right-3 p-2 text-white bg-zinc-900 hover:bg-black rounded-full transition-colors cursor-pointer border border-zinc-700"
           >
             <X className="w-5 h-5" />
           </button>
-          <div className="absolute top-3 left-4 flex items-center gap-1.5 px-3 py-1 bg-black/20 backdrop-blur-md rounded-full text-white text-[11px] font-bold">
-            <Award className="w-3.5 h-3.5 text-amber-300" />
+          <div className="absolute top-3 left-4 flex items-center gap-1.5 px-3 py-1 bg-black rounded-full text-white text-[11px] font-bold border border-zinc-700">
+            <Award className="w-3.5 h-3.5 text-white" />
             <span>অফিশিয়াল প্রতিবেদক প্রোফাইল</span>
           </div>
         </div>
@@ -94,53 +94,53 @@ export const ReporterPublicProfileModal: React.FC<ReporterPublicProfileModalProp
               <img
                 src={effectiveAvatar}
                 alt={cleanName}
-                className="w-24 h-24 rounded-full border-4 border-white dark:border-slate-900 object-cover shadow-lg bg-slate-100 dark:bg-slate-800"
+                className="w-24 h-24 rounded-full border-4 border-white dark:border-[#0a0a0a] object-cover shadow-lg bg-zinc-900"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanName)}`;
                 }}
               />
-              <span className="absolute bottom-1 right-1 w-6 h-6 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center text-white shadow-sm" title="যাচাইকৃত প্রতিবেদক">
-                <CheckCircle2 className="w-3.5 h-3.5 stroke-[3]" />
+              <span className="absolute bottom-1 right-1 w-6 h-6 bg-black rounded-full border-2 border-white flex items-center justify-center text-white shadow-sm" title="যাচাইকৃত প্রতিবেদক">
+                <CheckCircle2 className="w-3.5 h-3.5 stroke-[3] text-white" />
               </span>
             </div>
 
             <div className="text-right pb-1">
-              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900">
-                <UserCheck className="w-3.5 h-3.5" /> দ্য রিক্যাপ মিডিয়া প্রতিবেদক
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-black text-white border border-zinc-800 shadow-xs">
+                <UserCheck className="w-3.5 h-3.5 text-white" /> দ্য রিক্যাপ মিডিয়া প্রতিবেদক
               </span>
             </div>
           </div>
 
           {/* Name & Location */}
           <div className="space-y-1">
-            <h3 className="text-xl font-extrabold text-slate-900 dark:text-white font-serif flex items-center gap-2">
+            <h3 className="text-xl font-extrabold text-black dark:text-white font-serif flex items-center gap-2">
               {cleanName}
             </h3>
             
-            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 dark:text-slate-400">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-black dark:text-zinc-300 font-medium">
               {effectiveDistrict && (
-                <span className="flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200">
-                  <MapPin className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                <span className="flex items-center gap-1 font-semibold text-black dark:text-white">
+                  <MapPin className="w-3.5 h-3.5 text-black dark:text-white shrink-0" />
                   জেলা: {effectiveDistrict}
                   {effectiveDivision && ` (${effectiveDivision} বিভাগ)`}
                 </span>
               )}
-              <span className="flex items-center gap-1 text-slate-500">
-                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+              <span className="flex items-center gap-1 text-black dark:text-zinc-400 font-medium">
+                <Calendar className="w-3.5 h-3.5 text-black dark:text-zinc-400" />
                 সক্রিয় সদস্য
               </span>
             </div>
           </div>
 
-          {/* Educational Qualification & Institution (Publicly visible to readers) */}
+          {/* Educational Qualification & Institution */}
           {(writerProfile?.educationLevel || writerProfile?.institutionName) && (
-            <div className="p-3 bg-indigo-50/80 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900/40 text-xs text-indigo-900 dark:text-indigo-200 flex items-center gap-2">
-              <GraduationCap className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <div className="p-3 bg-black text-white rounded-xl border border-zinc-800 text-xs flex items-center gap-2">
+              <GraduationCap className="w-4 h-4 text-white shrink-0" />
               <div className="leading-tight">
-                <span className="font-bold text-indigo-700 dark:text-indigo-300">শিক্ষাগত যোগ্যতা: </span>
-                <span className="font-semibold">{writerProfile.educationLevel || 'N/A'}</span>
+                <span className="font-bold text-white">শিক্ষাগত যোগ্যতা: </span>
+                <span className="font-semibold text-zinc-200">{writerProfile.educationLevel || 'N/A'}</span>
                 {writerProfile.institutionName && (
-                  <span className="text-slate-600 dark:text-slate-400 ml-1">
+                  <span className="text-zinc-400 ml-1">
                     ({writerProfile.institutionName})
                   </span>
                 )}
@@ -148,28 +148,28 @@ export const ReporterPublicProfileModal: React.FC<ReporterPublicProfileModalProp
             </div>
           )}
 
-          {/* Stats Bar (সফল প্রতিবেদন সংখ্যা & মোট পাঠক ভিউ) */}
+          {/* Stats Bar */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="p-3.5 bg-red-50/80 dark:bg-red-950/40 rounded-2xl border border-red-100 dark:border-red-900/40 text-center">
-              <span className="text-[11px] font-bold text-red-600 dark:text-red-400 flex items-center justify-center gap-1">
-                <FileText className="w-3.5 h-3.5" /> মোট সফল প্রতিবেদন
+            <div className="p-3.5 bg-black text-white rounded-2xl border border-zinc-800 text-center shadow-xs">
+              <span className="text-[11px] font-bold text-zinc-300 flex items-center justify-center gap-1">
+                <FileText className="w-3.5 h-3.5 text-white" /> মোট সফল প্রতিবেদন
               </span>
-              <div className="text-2xl font-black font-mono text-slate-900 dark:text-white mt-1">
+              <div className="text-2xl font-black font-mono text-white mt-1">
                 {totalSuccessfulPosts}টি
               </div>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
+              <span className="text-[10px] text-zinc-400 font-semibold">
                 অনুমোদিত ও প্রকাশিত
               </span>
             </div>
 
-            <div className="p-3.5 bg-amber-50/80 dark:bg-amber-950/40 rounded-2xl border border-amber-100 dark:border-amber-900/40 text-center">
-              <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1">
-                <Eye className="w-3.5 h-3.5" /> পাঠক এনগেজমেন্ট
+            <div className="p-3.5 bg-black text-white rounded-2xl border border-zinc-800 text-center shadow-xs">
+              <span className="text-[11px] font-bold text-zinc-300 flex items-center justify-center gap-1">
+                <Eye className="w-3.5 h-3.5 text-white" /> পাঠক এনগেজমেন্ট
               </span>
-              <div className="text-2xl font-black font-mono text-slate-900 dark:text-white mt-1">
+              <div className="text-2xl font-black font-mono text-white mt-1">
                 {totalViews > 0 ? `${totalViews.toLocaleString()} ভিউ` : 'সক্রিয়'}
               </div>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
+              <span className="text-[10px] text-zinc-400 font-semibold">
                 লাইভ রিডার ইমপ্যাক্ট
               </span>
             </div>
@@ -177,16 +177,16 @@ export const ReporterPublicProfileModal: React.FC<ReporterPublicProfileModalProp
 
           {/* Bio / About if available */}
           {writerProfile?.bio && (
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-100 dark:border-slate-800 italic">
+            <p className="text-xs text-black dark:text-zinc-200 font-medium leading-relaxed bg-slate-50 dark:bg-zinc-900 p-3 rounded-xl border border-slate-200 dark:border-zinc-800 italic">
               "{writerProfile.bio}"
             </p>
           )}
 
           {/* Reporter's Published Articles List */}
           <div className="space-y-3 pt-2">
-            <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center justify-between">
+            <h4 className="text-xs font-extrabold text-black dark:text-white uppercase tracking-wider flex items-center justify-between">
               <span>প্রকাশিত সংবাদসমূহ ({reporterArticles.length})</span>
-              <span className="text-[11px] text-red-500 font-normal">ক্লিক করে পড়ুন</span>
+              <span className="text-[11px] text-black dark:text-zinc-400 font-medium">ক্লিক করে পড়ুন</span>
             </h4>
 
             <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
@@ -198,34 +198,34 @@ export const ReporterPublicProfileModal: React.FC<ReporterPublicProfileModalProp
                       onClose();
                       if (onSelectArticle) onSelectArticle(art);
                     }}
-                    className="p-2.5 bg-slate-50 dark:bg-slate-800/60 hover:bg-red-50/60 dark:hover:bg-red-950/30 rounded-xl border border-slate-200/80 dark:border-slate-800 flex items-center gap-3 cursor-pointer transition-all group"
+                    className="p-2.5 bg-black text-white hover:bg-zinc-900 rounded-xl border border-zinc-800 flex items-center gap-3 cursor-pointer transition-all group shadow-xs"
                   >
                     {art.imageUrl && (
                       <img
                         src={art.imageUrl}
                         alt={art.title}
-                        className="w-14 h-11 rounded-lg object-cover shrink-0 border border-slate-200 dark:border-slate-700 group-hover:scale-105 transition-transform"
+                        className="w-14 h-11 rounded-lg object-cover shrink-0 border border-white/20 group-hover:scale-105 transition-transform"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=400&q=80';
                         }}
                       />
                     )}
                     <div className="flex-1 min-w-0">
-                      <h5 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                      <h5 className="text-xs font-bold text-white line-clamp-1 group-hover:text-zinc-200 transition-colors">
                         {art.title}
                       </h5>
-                      <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400 mt-1">
-                        <span className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 font-semibold text-slate-700 dark:text-slate-300">
+                      <div className="flex items-center gap-2 text-[10px] text-zinc-400 mt-1 font-mono">
+                        <span className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-semibold text-white">
                           {art.category}
                         </span>
                         <span>{new Date(art.publishedAt).toLocaleDateString('bn-BD')}</span>
                       </div>
                     </div>
-                    <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-red-600 group-hover:translate-x-0.5 transition-all shrink-0" />
+                    <ArrowRight className="w-4 h-4 text-white group-hover:translate-x-0.5 transition-all shrink-0" />
                   </div>
                 ))
               ) : (
-                <div className="text-center py-6 text-xs text-slate-400 bg-slate-50 dark:bg-slate-800/40 rounded-xl">
+                <div className="text-center py-6 text-xs text-black dark:text-zinc-400 bg-slate-50 dark:bg-zinc-900 rounded-xl font-medium">
                   এই প্রতিবেদকের কোনো পূর্বের সংবাদ পাওয়া যায়নি।
                 </div>
               )}
