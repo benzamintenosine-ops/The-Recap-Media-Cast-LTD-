@@ -259,7 +259,7 @@ export async function fetchInitialStateFromFirestore(): Promise<InitialCloudStat
           socialWidgets: Array.isArray(data.socialWidgets) && data.socialWidgets.length > 0
             ? data.socialWidgets
             : DEFAULT_SITE_SETTINGS.socialWidgets,
-          adBanners: Array.isArray(data.adBanners) && data.adBanners.length > 0
+          adBanners: Array.isArray(data.adBanners)
             ? data.adBanners
             : DEFAULT_SITE_SETTINGS.adBanners
         };

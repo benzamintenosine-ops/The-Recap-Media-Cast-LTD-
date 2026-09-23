@@ -397,6 +397,20 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
   // View Writer Profile Modal
   const [selectedWriter, setSelectedWriter] = useState<WriterProfile | null>(null);
 
+  // Edit & Reset Password for Writer Modal State
+  const [editingWriter, setEditingWriter] = useState<WriterProfile | null>(null);
+  const [editWriterName, setEditWriterName] = useState('');
+  const [editWriterEmail, setEditWriterEmail] = useState('');
+  const [editWriterMobile, setEditWriterMobile] = useState('');
+  const [editWriterDistrict, setEditWriterDistrict] = useState('');
+  const [editWriterAddress, setEditWriterAddress] = useState('');
+  const [editWriterAge, setEditWriterAge] = useState<number | string>('');
+  const [editWriterNid, setEditWriterNid] = useState('');
+  const [editWriterPassword, setEditWriterPassword] = useState('');
+  const [editWriterSuccess, setEditWriterSuccess] = useState('');
+  const [editWriterError, setEditWriterError] = useState('');
+  const [isSavingWriter, setIsSavingWriter] = useState(false);
+
   // Writer Search in "লেখকগণ" tab
   const [writerSearchQuery, setWriterSearchQuery] = useState('');
 
@@ -858,6 +872,134 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
       w.id === writerId ? { ...w, isBanned: !w.isBanned } : w
     );
     onUpdateWriters(updated);
+  };
+
+  // Open Writer Edit & Password Reset Modal
+  const handleOpenEditWriterModal = (w: WriterProfile) => {
+    setEditingWriter(w);
+    setEditWriterName(w.name || '');
+    setEditWriterEmail(w.email || '');
+    setEditWriterMobile(w.mobile || '');
+    setEditWriterDistrict(w.district || '');
+    setEditWriterAddress(w.address || '');
+    setEditWriterAge(w.age || '');
+    setEditWriterNid(w.nidNumber || '');
+    setEditWriterPassword(w.password || '');
+    setEditWriterSuccess('');
+    setEditWriterError('');
+  };
+
+  // Generate random secure password for writer
+  const handleGenerateRandomPassword = () => {
+    const randomChars = Math.floor(100000 + Math.random() * 900000);
+    setEditWriterPassword(`Recap@${randomChars}`);
+  };
+
+  // Save Writer Profile & Reset Password Handler
+  const handleSaveWriterEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingWriter) return;
+    if (!editWriterName.trim() || !editWriterEmail.trim() || !editWriterMobile.trim()) {
+      setEditWriterError('নাম, ইমেইল এবং মোবাইল নম্বর আবশ্যক!');
+      return;
+    }
+
+    setIsSavingWriter(true);
+    setEditWriterError('');
+
+    const updates: Partial<WriterProfile> = {
+      name: editWriterName.trim(),
+      email: editWriterEmail.trim(),
+      mobile: editWriterMobile.trim(),
+      district: editWriterDistrict.trim(),
+      address: editWriterAddress.trim(),
+      nidNumber: editWriterNid.trim(),
+      ...(editWriterAge !== '' ? { age: Number(editWriterAge) } : {}),
+      ...(editWriterPassword.trim() ? { password: editWriterPassword.trim() } : {})
+    };
+
+    try {
+      const { updateWriterInFirebase } = await import('../services/firebaseDataService');
+      await updateWriterInFirebase(editingWriter.id, updates);
+    } catch (err) {
+      console.warn('Firebase writer update notice:', err);
+    }
+
+    // Update in local writers state
+    const updatedWriters = writers.map((w) =>
+      w.id === editingWriter.id ? { ...w, ...updates } : w
+    );
+    onUpdateWriters(updatedWriters);
+
+    // Sync localStorage cache
+    try {
+      const localWritersStr = localStorage.getItem('recap_registered_writers');
+      if (localWritersStr) {
+        const localWriters = JSON.parse(localWritersStr);
+        const updatedLocal = localWriters.map((w: any) =>
+          w.id === editingWriter.id || w.email === editingWriter.email
+            ? { ...w, ...updates }
+            : w
+        );
+        localStorage.setItem('recap_registered_writers', JSON.stringify(updatedLocal));
+      }
+
+      const currentLoggedProfile = localStorage.getItem('recap_writer_profile');
+      if (currentLoggedProfile) {
+        const parsedLogged = JSON.parse(currentLoggedProfile);
+        if (parsedLogged.id === editingWriter.id || parsedLogged.email === editingWriter.email) {
+          localStorage.setItem(
+            'recap_writer_profile',
+            JSON.stringify({ ...parsedLogged, ...updates })
+          );
+        }
+      }
+    } catch {}
+
+    // Send internal notification to this reporter
+    onSendNotification({
+      recipientWriterId: editingWriter.id,
+      senderName: 'সুপার অ্যাডমিন (System Admin)',
+      title: '🔐 অ্যাকাউন্ট তথ্য ও পাসওয়ার্ড আপডেট নোটিশ',
+      message: editWriterPassword.trim()
+        ? `আপনার অ্যাকাউন্ট তথ্য ও পাসওয়ার্ড অ্যাডমিন কর্তৃক সফলভাবে আপডেট/রিসেট করা হয়েছে। আপনার নতুন পাসওয়ার্ড: ${editWriterPassword.trim()}`
+        : 'আপনার প্রতিবেদক প্রোফাইল তথ্য অ্যাডমিন কর্তৃক সফলভাবে আপডেট করা হয়েছে।',
+      type: 'profile_update'
+    });
+
+    setEditWriterSuccess('প্রতিবেদকের তথ্য ও পাসওয়ার্ড সফলভাবে আপডেট করা হয়েছে!');
+    setTimeout(() => {
+      setIsSavingWriter(false);
+      setEditingWriter(null);
+    }, 1200);
+  };
+
+  // Immediate toggle and persist handlers for dynamic ads
+  const handleTogglePopunder = () => {
+    const updated: DynamicAdSettings = {
+      ...dynamicAds,
+      popunder: { ...dynamicAds.popunder, enabled: !dynamicAds.popunder.enabled }
+    };
+    setDynamicAds(updated);
+    onUpdateSiteSettings({ dynamicAds: updated });
+  };
+
+  const handleToggleSocialBar = () => {
+    const updated: DynamicAdSettings = {
+      ...dynamicAds,
+      socialBar: { ...dynamicAds.socialBar, enabled: !dynamicAds.socialBar.enabled }
+    };
+    setDynamicAds(updated);
+    onUpdateSiteSettings({ dynamicAds: updated });
+  };
+
+  const handleToggleNativeBanner = () => {
+    const updated: DynamicAdSettings = {
+      ...dynamicAds,
+      nativeBanner: { ...dynamicAds.nativeBanner, enabled: !dynamicAds.nativeBanner.enabled }
+    };
+    setDynamicAds(updated);
+    onUpdateSiteSettings({ dynamicAds: updated });
   };
 
   // Payment Done Action & Modal Handlers
@@ -1645,12 +1787,20 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 pt-1">
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
                         <button
                           onClick={() => setSelectedWriter(w)}
-                          className="flex-1 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-900 dark:text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1"
+                          className="flex-1 min-w-[70px] py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-900 dark:text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1"
                         >
                           <User className="w-3.5 h-3.5" /> প্রোফাইল
+                        </button>
+
+                        <button
+                          onClick={() => handleOpenEditWriterModal(w)}
+                          className="py-2 px-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1 shadow-sm"
+                          title="তথ্য এডিট ও পাসওয়ার্ড রিসেট করুন"
+                        >
+                          <Key className="w-3.5 h-3.5" /> এডিট/পাসওয়ার্ড
                         </button>
 
                         <button
@@ -1658,7 +1808,7 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                             setNotifTargetWriterId(w.id);
                             setActiveTab('notifications');
                           }}
-                          className="py-2 px-3 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-extrabold rounded-xl transition-colors flex items-center justify-center gap-1"
+                          className="py-2 px-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-extrabold rounded-xl transition-colors flex items-center justify-center gap-1"
                           title="লেখককে নোটিফিকেশন পাঠান"
                         >
                           <Bell className="w-3.5 h-3.5" /> বার্তা
@@ -1666,7 +1816,7 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
 
                         <button
                           onClick={() => handleToggleBanWriter(w.id)}
-                          className={`py-2 px-3 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1 ${
+                          className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1 ${
                             w.isBanned
                               ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                               : 'bg-red-600 text-white hover:bg-red-700'
@@ -2617,13 +2767,8 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                       </div>
                       <button
                         type="button"
-                        onClick={() =>
-                          setDynamicAds((prev) => ({
-                            ...prev,
-                            popunder: { ...prev.popunder, enabled: !prev.popunder.enabled }
-                          }))
-                        }
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        onClick={handleTogglePopunder}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                           dynamicAds.popunder.enabled
                             ? 'bg-emerald-600 text-white shadow'
                             : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
@@ -2705,13 +2850,8 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                       </div>
                       <button
                         type="button"
-                        onClick={() =>
-                          setDynamicAds((prev) => ({
-                            ...prev,
-                            socialBar: { ...prev.socialBar, enabled: !prev.socialBar.enabled }
-                          }))
-                        }
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        onClick={handleToggleSocialBar}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                           dynamicAds.socialBar.enabled
                             ? 'bg-emerald-600 text-white shadow'
                             : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
@@ -2857,13 +2997,8 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                       </div>
                       <button
                         type="button"
-                        onClick={() =>
-                          setDynamicAds((prev) => ({
-                            ...prev,
-                            nativeBanner: { ...prev.nativeBanner, enabled: !prev.nativeBanner.enabled }
-                          }))
-                        }
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        onClick={handleToggleNativeBanner}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                           dynamicAds.nativeBanner.enabled
                             ? 'bg-emerald-600 text-white shadow'
                             : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
@@ -4884,12 +5019,219 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
               </div>
             </div>
 
-            <button
-              onClick={() => setSelectedWriter(null)}
-              className="w-full py-2.5 bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white font-bold text-xs rounded-xl"
-            >
-              বন্ধ করুন
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const target = selectedWriter;
+                  setSelectedWriter(null);
+                  handleOpenEditWriterModal(target);
+                }}
+                className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Key className="w-4 h-4" />
+                <span>তথ্য এডিট ও পাসওয়ার্ড রিসেট</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedWriter(null)}
+                className="py-2.5 px-4 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                বন্ধ করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT WRITER PROFILE & RESET PASSWORD MODAL */}
+      {editingWriter && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 animate-fadeIn my-8">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-900 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                  <Key className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900 dark:text-white font-serif">
+                    প্রতিবেদক তথ্য এডিট ও পাসওয়ার্ড রিসেট
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    {editingWriter.name} ({editingWriter.email})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingWriter(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-full bg-slate-100 dark:bg-slate-800 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {editWriterSuccess && (
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-200 text-xs font-bold rounded-xl border border-emerald-300 dark:border-emerald-800 flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{editWriterSuccess}</span>
+              </div>
+            )}
+
+            {editWriterError && (
+              <div className="p-3 bg-red-50 dark:bg-red-950/70 text-red-800 dark:text-red-200 text-xs font-bold rounded-xl border border-red-300 dark:border-red-800 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                <span>{editWriterError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveWriterEdit} className="space-y-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    পূর্ণ নাম (Full Name) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editWriterName}
+                    onChange={(e) => setEditWriterName(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    ইমেইল (Email) *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={editWriterEmail}
+                    onChange={(e) => setEditWriterEmail(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    মোবাইল নম্বর (Mobile) *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={editWriterMobile}
+                    onChange={(e) => setEditWriterMobile(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    NID নম্বর (জাতীয় পরিচয়পত্র)
+                  </label>
+                  <input
+                    type="text"
+                    value={editWriterNid}
+                    onChange={(e) => setEditWriterNid(e.target.value)}
+                    placeholder="১০ বা ১৩ ডিজিটের NID"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    জেলা (District)
+                  </label>
+                  <input
+                    type="text"
+                    value={editWriterDistrict}
+                    onChange={(e) => setEditWriterDistrict(e.target.value)}
+                    placeholder="যেমন: ঢাকা"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    বয়স (Age)
+                  </label>
+                  <input
+                    type="number"
+                    min={18}
+                    value={editWriterAge}
+                    onChange={(e) => setEditWriterAge(e.target.value)}
+                    placeholder="যেমন: 25"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  বিস্তারিত ঠিকানা (Address)
+                </label>
+                <input
+                  type="text"
+                  value={editWriterAddress}
+                  onChange={(e) => setEditWriterAddress(e.target.value)}
+                  placeholder="গ্রাম/রোড, থানা, জেলা"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              {/* PASSWORD RESET SECTION */}
+              <div className="p-3.5 bg-amber-50/70 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-900 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-extrabold text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+                    <Key className="w-3.5 h-3.5 text-amber-600" />
+                    <span>পাসওয়ার্ড রিসেট ও পরিবর্তন (Password Reset)</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleGenerateRandomPassword}
+                    className="px-2.5 py-1 bg-amber-200 hover:bg-amber-300 dark:bg-amber-900 dark:hover:bg-amber-800 text-amber-900 dark:text-amber-100 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>অটো জেনারেট</span>
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={editWriterPassword}
+                  onChange={(e) => setEditWriterPassword(e.target.value)}
+                  placeholder="নতুন পাসওয়ার্ড লিখুন বা 'অটো জেনারেট' করুন..."
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-amber-300 dark:border-amber-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-mono font-bold tracking-wider"
+                />
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal">
+                  পাসওয়ার্ড পরিবর্তন করলে সেভ হওয়ার সাথে সাথে প্রতিবেদকের নোটিফিকেশনে নতুন পাসওয়ার্ড স্বয়ংক্রিয়ভাবে পৌঁছে যাবে।
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="submit"
+                  disabled={isSavingWriter}
+                  className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>{isSavingWriter ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ ও পাসওয়ার্ড রিসেট করুন'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEditingWriter(null)}
+                  className="py-3 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                >
+                  বাতিল
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

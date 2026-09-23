@@ -103,6 +103,13 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
   // Lock body scroll and handle Escape key while reading
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+
+    // Prevent layout shift if vertical scrollbar is present
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
     document.body.style.overflow = 'hidden';
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -114,6 +121,7 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
 
     return () => {
       document.body.style.overflow = originalOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [onClose]);
@@ -275,7 +283,11 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
       onScroll={handleScroll}
       onClick={onClose}
       className="fixed inset-0 z-50 overflow-y-auto bg-black/80 dark:bg-black/90 backdrop-blur-sm p-2 sm:p-4 md:p-6 flex justify-center items-start pt-3 sm:pt-6"
-      style={{ WebkitOverflowScrolling: 'touch' }}
+      style={{ 
+        WebkitOverflowScrolling: 'touch',
+        overscrollBehaviorY: 'contain',
+        touchAction: 'pan-y'
+      }}
     >
       <div 
         onClick={(e) => e.stopPropagation()}

@@ -50,8 +50,15 @@ export const SocialBarController: React.FC<{
   settings?: DynamicAdSettings['socialBar'];
 }> = ({ settings }) => {
   useEffect(() => {
-    const isEnabled = settings?.enabled ?? true;
-    if (!isEnabled) return;
+    const isEnabled = settings?.enabled === true;
+    if (!isEnabled) {
+      const old = document.getElementById('dynamic-social-bar-script');
+      if (old) old.remove();
+      try {
+        document.querySelectorAll('script[src*="profitableratecpmnetwork"], iframe[src*="profitableratecpmnetwork"], [id*="profitablerate"], [class*="profitablerate"]').forEach(el => el.remove());
+      } catch {}
+      return;
+    }
 
     const scriptUrl =
       settings?.scriptUrl ||
@@ -90,6 +97,9 @@ export const SocialBarController: React.FC<{
       clearInterval(intervalTimer);
       const old = document.getElementById('dynamic-social-bar-script');
       if (old) old.remove();
+      try {
+        document.querySelectorAll('script[src*="profitableratecpmnetwork"], iframe[src*="profitableratecpmnetwork"], [id*="profitablerate"], [class*="profitablerate"]').forEach(el => el.remove());
+      } catch {}
     };
   }, [settings?.enabled, settings?.scriptUrl, settings?.intervalSeconds]);
 
@@ -118,7 +128,10 @@ export const NativeBannerAd: React.FC<NativeBannerAdProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const scriptInjectedRef = useRef(false);
 
-  const isEnabled = settings?.enabled ?? true;
+  // If native banner is disabled globally, immediately return null
+  const isEnabled = settings?.enabled === true;
+  if (!isEnabled) return null;
+
   const hideDuringPost = settings?.hideDuringPostCreation ?? true;
 
   // Filter active custom banners for this panel

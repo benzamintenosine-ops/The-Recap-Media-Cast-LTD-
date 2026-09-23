@@ -198,18 +198,6 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
   const handleApproveReporter = async (writerId: string) => {
     if (!managerProfile) return;
 
-    const currentManagerRef = managerProfile.referralCode || '';
-    const myReportersCount = writers.filter(w =>
-      (w.managerId === managerProfile.id || w.referralCodeUsed === currentManagerRef) &&
-      (w.status === 'active' || !w.status)
-    ).length;
-
-    const maxLimit = managerProfile.maxReportersLimit || 10;
-    if (myReportersCount >= maxLimit) {
-      alert(`আপনার অধীনে ইতোমধ্যে সর্বোচ্চ ${maxLimit} জন সক্রিয় প্রতিবেদক রয়েছেন! নতুন সদস্য অনুমোদন করতে হলে পূর্বের কোনো প্রতিবেদক বাতিল বা সাময়িক স্থগিত করুন।`);
-      return;
-    }
-
     const updatedWriters = writers.map(w => {
       if (w.id === writerId) {
         return {
@@ -870,7 +858,7 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
           <Users className="w-3.5 h-3.5" />
           <span>প্রতিবেদকবৃন্দ</span>
           <span className="px-1.5 py-0.2 bg-white/20 rounded-full text-[10px] font-mono">
-            {writers.filter(w => (w.managerId === managerProfile?.id || w.referralCodeUsed === managerProfile?.referralCode) && w.status !== 'pending').length} / {managerProfile?.maxReportersLimit || 10}
+            {writers.filter(w => (w.managerId === managerProfile?.id || w.referralCodeUsed === managerProfile?.referralCode) && w.status !== 'pending').length} জন (স্বতন্ত্র)
           </span>
         </button>
 
@@ -1069,9 +1057,9 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
               </p>
             </div>
             <div className="p-3 bg-indigo-50 dark:bg-indigo-950/60 rounded-2xl border border-indigo-200 dark:border-indigo-900 text-center">
-              <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400 block">বর্তমান কোটা সীমা</span>
+              <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400 block">প্রতিবেদক সংখ্যা</span>
               <span className="text-lg font-black text-indigo-900 dark:text-indigo-200 font-mono">
-                {writers.filter(w => (w.managerId === managerProfile?.id || w.referralCodeUsed === managerProfile?.referralCode) && w.status === 'active').length} / {managerProfile?.maxReportersLimit || 10} জন
+                {writers.filter(w => (w.managerId === managerProfile?.id || w.referralCodeUsed === managerProfile?.referralCode) && w.status === 'active').length} জন (স্বতন্ত্র / কোনো সীমা নেই)
               </span>
             </div>
           </div>
@@ -1127,10 +1115,10 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="p-5 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-2xl border border-indigo-200 dark:border-indigo-900 space-y-2">
               <h3 className="text-sm font-bold text-indigo-900 dark:text-indigo-300 flex items-center gap-2 font-serif">
-                👥 ১. প্রতিবেদক ধারণ ক্ষমতা (সর্বোচ্চ ১০ জন)
+                👥 ১. স্বতন্ত্র প্রতিবেদক পরিচালনা (কোনো সীমা নেই)
               </h3>
               <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                একজন ম্যানেজারের অধীনে <strong>সর্বোচ্চ ১০ জন সক্রিয় প্রতিবেদক</strong> পরিচালনা করা যাবে। কোনো নতুন প্রতিবেদককে যুক্ত করতে চাইলে পূর্বের নিষ্ক্রিয় সদস্যকে বাতিল বা সাময়িক স্থগিত করতে হবে।
+                প্রতিবেদক সম্পূর্ণ স্বাধীন ও স্বতন্ত্র। ম্যানেজারের অধীনে প্রতিবেদক সংখ্যার কোনো নির্দিষ্ট ১০ জনের সীমা বা কৃত্রিম সীমাবদ্ধতা নেই। যেকোনো সংখ্যক প্রতিবেদক স্বাচ্ছন্দ্যে পরিচালনা ও অনুমোদন করা যাবে।
               </p>
             </div>
 
@@ -1850,9 +1838,9 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
               </div>
 
               <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-800">
-                <span className="text-[11px] font-bold text-slate-400 block mb-1">👥 নিবন্ধিত প্রতিবেদক সীমা</span>
+                <span className="text-[11px] font-bold text-slate-400 block mb-1">👥 নিবন্ধিত প্রতিবেদক</span>
                 <p className="font-bold text-indigo-600 dark:text-indigo-400 font-mono text-sm">
-                  সর্বোচ্চ {managerProfile?.maxReportersLimit || 10} জন (বর্তমানে {writers.filter(w => (w.managerId === managerProfile?.id || (managerProfile?.referralCode && w.referralCodeUsed === managerProfile.referralCode)) && w.status === 'approved').length} জন সক্রিয়)
+                  স্বতন্ত্র ও সীমাহীন (বর্তমানে {writers.filter(w => (w.managerId === managerProfile?.id || (managerProfile?.referralCode && w.referralCodeUsed === managerProfile.referralCode)) && (w.status === 'active' || w.status === 'approved')).length} জন সক্রিয়)
                 </p>
               </div>
 

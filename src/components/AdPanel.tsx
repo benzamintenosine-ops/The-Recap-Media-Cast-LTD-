@@ -69,67 +69,9 @@ export const AdPanel: React.FC<AdPanelProps> = ({ ad, ads, siteSettings, placeme
     setCurrentIndex((prev) => (prev + 1) % activeAds.length);
   };
 
-  // Render Placeholder when no ads exist for this placement
+  // If no active ads exist for this placement, render nothing
   if (activeAds.length === 0) {
-    if (placement === 'header_top') {
-      return (
-        <div className="max-w-7xl mx-auto my-3 px-2 sm:px-0">
-          <div className="w-full h-16 sm:h-24 bg-black border border-zinc-800 rounded-2xl flex items-center justify-between px-6 text-white text-xs shadow-md">
-            <div className="flex items-center gap-2.5 font-medium">
-              <span className="bg-zinc-900 border border-white/20 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider flex items-center gap-1">
-                <Megaphone className="w-3 h-3 text-white" /> ব্যানার উইজেট (HEADER TOP)
-              </span>
-              <span className="hidden sm:inline font-sans text-xs text-white">
-                বিজ্ঞাপন দিন • The Recap Media Cast LTD ডিজিটাল ব্যানার স্পেস
-              </span>
-            </div>
-            <a
-              href="mailto:news@therecapmedia.com"
-              className="bg-white text-black font-bold px-3 py-1.5 rounded-xl hover:bg-zinc-200 uppercase text-[11px] tracking-wider transition-colors"
-            >
-              বিজ্ঞাপন দিন &rarr;
-            </a>
-          </div>
-        </div>
-      );
-    }
-
-    if (placement === 'sidebar') {
-      return (
-        <div className="bg-black text-white rounded-2xl p-5 border border-zinc-800 text-center space-y-3 shadow-md">
-          <div className="flex items-center justify-center gap-1.5">
-            <span className="bg-zinc-900 border border-white/20 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider">
-              উইজেট: SIDEBAR AD
-            </span>
-          </div>
-          <p className="text-xs text-white font-medium leading-relaxed">
-            আপনার ব্র্যান্ডের প্রচার পৌঁছাক লাখো পাঠকের কাছে।
-          </p>
-          <div className="aspect-[4/3] bg-zinc-900 text-white rounded-xl flex flex-col items-center justify-center text-xs font-mono p-4 border border-zinc-800">
-            <Megaphone className="w-6 h-6 text-white mb-1" />
-            <span className="text-white font-bold">300x250 Banner Area</span>
-            <span className="text-[10px] text-zinc-400 mt-1">Sidebar Ad Widget</span>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="my-6 p-4 bg-black text-white rounded-2xl border border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs shadow-md">
-        <div className="flex items-center gap-2">
-          <Tag className="w-4 h-4 text-white" />
-          <span className="font-semibold text-white">
-            স্পন্সর বিজ্ঞাপন স্পেস (In-Article Sponsor Area)
-          </span>
-        </div>
-        <a
-          href="mailto:news@therecapmedia.com"
-          className="px-3.5 py-1.5 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-colors uppercase text-[11px]"
-        >
-          বিজ্ঞাপন দিন
-        </a>
-      </div>
-    );
+    return null;
   }
 
   const currentAd = activeAds[currentIndex] || activeAds[0];

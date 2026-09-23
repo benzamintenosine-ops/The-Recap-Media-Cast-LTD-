@@ -152,7 +152,7 @@ export default function App() {
         socialWidgets: (parsed.socialWidgets && Array.isArray(parsed.socialWidgets) && parsed.socialWidgets.length > 0)
           ? parsed.socialWidgets
           : DEFAULT_SOCIAL_WIDGETS,
-        adBanners: (parsed.adBanners && Array.isArray(parsed.adBanners) && parsed.adBanners.length > 0)
+        adBanners: (parsed.adBanners && Array.isArray(parsed.adBanners))
           ? parsed.adBanners
           : DEFAULT_SITE_SETTINGS.adBanners
       };
