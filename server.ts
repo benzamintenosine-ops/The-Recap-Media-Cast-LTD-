@@ -328,7 +328,7 @@ app.get("/api/news", (req, res) => {
 app.post("/api/news", (req, res) => {
   const article: NewsArticle = {
     ...req.body,
-    id: `news-${Date.now()}`,
+    id: req.body.id || `news-${Date.now()}`,
     publishedAt: req.body.publishedAt || new Date().toISOString(),
     viewsCount: req.body.viewsCount || 0,
     comments: req.body.comments || [],

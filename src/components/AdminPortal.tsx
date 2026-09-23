@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   BarChart3, 
   PenTool, 
@@ -89,6 +89,41 @@ const CATEGORIES: Category[] = [
   'জীবনযাপন'
 ];
 
+/**
+ * Strict Authorship Validator:
+ * Ensures an article is only attributed to, viewed by, edited by, or deleted by
+ * its authentic creator reporter. No other reporter can view or edit this article.
+ */
+export const isReporterArticle = (art: NewsArticle, profile: WriterProfile | null): boolean => {
+  if (!profile || !art) return false;
+  
+  // 1. Strict authorId match if both exist
+  if (art.authorId && profile.id) {
+    return art.authorId === profile.id;
+  }
+  
+  // 2. Strict authorEmail match if both exist
+  if (art.authorEmail && profile.email) {
+    return art.authorEmail.trim().toLowerCase() === profile.email.trim().toLowerCase();
+  }
+  
+  // 3. Security Boundary: If art has an explicit authorId that belongs to another writer, do NOT match
+  if (art.authorId && profile.id && art.authorId !== profile.id) {
+    return false;
+  }
+  
+  // 4. Fallback for legacy articles that lack both authorId and authorEmail
+  if (!art.authorId && !art.authorEmail && profile.name) {
+    const artAuthor = (art.author || '').trim().toLowerCase();
+    const profName = profile.name.trim().toLowerCase();
+    if (!artAuthor || !profName) return false;
+    if (artAuthor === profName) return true;
+    if (artAuthor.startsWith(profName + ' (') || artAuthor.startsWith(profName + ' -')) return true;
+  }
+  
+  return false;
+};
+
 export const AdminPortal: React.FC<WritersPortalProps> = ({
   articles,
   onAddArticle,
@@ -121,6 +156,12 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     const saved = localStorage.getItem('recap_writer_profile');
     return saved ? JSON.parse(saved) : null;
   });
+
+  // Strictly isolate the currently logged-in reporter's own articles
+  const myArticles = useMemo(() => {
+    if (!writerProfile) return [];
+    return articles.filter(art => isReporterArticle(art, writerProfile));
+  }, [articles, writerProfile]);
 
   // Email Verification Flow State
   const [isEmailVerified, setIsEmailVerified] = useState<boolean>(false);
@@ -252,20 +293,19 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
   const DAILY_POST_LIMIT = 10;
 
   const getTodayPostsCount = () => {
-    if (!writerProfile?.name) return 0;
+    if (!writerProfile) return 0;
     const todayStr = new Date().toISOString().split('T')[0];
-    const writerNameLower = writerProfile.name.trim().toLowerCase();
+    const writerKey = (writerProfile.id || writerProfile.email || writerProfile.name || 'writer').trim().toLowerCase();
     
-    // Count from live articles list
-    const fromArticles = articles.filter(a => {
+    // Count from live isolated articles list for this reporter
+    const fromArticles = myArticles.filter(a => {
       if (!a.publishedAt) return false;
       const artDate = a.publishedAt.split('T')[0];
-      const artAuthor = (a.author || '').toLowerCase();
-      return artDate === todayStr && artAuthor.includes(writerNameLower);
+      return artDate === todayStr;
     }).length;
 
     try {
-      const stored = parseInt(localStorage.getItem(`recap_daily_posts_${writerNameLower}_${todayStr}`) || '0', 10);
+      const stored = parseInt(localStorage.getItem(`recap_daily_posts_${writerKey}_${todayStr}`) || '0', 10);
       return Math.max(fromArticles, stored);
     } catch {
       return fromArticles;
@@ -291,7 +331,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     totalViews: 14890,
     todayReaders: 4120,
     activeVisitors: 158,
-    totalArticles: articles.length,
+    totalArticles: myArticles.length,
     totalComments: 45,
     categoryDistribution: [],
     hourlyTraffic: [
@@ -886,8 +926,12 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     setCreateStep(2);
   };
 
-  // Start Editing an existing article
+  // Start Editing an existing article (Strictly author-protected)
   const handleStartEditArticle = (art: NewsArticle) => {
+    if (!isReporterArticle(art, writerProfile)) {
+      alert('অননুমোদিত চেষ্টা! আপনি শুধুমাত্র আপনার নিজের প্রকাশিত সংবাদ সম্পাদনা করতে পারবেন।');
+      return;
+    }
     setEditingArticleId(art.id);
     setPostTitle(art.title);
     setPostSummary(art.summary || '');
@@ -902,6 +946,18 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     setActiveTab('create');
     setCreateStep(1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Delete an article (Strictly author-protected)
+  const handleDeleteArticle = (art: NewsArticle) => {
+    if (!isReporterArticle(art, writerProfile)) {
+      alert('অননুমোদিত চেষ্টা! আপনি অন্য কোনো প্রতিবেদকের সংবাদ মুছে ফেলতে পারবেন না।');
+      return;
+    }
+    const confirmed = window.confirm(`আপনি কি নিশ্চিত যে "${art.title}" সংবাদটি সম্পূর্ণ মুছে ফেলতে চান?`);
+    if (confirmed) {
+      onDeleteArticle(art.id);
+    }
   };
 
   // Cancel Editing
@@ -997,6 +1053,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       isBreaking,
       author: authorName,
       authorId: writerProfile?.id || undefined,
+      authorEmail: writerProfile?.email || undefined,
       authorAvatar: writerProfile?.avatarUrl || undefined,
       authorDistrict: reporterDistrict || undefined,
       publishedAt: new Date().toISOString(),
@@ -1020,10 +1077,25 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     }
 
     if (editingArticleId) {
+      const existingArt = articles.find(a => a.id === editingArticleId);
+      if (existingArt && !isReporterArticle(existingArt, writerProfile)) {
+        setEditorError('অননুমোদিত চেষ্টা! আপনি অন্য কোনো প্রতিবেদকের সংবাদ সম্পাদনা বা পরিবর্তন করতে পারবেন না।');
+        return;
+      }
+      const updatedPayload: Partial<NewsArticle> = {
+        ...articlePayload,
+        authorId: existingArt?.authorId || writerProfile?.id || undefined,
+        authorEmail: existingArt?.authorEmail || writerProfile?.email || undefined,
+        authorAvatar: existingArt?.authorAvatar || writerProfile?.avatarUrl || undefined,
+        authorDistrict: existingArt?.authorDistrict || reporterDistrict || undefined,
+        publishedAt: existingArt?.publishedAt || new Date().toISOString(),
+        viewsCount: existingArt?.viewsCount || 0,
+        comments: existingArt?.comments || [],
+      };
       if (onUpdateArticle) {
-        onUpdateArticle(editingArticleId, articlePayload);
+        onUpdateArticle(editingArticleId, updatedPayload);
       } else {
-        onAddArticle({ ...articlePayload, id: editingArticleId });
+        onAddArticle({ ...updatedPayload, id: editingArticleId });
       }
       setPostSuccessMessage('সংবাদটি সফলভাবে আপডেট / সংশোধিত হয়েছে!');
     } else {
@@ -1031,8 +1103,8 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       // Update today's post quota counter
       try {
         const todayStr = new Date().toISOString().split('T')[0];
-        const writerNameLower = (writerProfile?.name || 'writer').trim().toLowerCase();
-        localStorage.setItem(`recap_daily_posts_${writerNameLower}_${todayStr}`, (currentTodayCount + 1).toString());
+        const writerKey = (writerProfile?.id || writerProfile?.email || writerProfile?.name || 'writer').trim().toLowerCase();
+        localStorage.setItem(`recap_daily_posts_${writerKey}_${todayStr}`, (currentTodayCount + 1).toString());
       } catch {}
       setPostSuccessMessage('সংবাদ পোস্টটি সফলভাবে লাইভ প্রকাশিত হয়েছে!');
     }
@@ -1721,7 +1793,7 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
               : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <FileText className="w-3.5 h-3.5" /> সংবাদ তালিকা ({articles.length})
+          <FileText className="w-3.5 h-3.5" /> আমার সংবাদ ({myArticles.length})
         </button>
 
         <button
@@ -2418,13 +2490,6 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
       {/* TAB 2: Real-Time Writer-Specific Analytics */}
       {activeTab === 'analytics' && (() => {
-        const myArticles = articles.filter(art => {
-          if (!writerProfile?.name) return false;
-          const authorLower = (art.author || '').toLowerCase();
-          const writerNameLower = writerProfile.name.toLowerCase();
-          return authorLower.includes(writerNameLower);
-        });
-
         const myTotalViews = myArticles.reduce((acc, a) => acc + (a.viewsCount || 0), 0);
         const myTotalComments = myArticles.reduce((acc, a) => acc + (a.comments?.length || 0), 0);
         const myEstimatedReach = Math.round(myTotalViews * 1.42) + (myArticles.length * 85);
@@ -2572,62 +2637,104 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
         );
       })()}
 
-      {/* TAB 3: Manage Posts */}
+      {/* TAB 3: Manage Posts - STRICTLY FOR LOGGED-IN REPORTER'S OWN POSTS */}
       {activeTab === 'manage' && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3">
-            প্রকাশিত সকল সংবাদ নিবন্ধ তালিকা ({articles.length})
-          </h3>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 font-serif">
+                <FileText className="w-5 h-5 text-red-600" />
+                আমার প্রকাশিত সংবাদ তালিকা ({myArticles.length})
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                শুধুমাত্র আপনার নিজস্ব অ্যাকাউন্ট থেকে প্রকাশিত সংবাদসমূহ এখানে সংরক্ষিত ও নিয়ন্ত্রণযোগ্য।
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setActiveTab('create');
+                setCreateStep(1);
+                handleCancelEdit();
+              }}
+              className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shrink-0 self-start sm:self-center cursor-pointer shadow-xs"
+            >
+              <Plus className="w-4 h-4" /> নতুন সংবাদ লিখুন
+            </button>
+          </div>
 
-          <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {articles.map((art) => (
-              <div key={art.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={art.imageUrl}
-                    alt={art.title}
-                    referrerPolicy="no-referrer"
-                    className="w-14 h-14 rounded-xl object-cover shrink-0"
-                  />
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
-                      {art.title}
-                    </h4>
-                    <span className="text-[10px] text-slate-400 mt-1 block">
-                      {art.category} • {art.author || 'THE RECAP MEDIA'} • {new Date(art.publishedAt).toLocaleDateString('bn-BD')}
-                    </span>
+          {myArticles.length === 0 ? (
+            <div className="py-12 text-center space-y-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+              <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-500 flex items-center justify-center mx-auto">
+                <FileText className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  আপনার অ্যাকাউন্টে এখনও কোনো সংবাদ প্রকাশিত হয়নি
+                </h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  আপনার প্রকাশিত সকল সংবাদ নিবন্ধ শুধুমাত্র আপনার নিজস্ব অ্যাকাউন্টের এই তালিকায় সংরক্ষিত থাকবে এবং আপনি নিজেই তা নিয়ন্ত্রণ করতে পারবেন।
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('create');
+                  setCreateStep(1);
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer"
+              >
+                <Plus className="w-4 h-4" /> প্রথম সংবাদ পোস্ট করুন
+              </button>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              {myArticles.map((art) => (
+                <div key={art.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 px-3 rounded-xl transition-colors">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={art.imageUrl}
+                      alt={art.title}
+                      referrerPolicy="no-referrer"
+                      className="w-14 h-14 rounded-xl object-cover shrink-0 border border-slate-200 dark:border-slate-700"
+                    />
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
+                        {art.title}
+                      </h4>
+                      <span className="text-[10px] text-slate-400 mt-1 block">
+                        বিভাগ: <span className="font-semibold text-red-600 dark:text-red-400">{art.category}</span> • {new Date(art.publishedAt).toLocaleDateString('bn-BD')} • {art.viewsCount || 0} ভিউ
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                    <button
+                      type="button"
+                      onClick={() => handleStartEditArticle(art)}
+                      className="px-3 py-1.5 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-xs font-bold rounded-xl hover:bg-amber-200 transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" /> সম্পাদনা
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteArticle(art)}
+                      className="px-3 py-1.5 bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 text-xs font-bold rounded-xl hover:bg-red-200 transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> মুছে ফেলুন
+                    </button>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                  <button
-                    type="button"
-                    onClick={() => handleStartEditArticle(art)}
-                    className="px-3 py-1.5 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-xs font-bold rounded-xl hover:bg-amber-200 transition-colors flex items-center gap-1 cursor-pointer"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" /> সম্পাদনা
-                  </button>
-                  <button
-                    onClick={() => onDeleteArticle(art.id)}
-                    className="px-3 py-1.5 bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 text-xs font-bold rounded-xl hover:bg-red-200 transition-colors flex items-center gap-1 cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" /> মুছে ফেলুন
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
       {/* TAB: WITHDRAW MONEY */}
       {activeTab === 'withdraw' && (() => {
-        const myArticles = articles.filter(art => {
-          if (!writerProfile?.name) return false;
-          return (art.author || '').toLowerCase().includes(writerProfile.name.toLowerCase());
-        });
         const myTotalViews = myArticles.reduce((acc, a) => acc + (a.viewsCount || 0), 0);
-        const myTotalEarnings = Math.floor(myTotalViews / 130);
+        const myReportedWidgetViews = myTotalViews >= 50 ? Math.round(myTotalViews * 0.7) : myTotalViews;
+        const myTotalEarnings = Math.floor(myReportedWidgetViews / 257);
         
         const myWriterWithdrawals = withdrawals.filter(w => w.writerId === writerProfile?.id);
         const totalWithdrawn = myWriterWithdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
@@ -2852,10 +2959,6 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
 
       {/* MODAL 1: WITHDRAW WINDOW MODAL (FOR SELECTING GATEWAY & PHONE NUMBER) */}
       {showWithdrawModal && (() => {
-        const myArticles = articles.filter(art => {
-          if (!writerProfile?.name) return false;
-          return (art.author || '').toLowerCase().includes(writerProfile.name.toLowerCase());
-        });
         const myTotalViews = myArticles.reduce((acc, a) => acc + (a.viewsCount || 0), 0);
         const myReportedWidgetViews = myTotalViews >= 50 ? Math.round(myTotalViews * 0.7) : myTotalViews;
         const myTotalEarnings = Math.floor(myReportedWidgetViews / 257);

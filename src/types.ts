@@ -46,6 +46,7 @@ export interface NewsArticle {
   hasVideo?: boolean;
   author: string;
   authorId?: string;
+  authorEmail?: string;
   authorAvatar?: string;
   authorDistrict?: string;
   source?: string; // তথ্যসূত্র / Reference source

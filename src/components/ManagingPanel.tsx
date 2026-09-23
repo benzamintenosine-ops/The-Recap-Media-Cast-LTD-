@@ -1197,7 +1197,7 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {filteredWriters.map((writer) => {
-                const writerArticles = articles.filter((a) => a.author === writer.name);
+                const writerArticles = articles.filter((a) => (a.authorId && a.authorId === writer.id) || a.author === writer.name || (writer.name && (a.author || '').startsWith(writer.name)));
                 return (
                   <div
                     key={writer.id}

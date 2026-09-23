@@ -1602,7 +1602,7 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                     );
                   })
                   .map((w) => {
-                  const writerArticlesCount = articles.filter(a => a.author === w.name).length;
+                  const writerArticlesCount = articles.filter(a => (a.authorId && a.authorId === w.id) || a.author === w.name || (w.name && (a.author || '').startsWith(w.name))).length;
                   return (
                     <div
                       key={w.id}
