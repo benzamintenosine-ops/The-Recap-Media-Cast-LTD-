@@ -714,6 +714,11 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
     const adminPanelCode1 = (siteSettings?.systemAdminSecretCode || 'ADMIN2026').trim().toUpperCase();
     const adminPanelCode2 = (siteSettings?.adminSecretCode || 'ADMIN-RECAP-9824').trim().toUpperCase();
 
+    const matchedManager = managers?.find(m => 
+      (m.referralCode && m.referralCode.trim().toUpperCase() === entered) || 
+      (m.secretCodeUsed && m.secretCodeUsed.trim().toUpperCase() === entered)
+    );
+
     // Check if code belongs to another panel (Manager or Admin)
     if (
       entered === managerPanelCode1 ||
@@ -722,19 +727,10 @@ export const AdminPortal: React.FC<WritersPortalProps> = ({
       entered === adminPanelCode1 ||
       entered === adminPanelCode2 ||
       entered === 'ADMIN2026' ||
-      entered === 'ADMIN-RECAP-9824'
+      entered === 'ADMIN-RECAP-9824' ||
+      (entered !== targetCode && entered !== 'RECAP2026' && !matchedManager)
     ) {
-      setReferralSecretError('এই কোডটি অন্য প্যানেলের (ম্যানেজার বা অ্যাডমিন প্যানেলের)! এক প্যানেলের জন্য নির্ধারিত রেফার কোড দিয়ে অন্য প্যানেলে সাইন-আপ করা সম্পূর্ণ নিষিদ্ধ। আপনার ম্যানেজারের নিজস্ব রেফার কোড ব্যবহার করুন।');
-      return;
-    }
-
-    const matchedManager = managers?.find(m => 
-      (m.referralCode && m.referralCode.trim().toUpperCase() === entered) || 
-      (m.secretCodeUsed && m.secretCodeUsed.trim().toUpperCase() === entered)
-    );
-
-    if (entered !== targetCode && entered !== 'RECAP2026' && !matchedManager) {
-      setReferralSecretError('ভুল গোপন রেফার কোড! এক প্যানেলের জন্য নির্ধারিত কোড অন্য প্যানেলে গ্রহণযোগ্য নয়। আপনার ম্যানেজারের নিকট থেকে সঠিক রেফার কোড সংগ্রহ করুন।');
+      setReferralSecretError('ভুল রেফার কোড! আপনার ম্যানেজারের নিকট থেকে সঠিক রেফার কোড সংগ্রহ করুন অথবা রেফার কোড ছাড়াই সরাসরি রেজিস্ট্রেশন সম্পন্ন করুন।');
       return;
     }
 

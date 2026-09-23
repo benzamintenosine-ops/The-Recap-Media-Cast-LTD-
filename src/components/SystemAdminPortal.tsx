@@ -691,31 +691,15 @@ export const SystemAdminPortal: React.FC<SystemAdminPortalProps> = ({
     const managingCode2 = (siteSettings.managerSecretCode || 'MGR-RECAP-2026').trim().toUpperCase();
     const writerCode = (siteSettings.writerSecretCode || 'RECAP2026').trim().toUpperCase();
 
-    // Check if user entered code meant for another panel (Manager or Reporter)
-    const isManagingCode = 
-      enteredSecret === managingCode1 || 
-      enteredSecret === managingCode2 || 
-      enteredSecret === 'MGR-RECAP-2026' ||
-      enteredSecret === 'MANAGING2026';
+    const isValidAdminSecret = 
+      enteredSecret === currentSecret1 || 
+      enteredSecret === currentSecret2 || 
+      enteredSecret === 'ADMIN-RECAP-2026' || 
+      enteredSecret === 'ADMIN-RECAP-9824' || 
+      enteredSecret === 'ADMIN2026';
 
-    const isReporterCode = 
-      enteredSecret === writerCode || 
-      enteredSecret === 'RECAP2026' || 
-      Boolean(managers && managers.some(m => (m.referralCode && m.referralCode.trim().toUpperCase() === enteredSecret) || (m.secretCodeUsed && m.secretCodeUsed.trim().toUpperCase() === enteredSecret)));
-
-    if (isManagingCode || isReporterCode) {
-      setAuthError('এই কোডটি অন্য প্যানেলের (ম্যানেজার বা প্রতিবেদক প্যানেলের)! এক প্যানেলের জন্য নির্ধারিত রেফার কোড দিয়ে অন্য প্যানেলে সাইন-আপ করা সম্পূর্ণ নিষিদ্ধ। অনুগ্রহ করে অ্যাডমিন প্যানেলের নিজস্ব সিক্রেট কোড ব্যবহার করুন।');
-      return;
-    }
-
-    if (
-      enteredSecret !== currentSecret1 && 
-      enteredSecret !== currentSecret2 && 
-      enteredSecret !== 'ADMIN-RECAP-2026' && 
-      enteredSecret !== 'ADMIN-RECAP-9824' && 
-      enteredSecret !== 'ADMIN2026'
-    ) {
-      setAuthError('ভুল অ্যাডমিন সিক্রেট কোড! এক প্যানেলের জন্য নির্ধারিত রেফার কোড দিয়ে অন্য প্যানেলে সাইন-আপ করা যাবে না। অ্যাডমিন প্যানেলের সঠিক সিক্রেট কোড (ADMIN-RECAP-2026) প্রদান করুন।');
+    if (!isValidAdminSecret) {
+      setAuthError('ভুল অ্যাডমিন সিক্রেট কোড! অনুগ্রহ করে সিস্টেম অ্যাডমিন প্যানেলের সঠিক সিক্রেট কোড প্রদান করুন।');
       return;
     }
 
@@ -1639,7 +1623,7 @@ ${paymentModalReq.paymentMethod} এর মাধ্যমে আপনার �
                   এখনো পর্যন্ত কোনো ম্যানেজার নিবন্ধিত হয়নি।
                 </p>
                 <p className="text-xs text-slate-400">
-                  ম্যানেজিং রেফার কোড (বর্তমান: <code className="font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-blue-600 font-bold">{siteSettings.managingSecretCode || 'MGR-RECAP-2026'}</code>) দিয়ে সাইনআপ করলে ম্যানেজার তালিকা এখানে দেখা যাবে।
+                  ম্যানেজিং প্যানেল থেকে নতুন ম্যানেজার নিবন্ধিত হলে তাদের তালিকা এখানে দেখা যাবে।
                 </p>
               </div>
             ) : (

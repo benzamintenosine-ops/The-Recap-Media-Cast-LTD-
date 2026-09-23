@@ -141,19 +141,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     const managingCode1 = (siteSettings?.managingSecretCode || 'MGR-RECAP-2026').trim().toUpperCase();
     const managingCode2 = (siteSettings?.managerSecretCode || 'MGR-RECAP-2026').trim().toUpperCase();
 
-    if (
-      enteredSecret &&
-      (enteredSecret === adminCode1 ||
-       enteredSecret === adminCode2 ||
-       enteredSecret === 'ADMIN-RECAP-2026' ||
-       enteredSecret === 'ADMIN2026' ||
-       enteredSecret === 'ADMIN-RECAP-9824' ||
-       enteredSecret === managingCode1 ||
-       enteredSecret === managingCode2 ||
-       enteredSecret === 'MGR-RECAP-2026' ||
-       enteredSecret === 'MANAGING2026')
-    ) {
-      setAuthError('এই কোডটি অন্য প্যানেলের (ম্যানেজার বা অ্যাডমিন প্যানেলের)! এক প্যানেলের জন্য নির্ধারিত রেফার কোড দিয়ে অন্য প্যানেলে সাইন-আপ করা সম্পূর্ণ নিষিদ্ধ। পাঠক হিসেবে আপনি কোনো কোড ছাড়াই সরাসরি সাইন-আপ সম্পন্ন করতে পারবেন।');
+    if (enteredSecret) {
+      setAuthError('পাঠক হিসেবে সাইন-আপ করতে কোনো রেফার বা সিক্রেট কোডের প্রয়োজন নেই। কোড ফিল্ডটি ফাঁকা রেখে সরাসরি সাইন-আপ সম্পন্ন করুন।');
       return;
     }
 

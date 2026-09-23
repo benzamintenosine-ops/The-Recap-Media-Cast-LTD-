@@ -365,31 +365,14 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
     const adminCode2 = (siteSettings.systemAdminSecretCode || 'ADMIN-RECAP-2026').trim().toUpperCase();
     const writerCode = (siteSettings.writerSecretCode || 'RECAP2026').trim().toUpperCase();
 
-    // Check if the code belongs to another panel (Writer/Reporter or Admin)
-    const isReporterCode = 
-      enteredSecret === writerCode || 
-      enteredSecret === 'RECAP2026' || 
-      Boolean(managers && managers.some(m => (m.referralCode && m.referralCode.trim().toUpperCase() === enteredSecret) || (m.secretCodeUsed && m.secretCodeUsed.trim().toUpperCase() === enteredSecret)));
+    const isValidManagerSecret = 
+      enteredSecret === targetSecret1 || 
+      enteredSecret === targetSecret2 || 
+      enteredSecret === 'MGR-RECAP-2026' || 
+      enteredSecret === 'MANAGING2026';
 
-    const isAdminCode = 
-      enteredSecret === adminCode1 || 
-      enteredSecret === adminCode2 || 
-      enteredSecret === 'ADMIN-RECAP-2026' ||
-      enteredSecret === 'ADMIN-RECAP-9824' || 
-      enteredSecret === 'ADMIN2026';
-
-    if (isReporterCode || isAdminCode) {
-      setAuthError('এই কোডটি অন্য প্যানেলের (প্রতিবেদক বা অ্যাডমিন প্যানেলের)! এক প্যানেলের জন্য নির্ধারিত রেফার কোড দিয়ে অন্য প্যানেলে সাইন-আপ করা সম্পূর্ণ নিষিদ্ধ। অনুগ্রহ করে ম্যানেজার প্যানেলের নির্ধারিত সিক্রেট কোড ব্যবহার করুন।');
-      return;
-    }
-
-    if (
-      enteredSecret !== targetSecret1 && 
-      enteredSecret !== targetSecret2 && 
-      enteredSecret !== 'MGR-RECAP-2026' && 
-      enteredSecret !== 'MANAGING2026'
-    ) {
-      setAuthError('ভুল সিক্রেট কোড! এক প্যানেলের জন্য নির্ধারিত রেফার কোড দিয়ে অন্য প্যানেলে সাইন-আপ করা যাবে না। ম্যানেজার প্যানেলের সঠিক সিক্রেট কোড (MGR-RECAP-2026) প্রদান করুন।');
+    if (!isValidManagerSecret) {
+      setAuthError('ভুল সিক্রেট কোড! অনুগ্রহ করে ব্যবস্থাপনা প্যানেলের জন্য কর্তৃপক্ষ প্রদত্ত সঠিক সিক্রেট কোড প্রদান করুন।');
       return;
     }
 
@@ -1081,7 +1064,7 @@ export const ManagingPanel: React.FC<ManagingPanelProps> = ({
                 required
                 value={myRefCodeInput}
                 onChange={(e) => setMyRefCodeInput(e.target.value)}
-                placeholder="যেমন: MGR-RECAP-2026"
+                placeholder="যেমন: MGR-TEAM-01"
                 className="w-full px-4 py-3 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold uppercase tracking-wider focus:ring-2 focus:ring-indigo-500"
               />
               <p className="text-[11px] text-slate-500 mt-1">
